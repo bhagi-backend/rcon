@@ -1768,8 +1768,8 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
   };
 
   // ✅ Hardcoded localhost for file paths
-  const baseUrl = `http://localhost:4500`;
-
+  const baseUrl = `http://15.206.212.111:4500`;
+//console.log("baseUrl")
   const updatedGroupedData = requests.map((item) => {
     const fullPdfPath = item.pdfDrawingFileName
       ? item.pdfDrawingFileName.startsWith("http")
@@ -1806,7 +1806,7 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
     role: first?.drawingId?.designDrawingConsultant?.role || "",
     department: first?.createdBy?.department || "",
   };
-  console.log("userInfo", userInfo);
+  //console.log("userInfo", userInfo);
   try {
     const html = await ejs.renderFile(templatePath, {
       dataGroupedByDrawing: updatedGroupedData,

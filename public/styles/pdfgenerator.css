@@ -1,0 +1,30 @@
+body {
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  margin: 20px;
+  background-color: green;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+th, td {
+  border: 1px solid #444;
+  padding: 8px;
+  text-align: left;
+  color: yellow;
+}
+
+th {
+  background-color: red;
+}

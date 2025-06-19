@@ -1768,7 +1768,7 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
   };
 
   // ✅ Hardcoded localhost for file paths
- const baseUrl = `http://15.206.212.111:4500`;
+ const baseUrl = `http://13.204.94.237:4500`;
   //  const baseUrl = `http://localhost:4500`;
 //console.log("baseUrl")
   const updatedGroupedData = requests.map((item) => {

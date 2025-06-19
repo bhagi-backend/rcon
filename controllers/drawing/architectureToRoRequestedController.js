@@ -1768,8 +1768,8 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
   };
 
   // ✅ Hardcoded localhost for file paths
- const baseUrl = `http://15.206.212.111:4500`;
-   // const baseUrl = `http://localhost:4500`;
+ //const baseUrl = `http://15.206.212.111:4500`;
+    const baseUrl = `http://localhost:4500`;
 //console.log("baseUrl")
   const updatedGroupedData = requests.map((item) => {
     const fullPdfPath = item.pdfDrawingFileName
@@ -1794,14 +1794,17 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
     };
   });
 
-  const logoPath = `file://${path
-    .join(__dirname, "../../public/logo/rcon.png")
-    .replace(/\\/g, "/")}`;
-  const cssFileUrl = `file://${path
-    .join(__dirname, "../../public/styles/pdfgenerator.css")
-    .replace(/\\/g, "/")}`;
+  // const logoPath = `file://${path
+  //   .join(__dirname, "../../public/logo/rcon.png")
+  //   .replace(/\\/g, "/")}`;
+  // const cssFileUrl = `file://${path
+  //   .join(__dirname, "../../public/styles/pdfgenerator.css")
+  //   .replace(/\\/g, "/")}`;
+  const logoPath = null;
+const cssFileUrl = null;
   const templatePath = path.join(__dirname, "../../templates/rfi-template.ejs");
-
+console.log("logoPath",logoPath)
+console.log("cssFileUrl",cssFileUrl)
   const userInfo = {
     name: `${first?.createdBy?.firstName || ""} ${first?.createdBy?.lastName ||
       ""}`,

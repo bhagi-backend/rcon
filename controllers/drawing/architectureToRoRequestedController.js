@@ -1768,7 +1768,8 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
   };
 
   // ✅ Hardcoded localhost for file paths
-  const baseUrl = `http://15.206.212.111:4500`;
+ const baseUrl = `http://15.206.212.111:4500`;
+   // const baseUrl = `http://localhost:4500`;
 //console.log("baseUrl")
   const updatedGroupedData = requests.map((item) => {
     const fullPdfPath = item.pdfDrawingFileName
@@ -1782,6 +1783,7 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
           imgPath.startsWith("http") ? imgPath : `${baseUrl}/${imgPath}`
         )
       : [];
+      //console.log(fullImpactImages)
 //  const fullImpactImages = [
 //     "https://image-cdn.essentiallysports.com/wp-content/uploads/Tyrese-Haliburton-3.jpg"
 //   ];
@@ -1817,10 +1819,15 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
     //  baseUrl,
     });
 
+    // const browser = await puppeteer.launch({
+    //   headless: "new",
+    //   args: ["--no-sandbox"],
+    // });
     const browser = await puppeteer.launch({
-      headless: "new",
-      args: ["--no-sandbox"],
-    });
+  headless: true,
+  args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  executablePath: puppeteer.executablePath(), // optional if using bundled Chromium
+});
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });

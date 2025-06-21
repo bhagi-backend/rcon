@@ -1288,13 +1288,15 @@ exports.getRequestByDrawingId = catchAsync(async (req, res, next) => {
     data: requests
   });
 });
-exports.generatePdfReport = catchAsync(async (req, res, next) => {
-  const { drawingId, revision, designDrawingConsultant, format } = req.query;
+
+exports.generatePdfReport = catchAsync(async (req, res) => {
+  const { drawingId, revision, designDrawingConsultant,  } = req.query;
 
   const query = {};
   if (drawingId) query.drawingId = drawingId;
   if (revision) query.revision = revision;
-  if (designDrawingConsultant) query.designDrawingConsultant = designDrawingConsultant;
+  if (designDrawingConsultant)
+    query.designDrawingConsultant = designDrawingConsultant;
 
   const requests = await ArchitectureToRoRequest.find(query)
     .populate({
@@ -1307,81 +1309,107 @@ exports.generatePdfReport = catchAsync(async (req, res, next) => {
         { path: "folderId", select: "folderName" },
       ],
     })
-    .populate("createdBy", "firstName lastName")
-    .populate("acceptedBy", "firstName lastName")
-    .populate("closedBy", "firstName lastName")
-    .populate("reOpenedBy", "firstName lastName")
-    .exec();
+    .populate("createdBy", "firstName lastName department")
+    .populate("acceptedBy", "firstName lastName department")
+    .populate("closedBy", "firstName lastName department" )
+    .populate("reOpenedBy", "firstName lastName department");
 
   if (!requests || requests.length === 0) {
-    return res.status(404).json({
-      status: "failed",
-      message: "No matching requests found"
-    });
+    return res.status(404).json({ message: "No matching requests found" });
   }
 
-  // Determine highest revision
-  const revisions = requests.map(r => r.revision);
-  const highestRevision = revisions
-    .map(r => ({ original: r, num: parseInt(r.replace(/^R/, ""), 10) }))
-    .sort((a, b) => b.num - a.num)[0]?.original || null;
+  const first = requests[0];
+  const siteInfo = first?.drawingId?.siteId || {
+    siteName: "Site Name",
+    siteAddress: "Site Address",
+  };
 
-  // ➕ If format is PDF, generate and return PDF instead of JSON
-  if (format === "pdf") {
-    const path = require("path");
-    const ejs = require("ejs");
-    const puppeteer = require("puppeteer");
+  // ✅ Hardcoded localhost for file paths
+ const baseUrl = `http://13.204.94.237:4500`;
+  //  const baseUrl = `http://localhost:4500`;
+//console.log("baseUrl")
+  const updatedGroupedData = requests.map((item) => {
+    const fullPdfPath = item.pdfDrawingFileName
+      ? item.pdfDrawingFileName.startsWith("http")
+        ? item.pdfDrawingFileName
+        : `${baseUrl}/${item.pdfDrawingFileName}`
+      : null;
 
-    const templatePath = path.join(__dirname, "../../templates/rfi-template.ejs");
-    const cssPath = path.join(__dirname, "../../public/styles/pdfgenerator.css");
-    const logoPath = path.join(__dirname, "../../public/logo/rcon.png");
+    const fullImpactImages = Array.isArray(item.impactImages)
+      ? item.impactImages.map((imgPath) =>
+          imgPath.startsWith("http") ? imgPath : `${baseUrl}/${imgPath}`
+        )
+      : [];
+      //console.log(fullImpactImages)
+//  const fullImpactImages = [
+//     "https://image-cdn.essentiallysports.com/wp-content/uploads/Tyrese-Haliburton-3.jpg"
+//   ];
+    return {
+      ...item.toObject(),
+      pdfDrawingFileName: fullPdfPath,
+      impactImages: fullImpactImages,
+    };
+  });
 
-    const cssFileUrl = `file://${cssPath.replace(/\\/g, "/")}`;
-    const logoFileUrl = `file://${logoPath.replace(/\\/g, "/")}`;
-
-    // Group by drawingId
-    const groupedByDrawing = requests.reduce((acc, item) => {
-      const key = item.drawingId?._id?.toString();
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(item);
-      return acc;
-    }, {});
-
+  // const logoPath = `file://${path
+  //   .join(__dirname, "../../public/logo/rcon.png")
+  //   .replace(/\\/g, "/")}`;
+  // const cssFileUrl = `file://${path
+  //   .join(__dirname, "../../public/styles/pdfgenerator.css")
+  //   .replace(/\\/g, "/")}`;
+  const logoPath = null;
+const cssFileUrl = null;
+  const templatePath = path.join(__dirname, "../../templates/rfi-template.ejs");
+console.log("logoPath",logoPath)
+console.log("cssFileUrl",cssFileUrl)
+  const userInfo = {
+    name: `${first?.createdBy?.firstName || ""} ${first?.createdBy?.lastName ||
+      ""}`,
+    role: first?.drawingId?.designDrawingConsultant?.role || "",
+    department: first?.createdBy?.department || "",
+  };
+  //console.log("userInfo", userInfo);
+  try {
     const html = await ejs.renderFile(templatePath, {
-      data: requests,
-      groupedByDrawing,
-      highestRevision,
-      logoPath: logoFileUrl,
+      dataGroupedByDrawing: updatedGroupedData,
+      userInfo,
+      logoPath,
       cssFileUrl,
+      siteInfo,
+    //  baseUrl,
     });
 
+    // const browser = await puppeteer.launch({
+    //   headless: "new",
+    //   args: ["--no-sandbox"],
+    // });
     const browser = await puppeteer.launch({
-      headless: "new",
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+  headless: true,
+  args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  executablePath: puppeteer.executablePath(), // optional if using bundled Chromium
+});
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // wait for images
 
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: { top: "20px", bottom: "20px", left: "10px", right: "10px" }
     });
 
     await browser.close();
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "attachment; filename=requests.pdf");
-    return res.send(pdfBuffer);
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="rfi-report.pdf"'
+    );
+    res.end(pdfBuffer);
+  } catch (err) {
+    console.error("PDF Generation Error:", err);
+    res
+      .status(400)
+      .json({ message: "Failed to generate PDF", error: err.message });
   }
-
-  // Otherwise return JSON
-  return res.status(200).json({
-    status: "success",
-    highestRevision,
-    data: requests
-  });
 });
-
-

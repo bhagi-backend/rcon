@@ -301,7 +301,11 @@ exports.login = catchAsync(async (req, res, next) => {
     const data = await cognitoClient.send(new InitiateAuthCommand(params));
     const { AccessToken, IdToken, RefreshToken } = data.AuthenticationResult;
 
-    let user = await User.findOne({ email });
+   let user = await User.findOne({ email }).populate({
+  path: "companyId",
+  select: " companyEnableModules "
+});
+
 
     if (!user) {
       return next(new AppError('User not found', 404));

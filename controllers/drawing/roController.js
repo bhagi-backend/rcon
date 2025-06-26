@@ -275,6 +275,7 @@ console.log("userId",userId);
     if (filterType === 'upload') {
       const architectRevisions = data
         .filter(item => (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length <= 0) ||
+ 
         item.regState === 'Pending'
     )
         .map(item => ({
@@ -330,8 +331,12 @@ console.log("userId",userId);
      else if (filterType === 'received') {
 
       const rOHardCopyRevisions = data
-        .filter(item => (item.acceptedROHardCopyRevisions && item.acceptedROHardCopyRevisions.length <= 0))// ||
+        //.filter(item => (item.acceptedROHardCopyRevisions && item.acceptedROHardCopyRevisions.length <= 0))// ||
        // item.regState === 'Pending' )
+              .filter(item => (
+//  (item.acceptedROHardCopyRevisions && item.acceptedROHardCopyRevisions.length <= 0) &&(
+item.acceptedROHardCopyRevisions.length < item.acceptedArchitectRevisions.length//)
+))
         .map(item => ({
           drawingId: item._id,
           siteId: item.siteId,

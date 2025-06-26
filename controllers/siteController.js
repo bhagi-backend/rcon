@@ -148,12 +148,14 @@ exports.createOne = catchAsync(async (req, res, next) => {
     );
 
     const companyAdmin = await User.findOne({ 
-      companyId, 
-      department: 'Company Admin' 
+      companyId,
+      role: "Admin",
+      department: "Company Admin",  
     });
     let createdFolder = null;
     if (companyAdmin) {
       const enableModules = req.body.enableModules || {};
+      const userenbaleModules= req.body.userenableModules || {};
 
       // Check if the site is already in permittedSites to avoid duplicates
       const isSiteAlreadyAdded = companyAdmin.permittedSites.some(
@@ -164,7 +166,7 @@ exports.createOne = catchAsync(async (req, res, next) => {
         // Add the new site and its enabled modules to the Company Admin's permittedSites
         companyAdmin.permittedSites.push({
           siteId: newSite._id,
-          enableModules: enableModules, 
+          enableModules: userenbaleModules, 
         });
 
         await companyAdmin.save();

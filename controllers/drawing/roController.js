@@ -334,8 +334,8 @@ console.log("userId",userId);
         //.filter(item => (item.acceptedROHardCopyRevisions && item.acceptedROHardCopyRevisions.length <= 0))// ||
        // item.regState === 'Pending' )
               .filter(item => (
-//  (item.acceptedROHardCopyRevisions && item.acceptedROHardCopyRevisions.length <= 0) &&(
-item.acceptedROHardCopyRevisions.length < item.acceptedArchitectRevisions.length//)
+  (item.acceptedROHardCopyRevisions && item.acceptedROHardCopyRevisions.length <= 0) ||(
+item.acceptedROHardCopyRevisions.length < item.acceptedArchitectRevisions.length)
 ))
         .map(item => ({
           drawingId: item._id,
@@ -359,7 +359,10 @@ item.acceptedROHardCopyRevisions.length < item.acceptedArchitectRevisions.length
         }));
     
         const siteHeadHardCopyRevisions =  data
-          .filter(item => (item.acceptedSiteHeadHardCopyRevisions && item.acceptedSiteHeadHardCopyRevisions.length <= 0))// ||
+          .filter(item => (item.acceptedSiteHeadHardCopyRevisions && item.acceptedSiteHeadHardCopyRevisions.length <= 0) ||
+          (
+item.acceptedSiteHeadHardCopyRevisions.length < item.acceptedArchitectRevisions.length)
+)
          // item.regState === 'Pending' )
           .map(item => ({
                 drawingId: item._id,

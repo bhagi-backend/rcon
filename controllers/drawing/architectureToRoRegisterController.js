@@ -882,7 +882,7 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
   };
   if(revisionType==="acceptedArchitectRevisions"){
   const latestRevision = existingRegister[revisionType][existingRegister[revisionType].length - 1];
-  console.log("Latest Revision:", latestRevision);
+ // console.log("Latest Revision:", latestRevision);
 if(latestRevision){
   if (latestRevision.rfiStatus === 'Not Raised') {
     return res.status(200).json({
@@ -960,9 +960,9 @@ existingRegister.regState="Drawing";
           updatedRegister.markModified(revisionType);
           await updatedRegister.save();
         }
-      } catch (e) {
+     } catch (e) {
   console.error("Error processing DWG file:", e.message);
-  res.status(400).json({
+  return res.status(400).json({
     status: "fail",
     message: "Error processing DWG file: " + e.message
   });
@@ -975,7 +975,7 @@ existingRegister.regState="Drawing";
     const latestRevision = updatedRegister[revisionType][updatedRegister[revisionType].length - 1];
     const revision = latestRevision?.revision;
     if(revisionType==="acceptedArchitectRevisions"){
-     console.log("architect")
+    // console.log("architect")
       if (siteHeadIds.length > 0) {
         for (let user of siteHeadIds) {
           const site = user?.permittedSites?.find(site => {
@@ -988,7 +988,7 @@ existingRegister.regState="Drawing";
           }
       
           const rfiAccessEnabled = site?.enableModules?.drawingDetails?.roDetails?.forwardAccess;
-          console.log(`RFI Access Enabled for site ${site?.siteId}:`, rfiAccessEnabled);
+       //   console.log(`RFI Access Enabled for site ${site?.siteId}:`, rfiAccessEnabled);
       
           if (rfiAccessEnabled) {
            
@@ -999,7 +999,7 @@ existingRegister.regState="Drawing";
                   'Submitted', 
                   user._id
                 );
-                console.log("notificationToSiteHead", notificationToSiteHead);
+              //  console.log("notificationToSiteHead", notificationToSiteHead);
             
           } 
         }
@@ -1007,7 +1007,7 @@ existingRegister.regState="Drawing";
     }
 
     if(revisionType==="acceptedRORevisions"){
-     console.log("ro");
+    // console.log("ro");
       if (siteHeadIds.length > 0) {
         for (let user of siteHeadIds) {
           const site = user?.permittedSites?.find(site => {
@@ -1020,7 +1020,7 @@ existingRegister.regState="Drawing";
           }
       
           const rfiAccessEnabled = site?.enableModules?.drawingDetails?.siteHeadDetails?.forwardAccess;
-          console.log(`RFI Access Enabled for site ${site?.siteId}:`, rfiAccessEnabled);
+         // console.log(`RFI Access Enabled for site ${site?.siteId}:`, rfiAccessEnabled);
       
           if (rfiAccessEnabled) {
            

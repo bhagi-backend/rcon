@@ -156,7 +156,7 @@ exports.createOne = catchAsync(async (req, res, next) => {
     if (companyAdmin) {
       const enableModules = req.body.enableModules || {};
       const userenbaleModules= req.body.userenableModules || {};
-
+console.log("hello")
       // Check if the site is already in permittedSites to avoid duplicates
       const isSiteAlreadyAdded = companyAdmin.permittedSites.some(
         (site) => site.siteId.toString() === newSite._id.toString()
@@ -169,7 +169,8 @@ exports.createOne = catchAsync(async (req, res, next) => {
           enableModules: userenbaleModules, 
         });
 
-        await companyAdmin.save();
+    const user=    await companyAdmin.save();
+    console.log("user",user)
       }
     }
     if (req.body.enableModules.drawings) {
@@ -194,7 +195,8 @@ console.log("hi");
     res.status(201).json({
       status: 'success',
       site: newSite,
-      createdFolder
+      createdFolder,
+      user: companyAdmin 
     });
   } catch (err) {
     res.status(400).json({

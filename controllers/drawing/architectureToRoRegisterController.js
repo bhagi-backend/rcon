@@ -836,6 +836,15 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
       message: 'revisionType is required'
     });
   }
+if (
+  (revisionType === 'acceptedRORevisions' || revisionType === 'acceptedSiteHeadRevisions') &&
+  !req.body.revision
+) {
+  return res.status(400).json({
+    status: 'fail',
+    message: 'revision is required in body for RO or SiteHead revisions'
+  });
+}
 
   const existingRegister = await ArchitectureToRoRegister.findById(id);
   const siteId =existingRegister.siteId;
@@ -856,30 +865,61 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
     });
   }
 
+  // const processRevision = (revisionArray, newRevision, drawingFileName, pdfDrawingFileName) => {
+  //   const existingIndex = existingRegister[revisionType].findIndex(r => r.revision === newRevision.revision);
+  //   const finalDrawingFileName = drawingFileName || drawingFileNameFromBody || null;
+  //   const finalPdfDrawingFileName = pdfDrawingFileName || pdfDrawingFileNameFromBody || null;
+  //   if (existingIndex >= 0) {
+  //     revisionArray[existingIndex] = {
+  //       revisionCreatedBy: userId,
+  //       ...revisionArray[existingIndex],
+  //       ...newRevision,
+  //       ...(finalDrawingFileName && { drawingFileName: finalDrawingFileName }),
+  //       ...(finalPdfDrawingFileName && { pdfDrawingFileName: finalPdfDrawingFileName }),
+  //     };
+  //   } else {
+  //     const newRevisionData = {
+  //       ...newRevision,
+  //       revision: getNextRevisionNumber(revisionArray), 
+  //       revisionCreatedBy: userId,
+  //       remarks: newRevision.remarks || '', 
+  //       ...(finalDrawingFileName && { drawingFileName: finalDrawingFileName }),
+  //       ...(finalPdfDrawingFileName && { pdfDrawingFileName: finalPdfDrawingFileName }),
+  //     };
+  //     revisionArray.push(newRevisionData);
+  //   }
+  // };
   const processRevision = (revisionArray, newRevision, drawingFileName, pdfDrawingFileName) => {
-    const existingIndex = existingRegister[revisionType].findIndex(r => r.revision === newRevision.revision);
-    const finalDrawingFileName = drawingFileName || drawingFileNameFromBody || null;
-    const finalPdfDrawingFileName = pdfDrawingFileName || pdfDrawingFileNameFromBody || null;
-    if (existingIndex >= 0) {
-      revisionArray[existingIndex] = {
-        revisionCreatedBy: userId,
-        ...revisionArray[existingIndex],
-        ...newRevision,
-        ...(finalDrawingFileName && { drawingFileName: finalDrawingFileName }),
-        ...(finalPdfDrawingFileName && { pdfDrawingFileName: finalPdfDrawingFileName }),
-      };
-    } else {
-      const newRevisionData = {
-        ...newRevision,
-        revision: getNextRevisionNumber(revisionArray), 
-        revisionCreatedBy: userId,
-        remarks: newRevision.remarks || '', 
-        ...(finalDrawingFileName && { drawingFileName: finalDrawingFileName }),
-        ...(finalPdfDrawingFileName && { pdfDrawingFileName: finalPdfDrawingFileName }),
-      };
-      revisionArray.push(newRevisionData);
-    }
-  };
+  const existingIndex = existingRegister[revisionType].findIndex(r => r.revision === newRevision.revision);
+  const finalDrawingFileName = drawingFileName || drawingFileNameFromBody || null;
+  const finalPdfDrawingFileName = pdfDrawingFileName || pdfDrawingFileNameFromBody || null;
+
+  const isArchitectRevision = revisionType === "acceptedArchitectRevisions";
+  const revisionToUse = isArchitectRevision
+    ? getNextRevisionNumber(revisionArray)
+    : newRevision.revision;
+
+  if (existingIndex >= 0) {
+    revisionArray[existingIndex] = {
+      revisionCreatedBy: userId,
+      ...revisionArray[existingIndex],
+      ...newRevision,
+      ...(finalDrawingFileName && { drawingFileName: finalDrawingFileName }),
+      ...(finalPdfDrawingFileName && { pdfDrawingFileName: finalPdfDrawingFileName }),
+    };
+  } else {
+    const newRevisionData = {
+      ...newRevision,
+      revision: revisionToUse,
+      revisionCreatedBy: userId,
+      remarks: newRevision.remarks || '',
+      ...(finalDrawingFileName && { drawingFileName: finalDrawingFileName }),
+      ...(finalPdfDrawingFileName && { pdfDrawingFileName: finalPdfDrawingFileName }),
+    };
+    revisionArray.push(newRevisionData);
+  }
+};
+
   if(revisionType==="acceptedArchitectRevisions"){
   const latestRevision = existingRegister[revisionType][existingRegister[revisionType].length - 1];
  // console.log("Latest Revision:", latestRevision);

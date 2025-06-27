@@ -160,8 +160,9 @@ exports.downloadBanner = catchAsync(async (req, res, next) => {
   });
 });
 exports.getAllUsers = async (req, res) => {
+  const companyId=req.user.companyId;
   try {
-    const allUsers = await User.find({}).populate('permittedSites.siteId')
+    const allUsers = await User.find({companyId:companyId}).populate('permittedSites.siteId')
     .populate('favouriteUsers')
     .populate('companyId')
     .populate('notifications')

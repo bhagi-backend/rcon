@@ -115,7 +115,13 @@ exports.signup = catchAsync(async (req, res, next) => {
         msg: "A user with this email already exists.",
       });
     }
-
+const existingEmpId = await User.findOne({ empId: req.body.empId });
+if (existingEmpId) {
+  return res.status(200).json({
+    status: "warning",
+    msg: `A user with this empId (${req.body.empId}) already exists.`,
+  });
+}
     const password = generateDefaultPassword(firstName);
 
     try {
@@ -201,6 +207,8 @@ exports.signup = catchAsync(async (req, res, next) => {
           msg: 'Request limit exceeded. Please try again later.',
         });
       } else {
+       
+
         return res.status(400).json({
           status: 'error',
           msg: 'There was an issue creating the user in Cognito. Please check if your email already exists.',

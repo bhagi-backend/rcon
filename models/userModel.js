@@ -299,9 +299,9 @@ const EnableModuleSchema = new mongoose.Schema({
   pAndM: { type: Boolean, default: false },
   qaAndQc: { type: Boolean, default: false },
   ehs: { type: Boolean, default: false  },
-  dashBoard: { type: Boolean, default: false },
+  dashBoard: { type: Boolean, default: true },
   workStatus: { type: Boolean, default: false },
-  site: { type: Boolean, default: false  },
+  site: { type: Boolean, default: true  },
   communication: { type: Boolean, default: false  },
   communicationDetails: {
     type: communicationModuleSchema,

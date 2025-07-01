@@ -13,22 +13,24 @@ const RfiTimeStampSchema = new mongoose.Schema({
     roRfiTimeStampDays: {
         type: Number,
         required: true,
+        default: 7,
         
     },
     siteHeadRfiTimeStampDays: {
         type: Number,
         required: true,
+        default: 7,
         
     },
     isDrawingAddFolder: {
         type: String,
         enum: ["Yes", "No"],
-        default:'No'
+        default:'Yes'
       },
-      drawingAddFolder: { type: Boolean,default: false  },
-      customizedView: { type: Boolean,default: false  },
-      rfiRaised: { type: Boolean,default: false  },
-      areYouReceivingHardCopiesFromAllConsultants: { type: Boolean,default: false  },
+      drawingAddFolder: { type: Boolean,default: true  },
+      customizedView: { type: Boolean,default: true  },
+      rfiRaised: { type: Boolean,default: true  },
+      areYouReceivingHardCopiesFromAllConsultants: { type: Boolean,default: true                                     },
       whichConsultantsHaveNotSubmittedHardCopies: [{
         type: mongoose.Schema.ObjectId,
         ref: "User",

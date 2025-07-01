@@ -22,15 +22,15 @@ exports.createRfiTimeStamp = catchAsync(async (req, res, next) => {
 
   const companyId = req.user.companyId;
   const userId = req.user._id;
-  if (!companyId || !roRfiTimeStampDays || !siteHeadRfiTimeStampDays) {
-    return next(
-      new AppError(
-        'All fields (companyId, roRfiTimeStampDays, siteHeadRfiTimeStampDays) are required.',
-        400
-      )
-    );
-  }
-  let rfiTimeStamp = await RfiTimeStamp.findOne({ companyId });
+  // if (!companyId || !roRfiTimeStampDays || !siteHeadRfiTimeStampDays) {
+  //   return next(
+  //     new AppError(
+  //       'All fields (companyId, roRfiTimeStampDays, siteHeadRfiTimeStampDays) are required.',
+  //       400
+  //     )
+  //   );
+  // }
+  let rfiTimeStamp = await RfiTimeStamp.findOne({ companyId,siteId });
 
   if (rfiTimeStamp) {
     // Update existing document
@@ -50,19 +50,25 @@ exports.createRfiTimeStamp = catchAsync(async (req, res, next) => {
     await rfiTimeStamp.save();
   } else {
     // Create new document if no existing RFI timestamp
+    // rfiTimeStamp = await RfiTimeStamp.create({
+    //   companyId,
+    //   siteId,
+    //   createdBy: userId,
+    //   roRfiTimeStampDays,
+    //   siteHeadRfiTimeStampDays,
+    //   isDrawingAddFolder,
+    //   drawingAddFolder,
+    //   customizedView,
+    //   rfiRaised,
+    //   areYouReceivingHardCopiesFromAllConsultants,
+    //   whichConsultantsHaveNotSubmittedHardCopies
+    // });
     rfiTimeStamp = await RfiTimeStamp.create({
-      companyId,
-      siteId,
-      createdBy: userId,
-      roRfiTimeStampDays,
-      siteHeadRfiTimeStampDays,
-      isDrawingAddFolder,
-      drawingAddFolder,
-      customizedView,
-      rfiRaised,
-      areYouReceivingHardCopiesFromAllConsultants,
-      whichConsultantsHaveNotSubmittedHardCopies
-    });
+  ...req.body,
+  companyId,
+  createdBy: userId
+});
+
   }
 
   // Update related documents in ArchitectureToRoRegister

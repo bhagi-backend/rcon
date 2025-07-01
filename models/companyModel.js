@@ -6,44 +6,44 @@ const EnableModuleSchema = new mongoose.Schema({
   drawings: { type: Boolean, required: true },
   pAndM: { type: Boolean, required: true },
   qaAndQc: { type: Boolean, required: true },
-  dashBoard: { type: Boolean, default: false },
+  dashBoard: { type: Boolean, default: true },
   workStatus: { type: Boolean, default: false },
   checkList: { type: Boolean, default: false },
   checklistProcess: {
     type: String,
     enum: ["manual", "automatic"],
-    required: function () {
-      return this.checkList; 
+    required: function() {
+      return this.checkList;
     },
   },
-  site: { type: Boolean, default: false },
-  communication: { type: Boolean, default: false  },
+  site: { type: Boolean, default: true },
+  communication: { type: Boolean, default: false },
   // mail: { type: Boolean, default: false },
   // chat: { type: Boolean, default: false },
-  ehs: { type: Boolean, default: false  },
-  qs: { type: Boolean, default: false  },
-  planner: { type: Boolean, default: false  },
-  company: { type: Boolean, default: false  },
+  ehs: { type: Boolean, default: false },
+  qs: { type: Boolean, default: false },
+  planner: { type: Boolean, default: false },
+  company: { type: Boolean, default: false },
   task: { type: Boolean, default: false },
-  hr: { type: Boolean, default: false  },
+  hr: { type: Boolean, default: false },
   hrProcess: {
     type: String,
     enum: ["manual", "automatic"],
-    required: function () {
-      return this.hr; 
+    required: function() {
+      return this.hr;
     },
   },
-  
+
   isDrawingAddFolder: {
     type: String,
     enum: ["Yes", "No"],
-    default:'No'
+    default: "No",
   },
-  drawingAddFolder: { type: Boolean,default: false  },
-  customizedView: { type: Boolean,default: false  },
-  user: { type: Boolean, default: false  },
-  store: { type: Boolean, default: false  },
-  admin: { type: Boolean, default: false  },
+  drawingAddFolder: { type: Boolean, default: false },
+  customizedView: { type: Boolean, default: false },
+  user: { type: Boolean, default: false },
+  store: { type: Boolean, default: false },
+  admin: { type: Boolean, default: false },
   space: { type: Boolean, default: false },
 });
 
@@ -52,27 +52,27 @@ const CdetailsSchema = new Schema({
   companyName: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
   },
   ownerName: {
     type: String,
-    required: true
+    required: true,
   },
   companyMailingaddress: {
     type: String,
-    required: true
+    required: true,
   },
   phoneNo: {
     type: String,
-    required: true
+    required: true,
   },
   gstNo: {
     type: String,
-    required: true
+    required: true,
   },
   panNo: {
     type: String,
-    required: true
+    required: true,
   },
 });
 
@@ -80,20 +80,20 @@ const CdetailsSchema = new Schema({
 const PersonalDetailsSchema = new Schema({
   name: {
     type: String,
-    required: true
+    required: true,
   },
   designation: {
     type: String,
-    required: true
+    required: true,
   },
   emailId: {
     type: String,
     validate: [validator.isEmail, "Invalid email"],
-    required: true
+    required: true,
   },
   phNo: {
     type: String,
-    required: true  
+    required: true,
   },
 });
 
@@ -101,23 +101,23 @@ const PersonalDetailsSchema = new Schema({
 const CAddressSchema = new Schema({
   officeAddress: {
     type: String,
-    required: true
+    required: true,
   },
   country: {
     type: String,
-    required: true
+    required: true,
   },
   cityOrState: {
     type: String,
-    required: true
+    required: true,
   },
   pinCode: {
     type: String,
-    required: true
+    required: true,
   },
   industry: {
     type: String,
-    required: true
+    required: true,
   },
   webSiteUrl: {
     type: String,
@@ -143,9 +143,7 @@ const CDocumentsSchema = new Schema({
   },
 });
 
-
 const companySchema = new Schema({
-  
   uploadLogo: {
     type: String,
   },
@@ -160,12 +158,14 @@ const companySchema = new Schema({
   companyEnableModules: {
     type: EnableModuleSchema,
   },
-  sites: [{ 
-    type: Schema.Types.ObjectId,
-    ref: 'Site'
-  }]
+  sites: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "Site",
+    },
+  ],
 });
 
-const Company = mongoose.model('Company', companySchema);
+const Company = mongoose.model("Company", companySchema);
 
 module.exports = Company;

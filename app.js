@@ -63,8 +63,9 @@ const allowedOrigins = [
   "http://localhost:3000",
   "https://staging-ui.rconspace.com",
   "https://rconspace.com",
-  // Add more as needed
+  "https://dev.rconspace.com", // ✅ Add this
 ];
+
 
 app.use(
   cors({

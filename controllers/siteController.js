@@ -45,14 +45,16 @@ exports.updateSiteImage = catchAsync(async (req, res, next) => {
   const file = req.file;
   const fileName = `${Date.now()}-${file.originalname}`;
 
-  const { fullPath, relativePath } = getUploadPath(companyId, fileName, "siteImages",siteId);
+  const { uploadToS3, relativePath } = `getUploadPath`(companyId, fileName, "siteImages",siteId);
 
-  fs.writeFileSync(fullPath, file.buffer);
-  
-  // Update siteImage field
-  site.siteImage = relativePath;
-  await site.save();
+// Upload file to S3
+await uploadToS3(file.buffer, file.mimetype);
 
+// Update siteImage field with S3 key
+site.siteImage = relativePath;
+
+// Save changes to the database
+await site.save()
   res.status(200).json({
     status: 'success',
     data: site

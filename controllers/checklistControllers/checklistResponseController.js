@@ -159,17 +159,17 @@ exports.updateImage = catchAsync(async (req, res, next) => {
   const fileName = `${Date.now()}-${file.originalname}`;
 
   // Get paths for storing the file
-  const { fullPath, relativePath } = getUploadPath(companyId, fileName, "checklistResponses/images",checklistResponse.siteId);
+  const { fullPath, relativePath,uploadToS3 } = getUploadPath(companyId, fileName, "checklistResponses/images",checklistResponse.siteId);
 
-  // Save image to disk
-  fs.writeFileSync(fullPath, file.buffer);
+  // // Save image to disk
+  // fs.writeFileSync(fullPath, file.buffer);
+await uploadToS3(file.buffer, file.mimetype);
+  // const sharpProcessor = new SharpProcessor(file.buffer, { format: path.extname(file.originalname).substring(1), quality: 70 });
+  // const { originalSize, compressedSize } = await sharpProcessor.compressImage(fullPath);
 
-  const sharpProcessor = new SharpProcessor(file.buffer, { format: path.extname(file.originalname).substring(1), quality: 70 });
-  const { originalSize, compressedSize } = await sharpProcessor.compressImage(fullPath);
-
-  console.log(`Original size: ${originalSize} bytes`);
-  console.log(`Compressed size: ${compressedSize} bytes`);
-  console.log(`Saved compressed image at: ${fullPath}`);
+  // console.log(`Original size: ${originalSize} bytes`);
+  // console.log(`Compressed size: ${compressedSize} bytes`);
+  // console.log(`Saved compressed image at: ${fullPath}`);
 
   checklistResponse.descriptions[descriptionIndex].image = relativePath;
 

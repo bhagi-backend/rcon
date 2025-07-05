@@ -11,58 +11,60 @@ const ArchitectureToRoRequest = require("../../models/drawingModels/architecture
 const roToSiteRequest = require("../../models/drawingModels/roToSiteLevelRequestedModel");
 
 const upload = multerWrapper();
+
 exports.uploadDrawingPhoto = upload.single("pdfDrawingFileName");
+
 exports.updatePdfInLatestRevisions = catchAsync(async (req, res, next) => {
-    if (!req.file) {
-      return next(new AppError("No file uploaded", 400));
+  if (!req.file) {
+    return next(new AppError("No file uploaded", 400));
   }
 
   const drawing = req.drawing || await ArchitectureToRoRegister.findById(req.params.id);
   if (!drawing) {
-      return next(new AppError('Drawing not found', 404));
+    return next(new AppError("Drawing not found", 404));
   }
 
   const fileExtension = path.extname(req.file.originalname);
   const newFilename = `drawing-ArchitectureToRoRegister-${drawing._id}-${Date.now()}${fileExtension}`;
   req.file.filename = newFilename;
+
   const companyId = req.user.companyId;
-  const { fullPath, relativePath } = getUploadPath(companyId, newFilename, "drawings", drawing.siteId);
+  const { relativePath, uploadToS3 } = getUploadPath(companyId, newFilename, "drawings", drawing.siteId);
 
-  fs.writeFile(fullPath, req.file.buffer, async (err) => {
-      if (err) {
-          return next(new AppError('Failed to save uploaded file.', 400));
-      }
+  // Upload to S3 instead of local file system
+  await uploadToS3(req.file.buffer, req.file.mimetype);
 
-      const { revisionType } = req.query;
-      const revisionMap = {
-          'Architect': drawing.acceptedArchitectRevisions,
-          'RO': drawing.acceptedRORevisions,
-          'SiteHead': drawing.acceptedSiteHeadRevisions,
-          'Site': drawing.acceptedSiteRevisions,
-      };
+  const { revisionType } = req.query;
 
-      const revisionsArray = revisionMap[revisionType];
-      if (!revisionsArray) {
-          return next(new AppError("Invalid revision type specified", 400));
-      }
-      const latestRevision = revisionsArray[revisionsArray.length - 1];
-      if (!latestRevision) {
-          return next(new AppError("No revisions found for this drawing", 404));
-      }
-      console.log("relativePath",relativePath)
-      latestRevision.pdfDrawingFileName = relativePath;
-      
-      const result = await drawing.save();
+  const revisionMap = {
+    'Architect': drawing.acceptedArchitectRevisions,
+    'RO': drawing.acceptedRORevisions,
+    'SiteHead': drawing.acceptedSiteHeadRevisions,
+    'Site': drawing.acceptedSiteRevisions,
+  };
 
-      res.status(200).json({
-          status: "success",
-          data: {
-              result,
-          },
-      });
+  const revisionsArray = revisionMap[revisionType];
+  if (!revisionsArray) {
+    return next(new AppError("Invalid revision type specified", 400));
+  }
+
+  const latestRevision = revisionsArray[revisionsArray.length - 1];
+  if (!latestRevision) {
+    return next(new AppError("No revisions found for this drawing", 404));
+  }
+
+  console.log("relativePath", relativePath);
+  latestRevision.pdfDrawingFileName = relativePath;
+
+  const result = await drawing.save();
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      result,
+    },
   });
 });
-
 
 
 
@@ -86,18 +88,16 @@ exports.resizeDrawingPhotoforRfi = catchAsync(async (req, res, next) => {
   const companyId = req.user.companyId;
   
   // Get the full path for saving the file
-  const { fullPath, relativePath } = getUploadPath(companyId, newFilename, "drawings", req.drawing.siteId);
+ const { relativePath, uploadToS3 } = getUploadPath(companyId, newFilename, "drawings", req.drawing.siteId);
 
-  // Save the file to the specified location
-  fs.writeFile(fullPath, req.file.buffer, (err) => {
-    if (err) {
-      return next(new AppError('Failed to save uploaded file.', 500));
-    }
-    next();
-  });
-  req.file.filename = relativePath;
+
+    // Upload the file to S3
+    await uploadToS3(req.file.buffer, req.file.mimetype);
+
+    // Attach the relative S3 path to req.file for later use
+    req.file.filename = relativePath;
+ next();
 });
-
 // Function to resize and save drawing photo
 exports.resizeDrawingPhotoforRoRfi = catchAsync(async (req, res, next) => {
   if (!req.file) return next();
@@ -117,17 +117,16 @@ exports.resizeDrawingPhotoforRoRfi = catchAsync(async (req, res, next) => {
   // req.file.filename = newFilename;
   const companyId = req.user.companyId;
   
-  // Get the full path for saving the file
-  const { fullPath,relativePath } = getUploadPath(companyId, newFilename, "drawings", req.drawing.siteId);
+  
+ const { relativePath, uploadToS3 } = getUploadPath(companyId, newFilename, "drawings", req.drawing.siteId);
 
-  // Save the file to the specified location
-  fs.writeFile(fullPath, req.file.buffer, (err) => {
-    if (err) {
-      return next(new AppError('Failed to save uploaded file.', 500));
-    }
-    next();
-  });
-  req.file.filename = relativePath;
+
+    // Upload the file to S3
+    await uploadToS3(req.file.buffer, req.file.mimetype);
+
+    // Attach the relative S3 path to req.file for later use
+    req.file.filename = relativePath;
+ next();
 });
 
 // Function to update the PDF in the latest revision of ArchitectureToRoRequest

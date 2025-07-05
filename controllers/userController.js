@@ -16,69 +16,58 @@ const upload = multerWrapper().fields([
   { name: "profilePic", maxCount: 1 },
   { name: "banner", maxCount: 1 },
 ]);
+
 exports.uploadProfileOrBanner = catchAsync(async (req, res, next) => {
   upload(req, res, async (err) => {
-    if (err) {
-      return next(new AppError(err.message, 400));
-    }
+    if (err) return next(new AppError(err.message, 400));
 
     try {
       const { id } = req.params;
       const companyId = req.user.companyId;
-      // Find the user by ID
       const user = await User.findById(id);
-      
-      // Check if the user exists
-      if (!user) {
-        return next(new AppError("User not found", 404));
-      }
-   
-      
-      // Check if any files were uploaded
+
+      if (!user) return next(new AppError("User not found", 404));
+
       if (!req.files || (!req.files.profilePic && !req.files.banner)) {
         return next(new AppError("No image file uploaded", 400));
       }
 
-      // Handle profile picture upload
+      // 📷 Handle profile picture
       if (req.files.profilePic) {
         const file = req.files.profilePic[0];
         const ext = path.extname(file.originalname).substring(1);
         const fileName = `profilePic-${Date.now()}-${file.originalname}`;
-           
-      const { fullPath, relativePath } = getUploadPath(companyId, fileName, "users/images");
-    
-      fs.writeFileSync(fullPath, file.buffer);
-      
+        const { relativePath, uploadToS3 } = getUploadPath(companyId, fileName, "users/images");
+
         const sharpProcessor = new SharpProcessor(file.buffer, {
           format: ext,
           quality: 70,
         });
-        await sharpProcessor.compressImage(relativePath);
+        const { buffer: compressedBuffer } = await sharpProcessor.compressImage();
+        await uploadToS3(compressedBuffer, file.mimetype);
 
-        user.profilePic =relativePath;
+        user.profilePic = relativePath;
       }
 
-      // Handle banner upload
+      // 🖼️ Handle banner upload
       if (req.files.banner) {
         const file = req.files.banner[0];
         const ext = path.extname(file.originalname).substring(1);
         const fileName = `banner-${Date.now()}-${file.originalname}`;
-           
-      const { fullPath, relativePath } = getUploadPath(companyId, fileName, "users/images");
-    
-      fs.writeFileSync(fullPath, file.buffer);
-      
+        const { relativePath, uploadToS3 } = getUploadPath(companyId, fileName, "users/images");
+
         const sharpProcessor = new SharpProcessor(file.buffer, {
           format: ext,
           quality: 70,
         });
-        await sharpProcessor.compressImage(relativePath);
+        const { buffer: compressedBuffer } = await sharpProcessor.compressImage();
+        await uploadToS3(compressedBuffer, file.mimetype);
 
         user.banner = relativePath;
       }
+
       await user.save();
 
-      // Respond with updated user data
       res.status(200).json({
         status: "success",
         data: {
@@ -90,7 +79,6 @@ exports.uploadProfileOrBanner = catchAsync(async (req, res, next) => {
     }
   });
 });
-
 
 exports.downloadProfilePic = catchAsync(async (req, res, next) => {
   try {

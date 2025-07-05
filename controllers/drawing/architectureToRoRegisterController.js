@@ -199,16 +199,14 @@ exports.resizeDrawingPhoto = catchAsync(async (req, res, next) => {
   const companyId = req.user.companyId;
 
   // Use the new function to get the upload path
-  const { fullPath,relativePath } = getUploadPath(companyId, newFilename, "drawings", req.drawing.siteId); // Assuming you have companyId in your drawing
+  const { uploadToS3,relativePath } = getUploadPath(companyId, newFilename, "drawings", req.drawing.siteId); // Assuming you have companyId in your drawing
 
-  // Save the file
-  fs.writeFile(fullPath, req.file.buffer, (err) => {
-    if (err) {
-      return next(new AppError('Failed to save uploaded file.', 400));
-    }
-    next();
+        await uploadToS3(file.buffer, file.mimetype);
+  
+   
     req.file.filename = relativePath;
-  });
+     next();
+
 
   try {
     const registerDrawing = await ArchitectureToRoRegister.findById(req.params.id);
@@ -935,27 +933,34 @@ if(latestRevision){
   }
   try {
     let drawingFileName = null;
-    let pdfDrawingFileName = null;
-    let drawingFullPath = null; 
-    let pdfFullPath = null; 
+let pdfDrawingFileName = null;
+let drawingFullPath = null; 
+let pdfFullPath = null; 
 
-    if (drawingFile) {
-      const fileExtension = path.extname(drawingFile.originalname);
-      drawingFileName = `drawing-ArchitectureToRoRegister-${existingRegister._id}-${Date.now()}${fileExtension}`;
-      const companyId = req.user.companyId;
-      const result = getUploadPath(companyId, drawingFileName, "drawings", existingRegister.siteId);
-      drawingFullPath = result.fullPath;
-      await fs.promises.writeFile(drawingFullPath, drawingFile.buffer);
-    }
+if (drawingFile) {
+  const fileExtension = path.extname(drawingFile.originalname);
+  drawingFileName = `drawing-ArchitectureToRoRegister-${existingRegister._id}-${Date.now()}${fileExtension}`;
+  const companyId = req.user.companyId;
 
-    if (pdfDrawingFile) {
-      const pdfFileExtension = path.extname(pdfDrawingFile.originalname);
-      pdfDrawingFileName = `pdf-ArchitectureToRoRegister-${existingRegister._id}-${Date.now()}${pdfFileExtension}`;
-      const companyId = req.user.companyId;
-      const result = getUploadPath(companyId, pdfDrawingFileName, "drawings", existingRegister.siteId);
-      pdfFullPath = result.fullPath;
-      await fs.promises.writeFile(pdfFullPath, pdfDrawingFile.buffer);
-    }
+  const result = getUploadPath(companyId, drawingFileName, "drawings", existingRegister.siteId);
+  drawingFullPath = result.fullPath;
+  drawingFileName= result.relativePath
+console.log("-----------------",result.fullPath)
+  const uploadToS3 = result.uploadToS3;
+  await uploadToS3(drawingFile.buffer, drawingFile.mimetype);
+}
+
+if (pdfDrawingFile) {
+  const pdfFileExtension = path.extname(pdfDrawingFile.originalname);
+  pdfDrawingFileName = `pdf-ArchitectureToRoRegister-${existingRegister._id}-${Date.now()}${pdfFileExtension}`;
+  const companyId = req.user.companyId;
+
+  const result = getUploadPath(companyId, pdfDrawingFileName, "drawings", existingRegister.siteId);
+  pdfFullPath = result.fullPath;
+pdfDrawingFileName=result.relativePath
+  const uploadToS3 = result.uploadToS3;
+  await uploadToS3(pdfDrawingFile.buffer, pdfDrawingFile.mimetype);
+}
 
     const newRevision = req.body;
     processRevision(existingRegister[revisionType], newRevision, drawingFileName, pdfDrawingFileName);
@@ -985,7 +990,9 @@ existingRegister.regState="Drawing";
 
     if (drawingFullPath) {
       try {
-        const result = await processDWGFile(drawingFullPath);
+       /// const result = await processDWGFile(drawingFullPath);
+       const result = await processDWGFile(drawingFileName, drawingFile.buffer);
+
         const latestRevisionIndex = updatedRegister[revisionType].length - 1;
         const latestRevision = updatedRegister[revisionType][latestRevisionIndex];
 
@@ -1336,7 +1343,6 @@ exports.uploadHardCopyFile = upload.single("hardCopyFile");
 
 
 // Resize and save the uploaded file
-
 exports.resizeHardCopyFile = catchAsync(async (req, res, next) => {
   if (!req.file) return next();
 
@@ -1345,56 +1351,57 @@ exports.resizeHardCopyFile = catchAsync(async (req, res, next) => {
   }
 
   if (!req.drawing) {
-    return next(new AppError('Drawing not found', 200)); // Use 200 instead of 404
+    return next(new AppError('Drawing not found', 200)); // As per your preference
   }
 
   const fileExtension = path.extname(req.file.originalname);
   const newFilename = `hardCopy-ArchitectureToRoRegister-${req.drawing._id}-${Date.now()}${fileExtension}`;
-  
-  const companyId =req.user.companyId;
-  // Use the new function to get the upload path
-  const { fullPath,relativePath } = getUploadPath(companyId, newFilename, "drawings", req.drawing.siteId); // Assuming you have companyId in your drawing
 
-  // Save the file
-  fs.writeFile(fullPath, req.file.buffer, (err) => {
-    if (err) {
-      return next(new AppError('Failed to save uploaded file.', 400));
-    }
-    next();
-  });
+  const companyId = req.user.companyId;
+
+  const { fullPath, relativePath, uploadToS3 } = getUploadPath(companyId, newFilename, "drawings", req.drawing.siteId);
+
+  // Upload to S3 (no sharp)
+  await uploadToS3(req.file.buffer, req.file.mimetype);
+
+  // Store relative path in req.file for later use
   req.file.filename = relativePath;
+
+  next();
 });
 
 exports.updateAcceptedROHardcopyRevisionsHardCopyFile = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
-  // Find the document and get the latest revision
   const architectureToRoRegister = await ArchitectureToRoRegister.findById(id);
   if (!architectureToRoRegister) {
     return next(new AppError("No drawing found with that ID", 404));
   }
 
-  // Get the latest revision
-  const latestRevision = architectureToRoRegister.acceptedROHardCopyRevisions[architectureToRoRegister.acceptedROHardCopyRevisions.length - 1];
+  const latestRevision = architectureToRoRegister.acceptedROHardCopyRevisions[
+    architectureToRoRegister.acceptedROHardCopyRevisions.length - 1
+  ];
   if (!latestRevision) {
     return next(new AppError("No revisions found for this drawing", 404));
   }
 
-  // Update the hardCopyFile
+  if (!req.file || !req.file.filename) {
+    return next(new AppError("No file uploaded or filename missing", 400));
+  }
+
   latestRevision.hardCopyFile = req.file.filename;
 
-  // Save the updated document
   await architectureToRoRegister.save();
+
   const { drawingNo, designDrawingConsultant } = architectureToRoRegister;
   const { revision } = latestRevision;
 
- 
   const notification = await sendNotification(
-    'Drawing', 
-    `A hard copy has been received for drawing number ${drawingNo}, accepted Ro hard copy revision ${revision}.`,  
+    'Drawing',
+    `A hard copy has been received for drawing number ${drawingNo}, accepted Ro hard copy revision ${revision}.`,
     'Hard Copy Received',
     'Received',
-    designDrawingConsultant 
+    designDrawingConsultant
   );
 
   res.status(200).json({
@@ -1405,77 +1412,73 @@ exports.updateAcceptedROHardcopyRevisionsHardCopyFile = catchAsync(async (req, r
 });
 
 
-//for siteHead revisions
 exports.updateAcceptedArchitectHardCopyRevisions = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
-  // Find the document and get the latest revision
   const architectureToRoRegister = await ArchitectureToRoRegister.findById(id);
   if (!architectureToRoRegister) {
     return next(new AppError("No drawing found with that ID", 404));
   }
 
-  // Get the latest revision
-  const latestRevision = architectureToRoRegister.acceptedSiteHeadHardCopyRevisions[architectureToRoRegister.acceptedSiteHeadHardCopyRevisions.length - 1];
+  const latestRevision = architectureToRoRegister.acceptedSiteHeadHardCopyRevisions[
+    architectureToRoRegister.acceptedSiteHeadHardCopyRevisions.length - 1
+  ];
+
   if (!latestRevision) {
     return next(new AppError("No revisions found for this drawing", 404));
   }
 
-  // Update the hardCopyFile
+  if (!req.file || !req.file.filename) {
+    return next(new AppError("No file uploaded or filename missing", 400));
+  }
+
+  // ✅ Update hard copy file path
   latestRevision.hardCopyFile = req.file.filename;
 
-  // Save the updated document
   await architectureToRoRegister.save();
-  const { drawingNo, designDrawingConsultant ,siteId} = architectureToRoRegister;
+
+  const { drawingNo, siteId } = architectureToRoRegister;
   const { revision } = latestRevision;
+
   const siteHeadIds = await User.find({
     "permittedSites.siteId": siteId
   }).select('permittedSites _id');
+
   if (siteHeadIds.length > 0) {
     for (let user of siteHeadIds) {
-      //console.log(`User ${user._id} permittedSites:`, JSON.stringify(user.permittedSites, null, 2));
-      const site = user?.permittedSites?.find(site => {
-        console.log("Checking site:", site?.siteId, "against input:", siteId);
-        return site?.siteId?.toString() === siteId.toString();
-      });
-  
+      const site = user?.permittedSites?.find(site => site?.siteId?.toString() === siteId.toString());
       if (!site) {
         console.warn(`No matching site found for user ${user._id} and siteId ${siteId}`);
         continue;
       }
-  
+
       const rfiAccessEnabled = site?.enableModules?.drawingDetails?.siteHeadDetails?.rfiRaisedAccess;
       console.log(`RFI Access Enabled for site ${site?.siteId}:`, rfiAccessEnabled);
-  
-      if (rfiAccessEnabled) {
-        
-          const notificationMessage1 = `A hard copy has been received for drawing number ${drawingNo}, accepted architect hard copy revision ${revision}.`;
-  
-          try {
-            const notificationToSiteHead = await sendNotification(
-              'Drawing', 
-              notificationMessage1, 
-              'Hard Copy Received',
-              'Received', 
-              user._id
-            );
-            console.log("notificationToSiteHead", notificationToSiteHead);
-          } catch (error) {
-            console.error("Error sending notification to SiteHeadId ", user._id, ": ", error);
-          }
-        
-      } 
-    }
-  } 
 
- 
+      if (rfiAccessEnabled) {
+        const notificationMessage = `A hard copy has been received for drawing number ${drawingNo}, accepted architect hard copy revision ${revision}.`;
+        try {
+          const notificationToSiteHead = await sendNotification(
+            'Drawing',
+            notificationMessage,
+            'Hard Copy Received',
+            'Received',
+            user._id
+          );
+          console.log("notificationToSiteHead", notificationToSiteHead);
+        } catch (error) {
+          console.error("Error sending notification to SiteHeadId ", user._id, ": ", error);
+        }
+      }
+    }
+  }
 
   res.status(200).json({
     status: "success",
     data: architectureToRoRegister,
-
   });
 });
+
 
 exports.getHardCopyFileAcceptedArchitectRevision = catchAsync(async (req, res, next) => {
   const { id, revision } = req.params; // Extract both ID and revision from the URL parameters

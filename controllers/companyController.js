@@ -54,7 +54,6 @@ const uploadLogo = multerWrapper();
 
 // Middleware to handle file uploads
 exports.uploadLogoMiddleware = uploadLogo.single('logo');
-
 exports.updateLogo = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
@@ -74,12 +73,13 @@ exports.updateLogo = catchAsync(async (req, res, next) => {
   const file = req.file;
   const fileName = `${Date.now()}-${file.originalname}`;
 
-  const { fullPath, relativePath } = getUploadPath(id, fileName, "utilities/documents");
+  const { relativePath, uploadToS3 } = getUploadPath(id, fileName, "utilities/documents");
 
-  fs.writeFileSync(fullPath, file.buffer);
+  // ✅ Upload directly to S3
+  await uploadToS3(file.buffer, file.mimetype);
 
-  const filePath = relativePath;
-  company.uploadLogo = filePath;
+  // ✅ Save S3 path in DB
+  company.uploadLogo = relativePath;
   await company.save();
 
   res.status(200).json({
@@ -87,6 +87,7 @@ exports.updateLogo = catchAsync(async (req, res, next) => {
     data: company
   });
 });
+
 
 const uploadDocuments = multerWrapper().fields([
   { name: 'logo' },
@@ -118,16 +119,20 @@ exports.updateDocuments = catchAsync(async (req, res, next) => {
   if (req.files) {
     const documentFields = ['gstNo', 'companyPanNo', 'companyTanNo', 'agreementDocument'];
 
-    documentFields.forEach(field => {
+    for (const field of documentFields) {
       if (req.files[field] && req.files[field][0]) {
         const file = req.files[field][0];
         const fileName = `${Date.now()}-${file.originalname}`;
-        console.log(`Updating document field: ${field}, Filename: ${file.filename}`);
-        const { fullPath, relativePath } = getUploadPath(id, fileName, "utilities/documents");
-        fs.writeFileSync(fullPath, file.buffer); 
+
+        const { relativePath, uploadToS3 } = getUploadPath(id, fileName, "utilities/documents");
+
+        // Upload to S3 (no sharp involved)
+        await uploadToS3(file.buffer, file.mimetype);
+
+        // Save relative path in DB
         company.companyDocuments[field] = relativePath;
       }
-    });
+    }
   }
 
   Object.keys(req.body).forEach(key => {

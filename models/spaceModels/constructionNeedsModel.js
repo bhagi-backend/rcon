@@ -23,10 +23,10 @@ const contactDetailsSchema = new mongoose.Schema({
   typesOfServiceProviding: {
     type: String,
   },
-  constructionNeedContactName:{
-    type:String,
+  constructionNeedContactName: {
+    type: String,
   },
-  constructionNeedContactRole:{
+  constructionNeedContactRole: {
     type: String,
   },
   description: {
@@ -48,8 +48,6 @@ const contactDetailsSchema = new mongoose.Schema({
 const ConstructionNeedsSchema = new mongoose.Schema({
   fName: {
     type: String,
-    required: true,
-    unique: true, // Unique constraint
   },
   fImage: {
     type: String,

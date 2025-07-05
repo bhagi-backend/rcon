@@ -135,87 +135,132 @@ exports.createRequest = catchAsync(async (req, res, next) => {
     updatedRegister,
   });
 });
+// exports.resizeDrawingFile = catchAsync(async (req, res, next) => {
+//   if (!req.file) return next();
+
+//   // Find the ArchitectureToRoRequest by ID
+//   const request = await ArchitectureToRoRequest.findById(
+//     req.params.id
+//   ).populate("drawingId");
+//   if (!request) {
+//     return next(new AppError("No request found with that ID", 404));
+//   }
+
+//   // Extract the drawingId from the request and find the corresponding ArchitectureToRoRegister
+//   const drawingId = request.drawingId._id;
+//   const architectureToRoRegister = await ArchitectureToRoRegister.findById(
+//     drawingId
+//   );
+//   if (!architectureToRoRegister) {
+//     return next(
+//       new AppError(
+//         "No drawing found with that ID in ArchitectureToRoRegister",
+//         404
+//       )
+//     );
+//   }
+
+//   // Extract siteId from the ArchitectureToRoRegister
+//   const siteId = architectureToRoRegister.siteId;
+//   if (!siteId) {
+//     return next(new AppError("No siteId found for the drawing", 404));
+//   }
+
+//   // Extract the file extension from the original file
+//   const fileExtension = path.extname(req.file.originalname);
+//   const newFilename = `request-${req.params.id}-${Date.now()}${fileExtension}`;
+
+//   const companyId = req.user.companyId;
+//   // Use the new function to get the upload path
+//   const { fullPath, relativePath,uploadToS3} = getUploadPath(
+//     companyId,
+//     newFilename,
+//     "drawings",
+//     siteId
+//   ); // Assuming you have companyId in your drawing
+
+//   // Save the file
+//   // fs.writeFile(fullPath, req.file.buffer, (err) => {
+//   //   if (err) {
+//   //     return next(new AppError("Failed to save uploaded file.", 400));
+//   //   }
+//   //   next();
+//   //   req.file.filename = relativePath;
+//   // });
+//    // Upload to S3 (no sharp)
+//   await uploadToS3(req.file.buffer, req.file.mimetype);
+
+//   // Store relative path in req.file for later use
+//   req.file.filename = relativePath;
+
+//   next();
+
+//   try {
+//     const registerDrawing = await ArchitectureToRoRequest.findById(
+//       req.params.id
+//     );
+
+//   //  const result = await processDWGFile(fullPath);
+//      const result = await processDWGFile(drawingFileName, drawingFile.buffer);
+
+//     if (result.urn) {
+//       registerDrawing.urn = result.urn;
+//       registerDrawing.drawingFileName = relativePath;
+
+//       const currentDateTime = new Date();
+//       const expirationDate = new Date(
+//         currentDateTime.getTime() + 28 * 24 * 60 * 60 * 1000
+//       );
+
+//       registerDrawing.urnExpiration = expirationDate;
+
+//       // Mark the array as modified
+//       //registerDrawing.markModified('acceptedRORevisions');
+
+//       // Save the document
+//       await registerDrawing.save();
+//     }
+//   } catch (e) {
+//     console.log(e);
+//   }
+// });
 exports.resizeDrawingFile = catchAsync(async (req, res, next) => {
   if (!req.file) return next();
 
-  // Find the ArchitectureToRoRequest by ID
-  const request = await ArchitectureToRoRequest.findById(
-    req.params.id
-  ).populate("drawingId");
-  if (!request) {
-    return next(new AppError("No request found with that ID", 404));
-  }
+  const request = await ArchitectureToRoRequest.findById(req.params.id).populate("drawingId");
+  if (!request) return next(new AppError("No request found with that ID", 404));
 
-  // Extract the drawingId from the request and find the corresponding ArchitectureToRoRegister
   const drawingId = request.drawingId._id;
-  const architectureToRoRegister = await ArchitectureToRoRegister.findById(
-    drawingId
-  );
-  if (!architectureToRoRegister) {
-    return next(
-      new AppError(
-        "No drawing found with that ID in ArchitectureToRoRegister",
-        404
-      )
-    );
-  }
+  const architectureToRoRegister = await ArchitectureToRoRegister.findById(drawingId);
+  if (!architectureToRoRegister) return next(new AppError("No drawing found in ArchitectureToRoRegister", 404));
 
-  // Extract siteId from the ArchitectureToRoRegister
   const siteId = architectureToRoRegister.siteId;
-  if (!siteId) {
-    return next(new AppError("No siteId found for the drawing", 404));
-  }
-
-  // Extract the file extension from the original file
   const fileExtension = path.extname(req.file.originalname);
   const newFilename = `request-${req.params.id}-${Date.now()}${fileExtension}`;
-
   const companyId = req.user.companyId;
-  // Use the new function to get the upload path
-  const { fullPath, relativePath } = getUploadPath(
-    companyId,
-    newFilename,
-    "drawings",
-    siteId
-  ); // Assuming you have companyId in your drawing
 
-  // Save the file
-  fs.writeFile(fullPath, req.file.buffer, (err) => {
-    if (err) {
-      return next(new AppError("Failed to save uploaded file.", 400));
-    }
-    next();
-    req.file.filename = relativePath;
-  });
+  const { relativePath, uploadToS3 } = getUploadPath(companyId, newFilename, "drawings", siteId);
 
+  // Upload to S3
+  await uploadToS3(req.file.buffer, req.file.mimetype);
+  req.file.filename = relativePath;
+
+  next(); // Continue response pipeline
+
+  // Trigger Autodesk DWG translation
   try {
-    const registerDrawing = await ArchitectureToRoRequest.findById(
-      req.params.id
-    );
-
-    const result = await processDWGFile(fullPath);
-
+    const result = await processDWGFile(newFilename, req.file.buffer);
     if (result.urn) {
-      registerDrawing.urn = result.urn;
-      registerDrawing.drawingFileName = relativePath;
-
-      const currentDateTime = new Date();
-      const expirationDate = new Date(
-        currentDateTime.getTime() + 28 * 24 * 60 * 60 * 1000
-      );
-
-      registerDrawing.urnExpiration = expirationDate;
-
-      // Mark the array as modified
-      //registerDrawing.markModified('acceptedRORevisions');
-
-      // Save the document
-      await registerDrawing.save();
+      request.urn = result.urn;
+      request.drawingFileName = relativePath;
+      request.urnExpiration = new Date(Date.now() + 28 * 24 * 60 * 60 * 1000);
+      await request.save();
     }
   } catch (e) {
-    console.log(e);
+    console.log("Autodesk DWG processing failed:", e.message);
   }
 });
+
 // Update an existing request
 exports.updateRequest = catchAsync(async (req, res, next) => {
   const updateData = req.body;
@@ -879,7 +924,7 @@ exports.updateRejectedFile = catchAsync(async (req, res, next) => {
   const companyId = req.user.companyId;
 
   // Use the new function to get the upload path
-  const { fullPath, relativePath } = getUploadPath(
+  const { fullPath, relativePath,uploadToS3 } = getUploadPath(
     companyId,
     newFilename,
     "drawings",
@@ -888,9 +933,10 @@ exports.updateRejectedFile = catchAsync(async (req, res, next) => {
 
   try {
     // Save the file
-    await fs.promises.writeFile(fullPath, req.file.buffer);
+    //await fs.promises.writeFile(fullPath, req.file.buffer);
+     await uploadToS3(req.file.buffer, req.file.mimetype);
     req.file.filename = relativePath;
-    console.log("File saved successfully:", fullPath);
+    //console.log("File saved successfully:", fullPath);
   } catch (err) {
     console.error("Error saving file:", err);
     return next(new AppError("Failed to save uploaded file.", 400));
@@ -1425,86 +1471,62 @@ exports.getAllRequestsBySiteIdForArchitect = catchAsync(
       return next(new AppError("Failed to retrieve requests", 400));
     }
   }
-);
-
-exports.resizeRejectedDrawingFile = catchAsync(async (req, res, next) => {
+);exports.resizeRejectedDrawingFile = catchAsync(async (req, res, next) => {
   if (!req.file) return next();
 
-  // Find the ArchitectureToRoRequest by ID
-  const request = await ArchitectureToRoRequest.findById(
-    req.params.id
-  ).populate("drawingId");
-  if (!request) {
-    return next(new AppError("No request found with that ID", 404));
-  }
+  // 1. Fetch request and drawing details
+  const request = await ArchitectureToRoRequest.findById(req.params.id).populate("drawingId");
+  if (!request) return next(new AppError("No request found with that ID", 404));
 
-  // Extract the drawingId from the request and find the corresponding ArchitectureToRoRegister
   const drawingId = request.drawingId._id;
-  const architectureToRoRegister = await ArchitectureToRoRegister.findById(
-    drawingId
-  );
-  if (!architectureToRoRegister) {
-    return next(
-      new AppError(
-        "No drawing found with that ID in ArchitectureToRoRegister",
-        404
-      )
-    );
-  }
+  const architectureToRoRegister = await ArchitectureToRoRegister.findById(drawingId);
+  if (!architectureToRoRegister) return next(new AppError("No drawing found with that ID", 404));
 
-  // Extract siteId from the ArchitectureToRoRegister
   const siteId = architectureToRoRegister.siteId;
-  if (!siteId) {
-    return next(new AppError("No siteId found for the drawing", 404));
-  }
+  if (!siteId) return next(new AppError("No siteId found for the drawing", 404));
 
-  // Extract the file extension and generate new filename for rejected file
+  // 2. Prepare file info
   const fileExtension = path.extname(req.file.originalname);
   const newFilename = `rejected-${req.params.id}-${Date.now()}${fileExtension}`;
-
   const companyId = req.user.companyId;
 
-  // Get the upload path
-  const { fullPath, relativePath } = getUploadPath(
+  const { uploadToS3, relativePath } = getUploadPath(
     companyId,
     newFilename,
     "rejected_drawings",
     siteId
   );
 
-  // Save the file
-  fs.writeFile(fullPath, req.file.buffer, (err) => {
-    if (err) {
-      return next(new AppError("Failed to save uploaded file.", 400));
-    }
-    next();
-  });
-  req.file.filename = relativePath;
+  // 3. Upload to S3 (your backup)
   try {
-    const requestDoc = await ArchitectureToRoRequest.findById(req.params.id);
+    await uploadToS3(req.file.buffer, req.file.mimetype);
+    req.file.filename = relativePath;
+    console.log("✅ File uploaded to S3:", relativePath);
+  } catch (s3Err) {
+    console.error("❌ Failed to upload to S3:", s3Err);
+    return next(new AppError("Failed to upload to S3", 500));
+  }
 
-    // Process the file if needed (assuming processDWGFile is used for rejected files too)
-    const result = await processDWGFile(fullPath);
+  // 4. Upload to Autodesk Forge
+  try {
+    const result = await processDWGFile(newFilename, req.file.buffer);
 
     if (result.urn) {
-      // Update the rejected file fields
-      requestDoc.urn = result.urn;
-      requestDoc.rejectedDwgFile = relativePath;
+      request.urn = result.urn;
+      request.rejectedDwgFile = relativePath; // store relative path to your S3
+      request.urnExpiration = new Date(Date.now() + 28 * 24 * 60 * 60 * 1000); // +28 days
 
-      // Set urn expiration for rejected file
-      const currentDateTime = new Date();
-      const expirationDate = new Date(
-        currentDateTime.getTime() + 28 * 24 * 60 * 60 * 1000
-      );
-
-      requestDoc.urnExpiration = expirationDate;
-
-      // Save the document
-      await requestDoc.save();
+      await request.save();
+      console.log("✅ Uploaded to Autodesk Forge & request updated");
+    } else {
+      return next(new AppError("Failed to get URN from Autodesk", 500));
     }
-  } catch (e) {
-    console.log(e);
+  } catch (forgeErr) {
+    console.error("❌ Autodesk DWG processing failed:", forgeErr.response?.data || forgeErr.message);
+    return next(new AppError("Autodesk DWG processing failed", 500));
   }
+
+  next();
 });
 
 exports.updateRejectDwgFile = catchAsync(async (req, res, next) => {
@@ -1856,34 +1878,32 @@ console.log("cssFileUrl",cssFileUrl)
       .json({ message: "Failed to generate PDF", error: err.message });
   }
 });
+
 exports.uploadImpactImages = upload.array("impactImages", 10);
 
 exports.updateImpactImages = catchAsync(async (req, res, next) => {
   if (!req.files || req.files.length === 0) {
     return next(new AppError("No images uploaded", 400));
   }
+
   const request = await ArchitectureToRoRequest.findById(req.params.id);
+  if (!request) {
+    return next(new AppError("No request found with that ID", 404));
+  }
+
   const siteId = request.siteId;
   const companyId = req.user.companyId;
 
   const uploadedFilenames = [];
 
-  // Save each file to disk and track the filenames
   for (const file of req.files) {
     const fileExtension = path.extname(file.originalname);
-    const newFilename = `impactImage-${
-      req.params.id
-    }-${Date.now()}-${Math.round(Math.random() * 1e9)}${fileExtension}`;
-    file.filename = newFilename;
+    const newFilename = `impactImage-${req.params.id}-${Date.now()}-${Math.round(Math.random() * 1e9)}${fileExtension}`;
 
-    const { fullPath, relativePath } = getUploadPath(
-      companyId,
-      newFilename,
-      "drawings",
-      siteId
-    );
+    const { relativePath, uploadToS3 } = getUploadPath(companyId, newFilename, "drawings", siteId);
 
-    await fs.promises.writeFile(fullPath, file.buffer);
+    // Upload to S3 (no local file write)
+    await uploadToS3(file.buffer, file.mimetype, relativePath);
     uploadedFilenames.push(relativePath);
   }
 

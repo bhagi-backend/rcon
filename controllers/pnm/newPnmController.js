@@ -14,13 +14,12 @@ const multerWrapper = require('../../utils/multerFun');
 
 const upload = multerWrapper();
 exports.uploadDocuments = upload.array("documents");
-
 exports.handleDocumentUpload = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const companyId = req.user.companyId;
 
   // Find the NewPnm document by ID
-  let newPnm = await NewPnm.findById(id);
+  const newPnm = await NewPnm.findById(id);
   if (!newPnm) {
     return next(new AppError("NewPnm document not found", 404));
   }
@@ -30,23 +29,26 @@ exports.handleDocumentUpload = catchAsync(async (req, res, next) => {
     return next(new AppError("No files uploaded", 400));
   }
 
-  // Iterate through the files in req.files
-  req.files.forEach((file, index) => {
+  // Iterate over the uploaded files with proper async/await
+  for (let index = 0; index < req.files.length; index++) {
+    const file = req.files[index];
     const fileName = `${Date.now()}-${file.originalname}`;
-    const { fullPath, relativePath } = getUploadPath(companyId, fileName, "newPnm/documents");
+    const { relativePath, uploadToS3 } = getUploadPath(
+      companyId,
+      fileName,
+      "newPnm/documents"
+    );
 
-    // Write the file to the fullPath
-    fs.writeFileSync(fullPath, file.buffer);
+    // Upload the file to S3
+    await uploadToS3(file.buffer, file.mimetype);
 
-    // Update or push document information in the NewPnm document
+    // Add or update the corresponding document reference
     if (newPnm.documents[index]) {
       newPnm.documents[index].documentFile = relativePath;
     } else {
-      newPnm.documents.push({
-        documentFile: relativePath,
-      });
+      newPnm.documents.push({ documentFile: relativePath });
     }
-  });
+  }
 
   // Save the updated NewPnm document
   await newPnm.save();
@@ -56,6 +58,7 @@ exports.handleDocumentUpload = catchAsync(async (req, res, next) => {
     data: newPnm,
   });
 });
+
 exports.addDocuments = catchAsync(async (req, res, next) => {
   const { id } = req.params; 
   const { documents } = req.body;

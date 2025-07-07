@@ -318,9 +318,9 @@ exports.updateDocument = catchAsync(async (req, res, next) => {
   const file = req.file;
   const fileName = `${Date.now()}-${file.originalname}`;
 
-  const { fullPath, relativePath } = getUploadPath(companyId, fileName, "breakDown/documents");
+  const { fullPath, relativePath,uploadToS3} = getUploadPath(companyId, fileName, "breakDown/documents");
 
-  fs.writeFileSync(fullPath, file.buffer);
+  await uploadToS3(file.buffer, file.mimetype);
 
   const updatedReport = await BreakDownReport.findByIdAndUpdate(
     id,

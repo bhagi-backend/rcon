@@ -86,39 +86,39 @@ exports.updateFImage = catchAsync(async (req, res, next) => {
     const fileName = `${Date.now()}-${file.originalname}`;
 
     // Get paths for storing the file
-    const { fullPath, relativePath } = getUploadPath(companyId, fileName, "isCodes/images");
+    const { fullPath, relativePath,uploadToS3 } = getUploadPath(companyId, fileName, "isCodes/images");
 
     // Save image to disk
-    fs.writeFileSync(fullPath, file.buffer);
+    await uploadToS3(file.buffer, file.mimetype);
 
-    const sharpProcessor = new SharpProcessor(file.buffer, { format: path.extname(file.originalname).substring(1), quality: 70 });
-    const { originalSize, compressedSize } = await sharpProcessor.compressImage(fullPath);
+    // const sharpProcessor = new SharpProcessor(file.buffer, { format: path.extname(file.originalname).substring(1), quality: 70 });
+    // const { originalSize, compressedSize } = await sharpProcessor.compressImage(fullPath);
 
-    console.log(`Original size: ${originalSize} bytes`);
-    console.log(`Compressed size: ${compressedSize} bytes`);
-    console.log(`Saved compressed image at: ${fullPath}`);
+    // console.log(`Original size: ${originalSize} bytes`);
+    // console.log(`Compressed size: ${compressedSize} bytes`);
+    // console.log(`Saved compressed image at: ${fullPath}`);
 
     // Update the fImage field with the relative path
     isCode.fImage = relativePath;
     await isCode.save();
 
-    // Calculate and format the saved image size
-    const savedImageSize = fs.statSync(fullPath).size;
-    function formatSize(bytes) {
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-      if (bytes === 0) return '0 Bytes';
-      const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
-      return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
-    }
+    // // Calculate and format the saved image size
+    // const savedImageSize = fs.statSync(fullPath).size;
+    // function formatSize(bytes) {
+    //   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    //   if (bytes === 0) return '0 Bytes';
+    //   const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+    //   return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+    //}
 
     // Send the response
     res.status(200).json({
       status: "success",
       data: {
         isCode,
-        originalSize,
-        compressedSize,
-        savedImageSize: formatSize(savedImageSize),
+       // originalSize,
+       // compressedSize,
+        //savedImageSize: formatSize(savedImageSize),
       },
     });
   } catch (err) {
@@ -240,25 +240,25 @@ exports.updateUploadFile = catchAsync(async (req, res, next) => {
   }
   const file = req.file;
   const fileName = `${Date.now()}-${file.originalname}`;
-  const { fullPath, relativePath } = getUploadPath(companyId, fileName, "isCodes/files");
+  const { fullPath, relativePath,uploadToS3 } = getUploadPath(companyId, fileName, "isCodes/files");
 
   // Save the file to disk
-  fs.writeFileSync(fullPath, file.buffer);
+  await uploadToS3(file.buffer, file.mimetype);
 
   // Process and compress the uploaded PDF or image
-  let compressionResult;
+  // let compressionResult;
 
-  if (req.file.mimetype === 'application/pdf') {
-    // Process and compress the uploaded PDF
-    const pdfProcessor = new PdfProcessor(req.file.buffer);
-    compressionResult = await pdfProcessor.compressPdf(fullPath);
-  } else if (['image/jpeg', 'image/jpg', 'image/png'].includes(req.file.mimetype)) {
-    // Process and compress the uploaded image
-    const sharpProcessor = new SharpProcessor(req.file.buffer, { format: path.extname(file.originalname).substring(1), quality: 70 });
-    compressionResult = await sharpProcessor.compressImage(fullPath);
-  } else {
-    return next(new AppError("Unsupported file type", 400));
-  }
+  // if (req.file.mimetype === 'application/pdf') {
+  //   // Process and compress the uploaded PDF
+  //   const pdfProcessor = new PdfProcessor(req.file.buffer);
+  //   compressionResult = await pdfProcessor.compressPdf(fullPath);
+  // } else if (['image/jpeg', 'image/jpg', 'image/png'].includes(req.file.mimetype)) {
+  //   // Process and compress the uploaded image
+  //   const sharpProcessor = new SharpProcessor(req.file.buffer, { format: path.extname(file.originalname).substring(1), quality: 70 });
+  //   compressionResult = await sharpProcessor.compressImage(fullPath);
+  // } else {
+  //   return next(new AppError("Unsupported file type", 400));
+  // }
 
   // Find the file with the highest `fNo` and update its uploadFile path
   const latestFile = isCode.files.reduce(
@@ -271,22 +271,22 @@ exports.updateUploadFile = catchAsync(async (req, res, next) => {
   await isCode.save();
 
   // Calculate and format the saved file size
-  const savedFileSize = fs.statSync(fullPath).size;
-  function formatSize(bytes) {
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    if (bytes === 0) return '0 Bytes';
-    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
-    return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
-  }
+  // const savedFileSize = fs.statSync(fullPath).size;
+  // function formatSize(bytes) {
+  //   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  //   if (bytes === 0) return '0 Bytes';
+  //   const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+  //   return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+  // }
 
   // Send the response
   res.status(200).json({
     status: "success",
     data: {
       isCode,
-      compressionResult, // Include compression result in response
-      savedFileSize: formatSize(savedFileSize),
-    },
+    //   compressionResult, // Include compression result in response
+    //   savedFileSize: formatSize(savedFileSize),
+     },
   });
 });
 

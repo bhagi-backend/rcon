@@ -94,25 +94,25 @@ exports.updateFImage = catchAsync(async (req, res, next) => {
   const file = req.file;
   const fileName = `${Date.now()}-${file.originalname}`;
 
-    const { fullPath, relativePath } = getUploadPath(companyId, fileName, "constructionNeeds/images");
+    const { fullPath, relativePath,uploadToS3 } = getUploadPath(companyId, fileName, "constructionNeeds/images");
 
-    fs.writeFileSync(fullPath, file.buffer);
+   await uploadToS3(file.buffer, file.mimetype);
 
-    const sharpProcessor = new SharpProcessor(file.buffer, { format: path.extname(file.originalname).substring(1), quality: 70 });
-    const { originalSize, compressedSize } = await sharpProcessor.compressImage(fullPath);
+    // const sharpProcessor = new SharpProcessor(file.buffer, { format: path.extname(file.originalname).substring(1), quality: 70 });
+    // const { originalSize, compressedSize } = await sharpProcessor.compressImage(fullPath);
 
-    console.log(`Original size: ${originalSize} bytes`);
-    console.log(`Compressed size: ${compressedSize} bytes`);
-    console.log(`Saved compressed image at: ${fullPath}`);
+    // console.log(`Original size: ${originalSize} bytes`);
+    // console.log(`Compressed size: ${compressedSize} bytes`);
+    // console.log(`Saved compressed image at: ${fullPath}`);
   constructionNeeds.fImage = relativePath;
   await constructionNeeds.save();
-  const savedImageSize = fs.statSync(fullPath).size;
-  function formatSize(bytes) {
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    if (bytes === 0) return '0 Bytes';
-    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
-    return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
-  }
+  // const savedImageSize = fs.statSync(fullPath).size;
+  // function formatSize(bytes) {
+  //   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  //   if (bytes === 0) return '0 Bytes';
+  //   const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+  //   return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+  // }
 
   // Send response with image sizes
   res.status(200).json({
@@ -254,29 +254,29 @@ exports.updateUploadFile = catchAsync(async (req, res, next) => {
 
   const file = req.file;
   const fileName = `${Date.now()}-${file.originalname}`;
- const { fullPath, relativePath } = getUploadPath(companyId, fileName, "constructionNeeds/files");
+ const { fullPath, relativePath,uploadToS3 } = getUploadPath(companyId, fileName, "constructionNeeds/files");
 
-    fs.writeFileSync(fullPath, file.buffer);
+    await uploadToS3(file.buffer, file.mimetype);
  
   // Process and compress the uploaded PDF
-  const pdfProcessor = new PdfProcessor(req.file.buffer);
+  // const pdfProcessor = new PdfProcessor(req.file.buffer);
 
 
   try {
-    let compressionResult;
+    // let compressionResult;
 
-    // Check the file type and process accordingly
-    if (req.file.mimetype === 'application/pdf') {
-      // Process and compress the uploaded PDF
-      const pdfProcessor = new PdfProcessor(req.file.buffer);
-      compressionResult = await pdfProcessor.compressPdf(fullPath);
-    } else if (['image/jpeg', 'image/jpg', 'image/png'].includes(req.file.mimetype)) {
-      // Process and compress the uploaded image
-      const sharpProcessor = new SharpProcessor(req.file.buffer);
-      compressionResult = await sharpProcessor.compressImage(fullPath);
-    } else {
-      return next(new AppError("Unsupported file type", 400));
-    }
+    // // Check the file type and process accordingly
+    // if (req.file.mimetype === 'application/pdf') {
+    //   // Process and compress the uploaded PDF
+    //   const pdfProcessor = new PdfProcessor(req.file.buffer);
+    //   compressionResult = await pdfProcessor.compressPdf(fullPath);
+    // } else if (['image/jpeg', 'image/jpg', 'image/png'].includes(req.file.mimetype)) {
+    //   // Process and compress the uploaded image
+    //   const sharpProcessor = new SharpProcessor(req.file.buffer);
+    //   compressionResult = await sharpProcessor.compressImage(fullPath);
+    // } else {
+    //   return next(new AppError("Unsupported file type", 400));
+    // }
     latestContactDetail.uploadFile = relativePath;
 
     await constructionNeeds.save();
@@ -286,7 +286,7 @@ exports.updateUploadFile = catchAsync(async (req, res, next) => {
       status: "success",
       data: {
         constructionNeeds,
-        compressionResult,
+       // compressionResult,
       },
     });
   } catch (error) {

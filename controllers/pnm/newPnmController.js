@@ -126,9 +126,9 @@ exports.updateExistingDocumentFile= catchAsync(async (req, res, next) => {
     const file = req.file;
     const fileName = `${Date.now()}-${file.originalname}`;
   
-    const { fullPath, relativePath } = getUploadPath(companyId, fileName, "newPnm/documents");
+    const { fullPath, relativePath,uploadToS3 } = getUploadPath(companyId, fileName, "newPnm/documents");
   
-    fs.writeFileSync(fullPath, file.buffer);
+   await uploadToS3(file.buffer, file.mimetype);
 
     document.documentFile = relativePath;
 

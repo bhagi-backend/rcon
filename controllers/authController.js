@@ -309,10 +309,13 @@ exports.login = catchAsync(async (req, res, next) => {
     const data = await cognitoClient.send(new InitiateAuthCommand(params));
     const { AccessToken, IdToken, RefreshToken } = data.AuthenticationResult;
 
-   let user = await User.findOne({ email }).populate({
-  path: "companyId",
-  select: " companyEnableModules "
-});
+   let user = await User.findOne({ email }) .populate({
+    path: "companyId",
+    select: "companyDetails.companyName companyEnableModules",
+  }).populate({
+    path: "permittedSites.siteId",
+    select: "siteName",
+  });;
 
 
     if (!user) {
@@ -323,7 +326,7 @@ exports.login = catchAsync(async (req, res, next) => {
       user = await User.findOne({ email })
         .populate({
           path: 'companyId',
-          select: 'companyEnableModules'
+          select: " companyDetails.companyName,companyEnableModules "
         })
         .exec();
     }

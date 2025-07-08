@@ -1,4 +1,4 @@
-const { CognitoIdentityProviderClient, AdminDeleteUserCommand, AdminInitiateAuthCommand,AdminCreateUserCommand, AdminSetUserPasswordCommand, CreateGroupCommand,AdminAddUserToGroupCommand, InitiateAuthCommand, ForgotPasswordCommand, ListUsersCommand ,DeleteGroupCommand} = require("@aws-sdk/client-cognito-identity-provider");
+const { CognitoIdentityProviderClient, AdminDeleteUserCommand, AdminInitiateAuthCommand,AdminCreateUserCommand, AdminSetUserPasswordCommand, CreateGroupCommand,AdminAddUserToGroupCommand, InitiateAuthCommand, ForgotPasswordCommand, ListUsersCommand ,DeleteGroupCommand,ConfirmForgotPasswordCommand,} = require("@aws-sdk/client-cognito-identity-provider");
 const jwt = require("jsonwebtoken");
 const { promisify } = require("util");
 const User = require("../models/userModel");
@@ -309,18 +309,19 @@ exports.login = catchAsync(async (req, res, next) => {
     const data = await cognitoClient.send(new InitiateAuthCommand(params));
     const { AccessToken, IdToken, RefreshToken } = data.AuthenticationResult;
 
-   let user = await User.findOne({ email }) .populate({
+   let user = await User.findOne({ email })
+  .populate({
     path: "companyId",
     select: "companyDetails.companyName companyEnableModules",
-  }).populate({
+  })
+  .populate({
     path: "permittedSites.siteId",
     select: "siteName",
-  });;
+  });
 
 
-    if (!user) {
-      return next(new AppError('User not found', 404));
-    }
+
+
 
     if (user.department === 'Company Admin') {
       user = await User.findOne({ email })
@@ -329,6 +330,21 @@ exports.login = catchAsync(async (req, res, next) => {
           select: " companyDetails.companyName,companyEnableModules "
         })
         .exec();
+    }
+  // Convert to plain object to manipulate structure
+    let userObj = user.toObject();
+
+    // Flatten permittedSites
+    if (Array.isArray(userObj.permittedSites)) {
+      userObj.permittedSites = userObj.permittedSites.map(site => {
+        const populated = site.siteId || {};
+        return {
+          _id: site._id,
+          siteId: populated._id || site.siteId,
+          siteName: populated.siteName || null,
+          enableModules: site.enableModules,
+        };
+      });
     }
 
     const token = signToken(user._id);
@@ -349,7 +365,7 @@ exports.login = catchAsync(async (req, res, next) => {
         accessToken: AccessToken,
         refreshToken: RefreshToken,
       },
-      user
+      user:userObj
     });
   } catch (err) {
     console.error('Error logging in:', err.message);
@@ -433,36 +449,36 @@ exports.requestPasswordReset = catchAsync(async (req, res, next) => {
 
 
 // Function to confirm the password reset
-const confirmPasswordReset = async (username, confirmationCode, newPassword) => {
-  const params = {
-    ClientId: process.env.COGNITO_CLIENT_ID, // Your Cognito App Client ID
-    ConfirmationCode: confirmationCode,
-    Username: username,
-    Password: newPassword,
-  };
+// const confirmPasswordReset = async (username, confirmationCode, newPassword) => {
+//   const params = {
+//     ClientId: process.env.COGNITO_CLIENT_ID, // Your Cognito App Client ID
+//     ConfirmationCode: confirmationCode,
+//     Username: username,
+//     Password: newPassword,
+//   };
 
-  // Create the command to confirm the password reset
-  const command = new ForgotPasswordCommand(params);
+//   // Create the command to confirm the password reset
+//   const command = new ForgotPasswordCommand(params);
 
-  try {
-    // Send the command to Cognito
-    await cognitoClient.send(command);
-    return { status: 'success', message: 'Password reset confirmed successfully.' };
-  } catch (error) {
-    console.error('Error confirming password reset:', error.message);
+//   try {
+//     // Send the command to Cognito
+//     await cognitoClient.send(command);
+//     return { status: 'success', message: 'Password reset confirmed successfully.' };
+//   } catch (error) {
+//     console.error('Error confirming password reset:', error.message);
 
-    // Customize error responses based on AWS error codes
-    if (error.name === 'ExpiredCodeException') {
-      throw new Error('The confirmation code has expired. Please request a new password reset.');
-    } else if (error.name === 'CodeMismatchException') {
-      throw new Error('The confirmation code is incorrect. Please try again.');
-    } else if (error.name === 'UserNotFoundException') {
-      throw new Error('User not found. Please ensure the username is correct.');
-    } else {
-      throw new Error('An error occurred while confirming the password reset. Please try again.');
-    }
-  }
-};
+//     // Customize error responses based on AWS error codes
+//     if (error.name === 'ExpiredCodeException') {
+//       throw new Error('The confirmation code has expired. Please request a new password reset.');
+//     } else if (error.name === 'CodeMismatchException') {
+//       throw new Error('The confirmation code is incorrect. Please try again.');
+//     } else if (error.name === 'UserNotFoundException') {
+//       throw new Error('User not found. Please ensure the username is correct.');
+//     } else {
+//       throw new Error('An error occurred while confirming the password reset. Please try again.');
+//     }
+//   }
+// };
 
 const getCognitoUsernameByEmail = async (email) => {
   const params = {
@@ -520,29 +536,130 @@ const getCognitoUsernameByEmail = async (email) => {
 //     next(new AppError('Error confirming forgot password: ' + err.message, 400));
 //   }
 // });
+// exports.verifyConfirmationCode = catchAsync(async (req, res, next) => {
+//   const { email, confirmationCode } = req.body;
+
+//   if (!confirmationCode || !email) {
+//     return next(new AppError('Please provide email and confirmation code', 400));
+//   }
+
+//   try {
+//     const username = await getCognitoUsernameByEmail(email);
+//     console.log("username:", username);
+    
+//     // Verify the confirmation code by calling confirmForgotPassword
+//     await confirmPasswordReset(username, confirmationCode, 'TempPassword123!'); // Temporary password for validation
+    
+//     res.status(200).json({
+//       status: 'success',
+//       message: 'Confirmation code verified, proceed to reset password.'
+//     });
+//   } catch (err) {
+//     console.error('Error verifying confirmation code:', err.message);
+//     next(new AppError('Error verifying confirmation code: ' + err.message, 400));
+//   }
+// });
+// Function to confirm the password reset
+const confirmPasswordReset = async (
+  username,
+  confirmationCode,
+  newPassword
+) => {
+  const params = {
+    ClientId: process.env.COGNITO_CLIENT_ID,
+    ConfirmationCode: confirmationCode,
+    Username: username,
+    Password: newPassword,
+  };
+
+  const command = new ConfirmForgotPasswordCommand(params);
+
+  try {
+    await cognitoClient.send(command);
+    return {
+      status: "success",
+      message: "Password reset confirmed successfully.",
+    };
+  } catch (error) {
+    console.error("Error confirming password reset:", error.message);
+
+    if (error.name === "ExpiredCodeException") {
+      throw new Error(
+        "The confirmation code has expired. Please request a new password reset."
+      );
+    } else if (error.name === "CodeMismatchException") {
+      throw new Error("The confirmation code is incorrect. Please try again.");
+    } else if (error.name === "UserNotFoundException") {
+      throw new Error("User not found. Please ensure the username is correct.");
+    } else {
+      throw new Error(
+        "An error occurred while confirming the password reset. Please try again."
+      );
+    }
+  }
+};
+
+// const getCognitoUsernameByEmail = async (email) => {
+//   const params = {
+//     UserPoolId: process.env.COGNITO_USER_POOL_ID,
+//     Filter: `email = "${email}"`,
+//     Limit: 1,
+//   };
+//   const command = new ListUsersCommand(params);
+
+//   try {
+//     const data = await cognito.send(command);
+
+//     if (data.Users.length === 0) {
+//       throw new Error("User not found");
+//     }
+
+//     return data.Users[0].Username;
+//   } catch (error) {
+//     console.error("Error fetching user by email:", error.message);
+
+//     throw new Error(
+//       "An error occurred while fetching the user by email. Please try again."
+//     );
+//   }
+// };
+
 exports.verifyConfirmationCode = catchAsync(async (req, res, next) => {
   const { email, confirmationCode } = req.body;
 
   if (!confirmationCode || !email) {
-    return next(new AppError('Please provide email and confirmation code', 400));
+    return next(
+      new AppError("Please provide email and confirmation code", 400)
+    );
   }
 
   try {
     const username = await getCognitoUsernameByEmail(email);
     console.log("username:", username);
-    
-    // Verify the confirmation code by calling confirmForgotPassword
-    await confirmPasswordReset(username, confirmationCode, 'TempPassword123!'); // Temporary password for validation
-    
+
+    await confirmPasswordReset(username, confirmationCode, "TempPassword123!");
+
     res.status(200).json({
-      status: 'success',
-      message: 'Confirmation code verified, proceed to reset password.'
+      status: "success",
+      message: "Confirmation code verified, proceed to reset password.",
     });
   } catch (err) {
-    console.error('Error verifying confirmation code:', err.message);
-    next(new AppError('Error verifying confirmation code: ' + err.message, 400));
+    //console.error('Error verifying confirmation code:', err.message);
+
+    //if (err.message.includes('Invalid verification code')) {
+    return res.status(200).json({
+      status: "fail",
+      message: "Invalid confirmation code. Please try again.",
+    });
+    //}
+
+    // return res.status(400).json({
+    //   status: 'fail',
+    //   message: 'Error verifying confirmation code: ' + err.message,
+    // });
   }
 });
+
 const formatGroupName = (companyName) => {
  
   const formattedGroupName = companyName.replace(/\s+/g, '');

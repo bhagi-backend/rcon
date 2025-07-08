@@ -319,10 +319,6 @@ exports.login = catchAsync(async (req, res, next) => {
     select: "siteName",
   });
 
-
-
-
-
     if (user.department === 'Company Admin') {
       user = await User.findOne({ email })
         .populate({

@@ -327,7 +327,7 @@ exports.login = catchAsync(async (req, res, next) => {
       user = await User.findOne({ email })
         .populate({
           path: 'companyId',
-          select: " companyDetails.companyName,companyEnableModules "
+          select: " companyDetails.companyName companyEnableModules "
         })
         .exec();
     }

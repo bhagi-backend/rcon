@@ -164,6 +164,8 @@ const companySchema = new Schema({
       ref: "Site",
     },
   ],
+}, {
+  timestamps: true // ✅ Adds createdAt and updatedAt fields automatically
 });
 
 const Company = mongoose.model("Company", companySchema);

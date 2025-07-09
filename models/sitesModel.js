@@ -282,7 +282,8 @@ const siteSchema = new mongoose.Schema({
     type: String,
   },
   
-  
+ }, {
+  timestamps: true // ✅ Adds createdAt and updatedAt fields automatically
 });
 
 const Site = mongoose.model("Site", siteSchema);

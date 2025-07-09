@@ -451,7 +451,7 @@ const updateClubHouse = async (id, siteId) => {
 
 exports.getAll = catchAsync(async (req, res, next) => {
   try {
-    const sites = await Site.find({})
+    const sites = await Site.find({}).sort({ createdAt: -1 }) 
       .populate({
         path: "apartmentsDetails.towers",
         populate: {
@@ -510,7 +510,7 @@ exports.getAllSitesInfo = catchAsync(async (req, res, next) => {
 
     const permittedSiteIds = user.permittedSites.map((site) => site.siteId);
 
-    const sites = await Site.find({ _id: { $in: permittedSiteIds } })
+    const sites = await Site.find({ _id: { $in: permittedSiteIds } }).sort({ createdAt: -1 })
       .populate({
         path: "apartmentsDetails.towers",
         populate: {
@@ -810,7 +810,7 @@ exports.getSitesByCompanyId = catchAsync(async (req, res, next) => {
     const user = await User.findById(userId).exec();
   const companyId = user.companyId;
 console.log("companyId",companyId)
-  const sites = await Site.find({ companyId })
+  const sites = await Site.find({ companyId }).sort({ createdAt: -1 }) 
   .select('_id siteName siteImage')
   .exec();
 

@@ -216,7 +216,7 @@ exports.getDocument = catchAsync(async (req, res, next) => {
 });
 
 exports.getAllCompanies = catchAsync(async (req, res, next) => {
-  const companies = await Company.find().populate('sites');
+  const companies = await Company.find().sort({ createdAt: -1 }).populate('sites');
 
   const filteredCompanies = companies.map((company) => {
     const companyObj = company.toObject();

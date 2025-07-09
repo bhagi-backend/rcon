@@ -848,3 +848,331 @@ module.exports = {
 };
 
 
+////////////////////////////////////////////////new code/////////////////////////////////////////////
+// const axios = require('axios');
+// const { Buffer } = require('buffer');
+// require('dotenv').config();
+// const mongoose = require('mongoose');
+
+// // MongoDB model for storing Autodesk tokens and buckets
+// const autodeskSchema = new mongoose.Schema({
+//   accessToken: { type: String, required: true },
+//   accessTokenExpiration: { type: Date, required: true },
+//   bucketKey: { type: String, required: true },
+//   bucketExpiration: { type: Date, required: true },
+// });
+
+// const AutodeskToken = mongoose.model('AutodeskToken', autodeskSchema);
+
+// // Improved logging function with timestamps
+// function log(level, message, data = null) {
+//   const timestamp = new Date().toISOString();
+//   console.log(`[${timestamp}] [${level}] ${message}`);
+//   if (data) {
+//     console.log(JSON.stringify(data, null, 2));
+//   }
+// }
+
+// // Enhanced random string generator for bucket names
+// function generateRandomString() {
+//   const timestamp = Date.now();
+//   const randomStr = Math.random().toString(36).substring(2, 10);
+//   const bucketKey = `autodesk_${timestamp}_${randomStr}`;
+//   log('INFO', `Generated bucket key: ${bucketKey}`);
+//   return bucketKey;
+// }
+
+// // Normalize file paths for Autodesk OSS
+// function normalizePath(path) {
+//   return path.replace(/^\/+/, '')
+//             .replace(/\/+/g, '/')
+//             .replace(/\/+$/, '');
+// }
+
+// // Get or refresh access token with improved error handling
+// async function getAccessToken() {
+//   log('INFO', 'Checking for existing valid access token...');
+//   const now = new Date();
+  
+//   try {
+//     const existingToken = await AutodeskToken.findOne().sort({ accessTokenExpiration: -1 });
+
+//     if (existingToken && existingToken.accessTokenExpiration > now) {
+//       log('INFO', `Using existing token (expires at ${existingToken.accessTokenExpiration})`);
+//       return existingToken.accessToken;
+//     }
+
+//     log('INFO', 'Requesting new access token from Autodesk...');
+    
+//     const response = await axios.post(
+//       'https://developer.api.autodesk.com/authentication/v2/token',
+//       new URLSearchParams({
+//         client_id: process.env.AUTODESK_CLIENT_ID,
+//         client_secret: process.env.AUTODESK_CLIENT_SECRET,
+//         grant_type: 'client_credentials',
+//         scope: 'data:read data:write data:create bucket:create bucket:read'
+//       }),
+//       {
+//         headers: {
+//           'Content-Type': 'application/x-www-form-urlencoded'
+//         },
+//         timeout: 5000 // 5 second timeout
+//       }
+//     );
+
+//     const accessToken = response.data.access_token;
+//     const expiresIn = response.data.expires_in;
+//     const expirationTime = new Date(now.getTime() + expiresIn * 1000);
+
+//     log('INFO', `Received new token (expires in ${expiresIn} seconds)`);
+    
+//     await AutodeskToken.updateOne({}, {
+//       accessToken,
+//       accessTokenExpiration: expirationTime,
+//     }, { upsert: true });
+
+//     log('INFO', 'Token stored in database');
+//     return accessToken;
+//   } catch (error) {
+//     log('ERROR', 'Failed to get access token', {
+//       status: error.response?.status,
+//       data: error.response?.data,
+//       message: error.message
+//     });
+//     throw new Error(`Authentication failed: ${error.response?.data?.developerMessage || error.message}`);
+//   }
+// }
+
+// // Get or create bucket with verification
+// async function createBucket(token) {
+//   log('INFO', 'Checking for existing valid bucket...');
+//   const now = new Date();
+  
+//   try {
+//     const existingBucket = await AutodeskToken.findOne().sort({ bucketExpiration: -1 });
+
+//     if (existingBucket && existingBucket.bucketExpiration > now) {
+//       // Verify bucket actually exists
+//       try {
+//         await axios.head(
+//           `https://developer.api.autodesk.com/oss/v2/buckets/${existingBucket.bucketKey}/details`,
+//           {
+//             headers: { 'Authorization': `Bearer ${token}` },
+//             timeout: 5000
+//           }
+//         );
+//         log('INFO', `Using existing bucket: ${existingBucket.bucketKey}`);
+//         return existingBucket.bucketKey;
+//       } catch (verifyError) {
+//         log('WARN', 'Bucket record exists but verification failed, creating new bucket', {
+//           error: verifyError.message
+//         });
+//       }
+//     }
+
+//     const bucketKey = generateRandomString();
+//     log('INFO', `Creating new bucket: ${bucketKey}`);
+
+//     const response = await axios.post(
+//       'https://developer.api.autodesk.com/oss/v2/buckets',
+//       {
+//         bucketKey,
+//         policyKey: 'temporary'
+//       },
+//       {
+//         headers: {
+//           'Content-Type': 'application/json',
+//           'Authorization': `Bearer ${token}`
+//         },
+//         timeout: 5000
+//       }
+//     );
+
+//     const bucketExpiration = new Date(now.setHours(23, 59, 59, 999)); // End of the day
+
+//     await AutodeskToken.updateOne({}, {
+//       bucketKey,
+//       bucketExpiration,
+//     }, { upsert: true });
+
+//     log('INFO', `Successfully created bucket: ${bucketKey}`);
+//     return bucketKey;
+//   } catch (error) {
+//     log('ERROR', 'Failed to create bucket', {
+//       status: error.response?.status,
+//       data: error.response?.data,
+//       message: error.message
+//     });
+//     throw new Error(`Bucket creation failed: ${error.response?.data?.developerMessage || error.message}`);
+//   }
+// }
+
+// // Encode URN to base64 with URL safety
+// function encodeBase64(text) {
+//   const encoded = Buffer.from(text, 'utf-8').toString('base64')
+//     .replace(/\+/g, '-')
+//     .replace(/\//g, '_')
+//     .replace(/=+$/, '');
+//   log('INFO', `Encoded URN: ${text} -> ${encoded}`);
+//   return encoded;
+// }
+
+// // Upload file with retry logic and enhanced error handling
+// async function uploadFile(token, bucketKey, fileName, buffer, attempt = 1) {
+//   const maxAttempts = 3;
+//   const cleanFileName = normalizePath(fileName);
+//   const encodedFileName = encodeURIComponent(cleanFileName);
+//   const url = `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/objects/${encodedFileName}`;
+  
+//   log('INFO', `Upload attempt ${attempt}/${maxAttempts}`, {
+//     bucket: bucketKey,
+//     originalFileName: fileName,
+//     cleanFileName,
+//     encodedFileName,
+//     size: buffer.length
+//   });
+
+//   try {
+//     // Verify bucket exists first
+//     await axios.head(
+//       `https://developer.api.autodesk.com/oss/v2/buckets/${bucketKey}/details`,
+//       {
+//         headers: { 'Authorization': `Bearer ${token}` },
+//         timeout: 5000
+//       }
+//     );
+
+//     const response = await axios.put(url, buffer, {
+//       headers: {
+//         'Authorization': `Bearer ${token}`,
+//         'Content-Type': 'application/octet-stream',
+//         'Content-Length': buffer.length
+//       },
+//       maxContentLength: Infinity,
+//       maxBodyLength: Infinity,
+//       timeout: 30000 // 30 second timeout for upload
+//     });
+
+//     log('INFO', 'File uploaded successfully', {
+//       objectId: response.data.objectId,
+//       size: response.data.size,
+//       location: response.data.location
+//     });
+//     return response.data.objectId;
+//   } catch (error) {
+//     log('ERROR', `Upload attempt ${attempt} failed`, {
+//       status: error.response?.status,
+//       data: error.response?.data,
+//       message: error.message
+//     });
+
+//     if (attempt >= maxAttempts) {
+//       throw new Error(`Upload failed after ${maxAttempts} attempts: ${error.response?.data?.developerMessage || error.message}`);
+//     }
+
+//     // Special handling for 404 - bucket might not exist
+//     if (error.response?.status === 404) {
+//       log('INFO', 'Bucket not found, creating new bucket and retrying...');
+//       const newBucketKey = await createBucket(token);
+//       return uploadFile(token, newBucketKey, fileName, buffer, attempt + 1);
+//     }
+
+//     // Wait before retrying (exponential backoff)
+//     const delay = 1000 * Math.pow(2, attempt - 1);
+//     log('INFO', `Waiting ${delay}ms before retry...`);
+//     await new Promise(resolve => setTimeout(resolve, delay));
+    
+//     return uploadFile(token, bucketKey, fileName, buffer, attempt + 1);
+//   }
+// }
+
+// // Translate model to SVF with improved error handling
+// async function translateModel(urn, token) {
+//   log('INFO', `Starting model translation for URN: ${urn}`);
+//   const url = 'https://developer.api.autodesk.com/modelderivative/v2/designdata/job';
+//   const data = {
+//     input: { urn },
+//     output: {
+//       formats: [{ type: 'svf', views: ['2d', '3d'] }]
+//     }
+//   };
+
+//   try {
+//     const response = await axios.post(url, data, {
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'Authorization': `Bearer ${token}`
+//       },
+//       timeout: 10000
+//     });
+
+//     log('INFO', 'Translation job started successfully', {
+//       jobId: response.data.result,
+//       status: response.data.status
+//     });
+//     return response.data;
+//   } catch (error) {
+//     log('ERROR', 'Failed to start translation job', {
+//       status: error.response?.status,
+//       data: error.response?.data,
+//       message: error.message
+//     });
+//     throw new Error(`Translation failed: ${error.response?.data?.developerMessage || error.message}`);
+//   }
+// }
+
+// // Main function to process DWG files with comprehensive error handling
+// async function processDWGFile(fileName, buffer) {
+//   log('INFO', '========================================');
+//   log('INFO', `Starting DWG file processing for: ${fileName}`);
+//   log('INFO', `File size: ${buffer.length} bytes`);
+
+//   try {
+//     log('INFO', 'Step 1/4: Getting access token...');
+//     const token = await getAccessToken();
+    
+//     log('INFO', 'Step 2/4: Getting/Creating bucket...');
+//     const bucketKey = await createBucket(token);
+    
+//     log('INFO', 'Step 3/4: Uploading file...');
+//     const objectId = await uploadFile(token, bucketKey, fileName, buffer);
+    
+//     log('INFO', 'Step 4/4: Starting translation...');
+//     const urn = encodeBase64(objectId);
+//     await translateModel(urn, token);
+
+//     log('INFO', 'Processing completed successfully!', {
+//       urn,
+//       bucketKey,
+//       objectId
+//     });
+//     log('INFO', '========================================');
+    
+//     return {
+//       token,
+//       urn,
+//       bucketKey,
+//       objectId
+//     };
+//   } catch (error) {
+//     log('ERROR', 'Processing failed', {
+//       fileName,
+//       error: error.message,
+//       stack: error.stack
+//     });
+//     log('INFO', '========================================');
+//     throw error;
+//   }
+// }
+
+// // Export all functions
+// module.exports = {
+//   generateRandomString,
+//   getAccessToken,
+//   createBucket,
+//   encodeBase64,
+//   translateModel,
+//   processDWGFile,
+//   uploadFile,
+//   AutodeskToken // For testing purposes
+// };

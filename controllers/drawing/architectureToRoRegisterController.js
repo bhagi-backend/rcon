@@ -988,34 +988,37 @@ existingRegister.regState="Drawing";
     }
     const updatedRegister = await existingRegister.save();
 
-    if (drawingFullPath) {
+     // Process DWG file if exists
+    if (drawingFile && drawingFullPath) {
       try {
-       /// const result = await processDWGFile(drawingFullPath);
-       const result = await processDWGFile(drawingFileName, drawingFile.buffer);
+        console.log('Starting DWG file processing...');
+        const result = await processDWGFile(drawingFileName, drawingFile.buffer);
+        console.log('DWG processing result:', result);
 
-        const latestRevisionIndex = updatedRegister[revisionType].length - 1;
-        const latestRevision = updatedRegister[revisionType][latestRevisionIndex];
+        const latestRevisionIndex = existingRegister[revisionType].length - 1;
+        const latestRevision = existingRegister[revisionType][latestRevisionIndex];
 
         if (result.urn) {
-          updatedRegister[revisionType][latestRevisionIndex].urn = result.urn;
-          updatedRegister[revisionType][latestRevisionIndex].drawingFileName = drawingFileName;
+          latestRevision.urn = result.urn;
+          latestRevision.drawingFileName = drawingFileName;
+          
+          // Set expiration to 28 days from now
+          const expirationDate = new Date();
+          expirationDate.setDate(expirationDate.getDate() + 28);
+          latestRevision.urnExpiration = expirationDate;
 
-          const currentDateTime = new Date();
-          const expirationDate = new Date(currentDateTime.getTime() + 28 * 24 * 60 * 60 * 1000);
-          updatedRegister[revisionType][latestRevisionIndex].urnExpiration = expirationDate;
-
-          updatedRegister.markModified(revisionType);
-          await updatedRegister.save();
+          existingRegister.markModified(revisionType);
         }
-     } catch (e) {
-  console.error("Error processing DWG file:", e.message);
-  return res.status(200).json({
-    status: "fail",
-    message: "Error processing DWG file: " + e.message
-  });
-}
-
+      } catch (e) {
+        console.error("Error processing DWG file:", e);
+        return res.status(500).json({
+          status: "fail",
+          message: "Error processing DWG file: " + e.message
+        });
+      }
     }
+
+
     const siteHeadIds = await User.find({
       "permittedSites.siteId": siteId
     }).select('permittedSites _id');

@@ -612,7 +612,7 @@ exports.getCompanyAdminByCompanyId= catchAsync(async (req, res, next) => {
     const { companyId } = req.params;
     const companyAdmins = await User.find({
       companyId: companyId,
-      role: "Company Admin"
+      department: "Company Admin"
     });
 
     if (companyAdmins.length === 0) {

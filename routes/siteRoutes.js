@@ -2,10 +2,14 @@ const express = require("express");
 const Router = express.Router();
 const siteController = require("../controllers/siteController");
 const authController = require("../controllers/authController");
+
+
+
+Router.put("/siteImage/:siteId",authController.protect, siteController.uploadSiteImage, siteController.updateSiteImage);
 //Router.use(express.urlencoded({extended:true}))
 Router.post("/PostSite", siteController.createOne);
-Router.put("/siteImage/:siteId",authController.protect, siteController.uploadSiteImage, siteController.updateSiteImage);
 Router.put("/update/:siteId", siteController.updateSite);
+
 Router.put("/updateBySiteId/:siteId", siteController.updateExistingSiteById);
 Router.put("/updateTower/:id", siteController.updateTowerByTowerId);
 Router.put("/updateClubHouse/:id", siteController.updateClubHouseByClubHouseId);

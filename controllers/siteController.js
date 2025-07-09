@@ -45,7 +45,7 @@ exports.updateSiteImage = catchAsync(async (req, res, next) => {
   const file = req.file;
   const fileName = `${Date.now()}-${file.originalname}`;
 
-  const { uploadToS3, relativePath } = `getUploadPath`(companyId, fileName, "siteImages",siteId);
+  const { uploadToS3, relativePath } = getUploadPath(companyId, fileName, "siteImages",siteId);
 
 // Upload file to S3
 await uploadToS3(file.buffer, file.mimetype);

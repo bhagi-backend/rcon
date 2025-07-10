@@ -1011,7 +1011,7 @@ existingRegister.regState="Drawing";
         }
       } catch (e) {
         console.error("Error processing DWG file:", e);
-        return res.status(500).json({
+        return res.status(200).json({
           status: "fail",
           message: "Error processing DWG file: " + e.message
         });

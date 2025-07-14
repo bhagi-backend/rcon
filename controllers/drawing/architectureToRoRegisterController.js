@@ -940,6 +940,7 @@ let pdfFullPath = null;
 if (drawingFile) {
   const fileExtension = path.extname(drawingFile.originalname);
   drawingFileName = `drawing-ArchitectureToRoRegister-${existingRegister._id}-${Date.now()}${fileExtension}`;
+  drawingFileName1 = `drawing-ArchitectureToRoRegister-${existingRegister._id}-${Date.now()}${fileExtension}`;
   const companyId = req.user.companyId;
 
   const result = getUploadPath(companyId, drawingFileName, "drawings", existingRegister.siteId);
@@ -991,8 +992,12 @@ existingRegister.regState="Drawing";
      // Process DWG file if exists
     if (drawingFile && drawingFullPath) {
       try {
-        console.log('Starting DWG file processing...');
-        const result = await processDWGFile(drawingFileName, drawingFile.buffer);
+        // console.log('Starting DWG file processing...');
+        // console.log("drawingFile",drawingFile)
+        // console.log("drawingFullPath",drawingFullPath)
+        // console.log("drawingFileName",drawingFileName1)
+
+        const result = await processDWGFile(drawingFileName1, drawingFile.buffer);
         console.log('DWG processing result:', result);
 
         const latestRevisionIndex = existingRegister[revisionType].length - 1;

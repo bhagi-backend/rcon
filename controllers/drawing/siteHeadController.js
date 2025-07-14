@@ -467,7 +467,7 @@ exports.getAllSiteHeadForPendingTab = catchAsync(async (req, res, next) => {
       .filter(
         (item) =>
           item.acceptedROHardCopyRevisions &&
-          item.acceptedROHardCopyRevisions.length <= 0
+          item.acceptedROHardCopyRevisions.length < item.acceptedArchitectRevisions.length
       ) // ||
       //item.regState === 'Pending' )
       .map((item) => ({
@@ -495,7 +495,7 @@ exports.getAllSiteHeadForPendingTab = catchAsync(async (req, res, next) => {
       .filter(
         (item) =>
           item.acceptedSiteHeadHardCopyRevisions &&
-          item.acceptedSiteHeadHardCopyRevisions.length <= 0
+          item.acceptedSiteHeadHardCopyRevisions.length <item.acceptedRORevisions.length 
       ) // ||
       //  item.regState === 'Pending' )
       .map((item) => ({

@@ -16,6 +16,7 @@ Router.route("/")
 
 
   Router.get('/documents', companyController.getDocument);
+  Router.delete('/:id',authController.protect, companyController.deleteCompany);
 
 
 module.exports = Router;

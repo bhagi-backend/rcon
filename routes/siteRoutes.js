@@ -25,5 +25,8 @@ Router.get("/UnitDetails/:siteId", siteController.getUnitsBySiteId);
 Router.get("/enableModules/:siteId",authController.protect,siteController.getEnabledModules);
 Router.get("/sitesByCompanyId", authController.protect,siteController.getSitesByCompanyId);
 Router.get("/getAll",siteController.getAllEnabledModules);
+//all documents deleted by site id
 Router.delete('/deleteSite/:siteId',siteController.deleteDocumentsBySiteId);
+//site delete call
+Router.delete('/delete/:siteId',authController.protect,siteController.deleteSiteById);
 module.exports = Router;

@@ -1006,13 +1006,14 @@ existingRegister.regState="Drawing";
         if (result.urn) {
           latestRevision.urn = result.urn;
           latestRevision.drawingFileName = drawingFileName;
-          
+          console.log("hiiiiiiiiiiiiiiiiiiiii")
           // Set expiration to 28 days from now
           const expirationDate = new Date();
           expirationDate.setDate(expirationDate.getDate() + 28);
           latestRevision.urnExpiration = expirationDate;
 
           existingRegister.markModified(revisionType);
+          await existingRegister.save();
         }
       } catch (e) {
         console.error("Error processing DWG file:", e);

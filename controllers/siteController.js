@@ -670,6 +670,24 @@ exports.deleteDocumentsBySiteId = catchAsync(async (req, res, next) => {
     message: `All documents related to siteId ${siteId} have been deleted.`,
   });
 });
+exports.deleteSiteById = catchAsync(async (req, res, next) => {
+  const { siteId } = req.params;
+
+
+  const site = await Site.findById(siteId);
+
+  if (!site) {
+    return next(new AppError('Site not found', 404));
+  }
+
+  await Site.findByIdAndDelete(siteId);
+
+  res.status(200).json({
+    status: 'success',
+    message: `Site with ID ${siteId} has been deleted.`,
+  });
+});
+
 exports.updateExistingSiteById = catchAsync(async (req, res) => {
   try {
     const { siteId } = req.params;

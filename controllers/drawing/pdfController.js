@@ -363,8 +363,8 @@ exports.getRoReports = async (req, res) => {
     let data;
 
     switch (reportType) {
-      case 'drawing':
-        query['regState'] = 'Drawing';
+     case 'drawing':
+  query['regState'] = 'Drawing';
   query['$or'] = [
     { 'acceptedArchitectRevisions.0': { $exists: true } },
     { 'acceptedRORevisions.0': { $exists: true } },
@@ -372,8 +372,62 @@ exports.getRoReports = async (req, res) => {
     { 'acceptedROHardCopyRevisions.0': { $exists: true } },
   ];
 
-        data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
-        break;
+  data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
+
+  // Apply due status logic
+  data = data.map(doc => {
+    const acceptedROSubmissionDate = new Date(doc.acceptedROSubmissionDate);
+    const acceptedSiteSubmissionDate = new Date(doc.acceptedSiteSubmissionDate);
+
+    // Architect Revisions with Due Status
+    const updatedArchitectRevisions = doc.acceptedArchitectRevisions.map(revision => {
+      const softCopySubmittedDate = new Date(revision.softCopySubmittedDate);
+      const diffInDays = Math.ceil((softCopySubmittedDate - acceptedROSubmissionDate) / (1000 * 60 * 60 * 24));
+
+      let dueStatus = '';
+      if (diffInDays > 0) {
+        dueStatus = `Overdue by ${diffInDays} day(s)`;
+      } else if (diffInDays < 0) {
+        dueStatus = `Due in ${Math.abs(diffInDays)} day(s)`;
+      } else {
+        dueStatus = 'Submitted on time';
+      }
+
+      return {
+        ...revision._doc,
+        dueStatus,
+      };
+    });
+
+    // RO Revisions with Due Status
+    const updatedRORevisions = doc.acceptedRORevisions.map(revision => {
+      const softCopySubmittedDate = new Date(revision.softCopySubmittedDate);
+      const diffInDays = Math.ceil((softCopySubmittedDate - acceptedSiteSubmissionDate) / (1000 * 60 * 60 * 24));
+
+      let dueStatus = '';
+      if (diffInDays > 0) {
+        dueStatus = `Overdue by ${diffInDays} day(s)`;
+      } else if (diffInDays < 0) {
+        dueStatus = `Due in ${Math.abs(diffInDays)} day(s)`;
+      } else {
+        dueStatus = 'Submitted on time';
+      }
+
+      return {
+        ...revision._doc,
+        dueStatus,
+      };
+    });
+
+    return {
+      ...doc._doc,
+      acceptedArchitectRevisions: updatedArchitectRevisions,
+      acceptedRORevisions: updatedRORevisions,
+    };
+  });
+
+  break;
+
 
       case 'pending':
         const pendingQuery = {

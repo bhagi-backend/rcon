@@ -6,12 +6,12 @@ const MiscellaneousReportSchema = new Schema({
   siteName: {
     type: mongoose.Schema.ObjectId,
     ref: "Site",
-    required: true
+    //required: true
   },
   equipmentType: {
     type: String,
     enum: ["Vehicle", "Machinery", "Power Tools",'Distribution Board','Batching Plant'],
-    required: true
+    //required: true
   },
   transitionId: {
     type: String,
@@ -20,69 +20,69 @@ const MiscellaneousReportSchema = new Schema({
 
   transitionDate: {
     type: Date,
-    required: true,
+    //required: true,
   }, 
  
   assetCode: {
     type: Schema.Types.ObjectId,
     ref: "AssetCode",
-    required: true
+    //required: true
   },
   
   makeName: {
     type: String,
-    required: true,
+    //required: true,
   },
   model: {
     type: String,
-    required: true,
+    //required: true,
   },
   vendor: {
     type: String,
-    required: true,
+    //required: true,
   },
   mobileNo: {
     type: String,
-    required: true,
+    //required: true,
   },
   selectRateType: {
     type: String,
     enum: ["Day", "Week", "Hour"],
-    required: true,
+    //required: true,
   },
   rateCharge: {
     type: String,
-    required: true,
+    // //required: true,
   },
   vehicleNo: {
     type: String,
-    required: true,
+    // //required: true,
   },
   
   
   startDate: {
     type: Date,
-    required: true,
+    //required: true,
   },
   endDate: {
     type: Date,
-    required: true,
+    //required: true,
   },
   differenceDate: {
     type: String,
-    required: true,
+    //required: true,
   },
   startTime: {
     type: String,
-    required: true,
+    //required: true,
   },
   endTime: {
     type: String,
-    required: true,
+    //required: true,
   },
   differenceTime: {
     type: String,
-    required: true,
+    //required: true,
   },
  
   debitNote: {
@@ -117,15 +117,15 @@ const MiscellaneousReportSchema = new Schema({
 
   scopeOfWorkDetails: {
     type: String,
-    required: true,
+    //required: true,
   },
   location: {
     type: String,
-    required: true,
+    //required: true,
   },
   remarks: {
     type: String,
-    required: true,
+    //required: true,
   },
   
 });

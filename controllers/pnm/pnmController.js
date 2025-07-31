@@ -389,13 +389,15 @@ exports.getDocument = catchAsync(async (req, res, next) => {
   
     const siteName = site.siteName;
     const siteAbbreviation = generateAbbreviationForMiscellaneous(siteName);
+     //const typeInitial = miscellaneousReport.type === 'Hire' ? 'H' : 'O';
     const assetType = miscellaneousReport.equipmentType.split(' ')
     .map(word => word[0].toUpperCase())
     .join('');
     const currentDate = new Date();
     const dateString = `${currentDate.getFullYear()}${String(currentDate.getMonth() + 1).padStart(2, '0')}${String(currentDate.getDate()).padStart(2, '0')}`;
 
-    const transitionIdPrefix = `${siteAbbreviation}-ML-${typeInitial}-${assetType}-${dateString}`;
+    //const transitionIdPrefix = `${siteAbbreviation}-ML-${typeInitial}-${assetType}-${dateString}`;
+     const transitionIdPrefix = `${siteAbbreviation}-ML-${assetType}-${dateString}`;
   
     const latestLog = await MiscellaneousReport.findOne({
       transitionId: { $regex: `^${transitionIdPrefix}` }  

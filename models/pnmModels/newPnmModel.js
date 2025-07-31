@@ -236,74 +236,74 @@ const newPnmSchema = new mongoose.Schema({
   },],
 });
 
-function validatePeriodDetails(details, periodType) {
-  if (!details.periodType) return false;
-  const fields = [details.hours, details.days, details.weeks,details.years, details.months, details.kilometers];
-  const nonEmptyFields = fields.filter(field => field != null && field !== 0);
+// function validatePeriodDetails(details, periodType) {
+//   if (!details.periodType) return false;
+//   const fields = [details.hours, details.days, details.weeks,details.years, details.months, details.kilometers];
+//   const nonEmptyFields = fields.filter(field => field != null && field !== 0);
 
-  if (
-    (details.periodType === 'Hours' && nonEmptyFields.length !== 1) ||
-    (details.periodType === 'Days' && nonEmptyFields.length !== 1) ||
-    (details.periodType === 'Weeks' && nonEmptyFields.length !== 1) ||
-    (details.periodType === 'Months' && nonEmptyFields.length !== 1) ||
-    (details.periodType === 'Kilometers' && nonEmptyFields.length !== 1) ||
-    (details.periodType === 'Years' && nonEmptyFields.length !== 1) ||
-    (details.periodType === 'Both Months & Kilometers' && (details.months == null || details.kilometers == null))
-  ) {
-    return false;
-  }
-  return true;
-}
+//   if (
+//     (details.periodType === 'Hours' && nonEmptyFields.length !== 1) ||
+//     (details.periodType === 'Days' && nonEmptyFields.length !== 1) ||
+//     (details.periodType === 'Weeks' && nonEmptyFields.length !== 1) ||
+//     (details.periodType === 'Months' && nonEmptyFields.length !== 1) ||
+//     (details.periodType === 'Kilometers' && nonEmptyFields.length !== 1) ||
+//     (details.periodType === 'Years' && nonEmptyFields.length !== 1) ||
+//     (details.periodType === 'Both Months & Kilometers' && (details.months == null || details.kilometers == null))
+//   ) {
+//     return false;
+//   }
+//   return true;
+// }
 
-newPnmSchema.path('inspectionPeriod').validate(function (value) {
-  if (this.inspections === 'Yes') {
-    return validatePeriodDetails(value);
-  }
-  return true;
-}, 'inspectionPeriod and exactly one of Hours, Days, Weeks, Months,years or Kilometers must be provided when inspections is Yes.');
+// newPnmSchema.path('inspectionPeriod').validate(function (value) {
+//   if (this.inspections === 'Yes') {
+//     return validatePeriodDetails(value);
+//   }
+//   return true;
+// }, 'inspectionPeriod and exactly one of Hours, Days, Weeks, Months,years or Kilometers must be provided when inspections is Yes.');
 
-newPnmSchema.path('servicePeriod').validate(function (value) {
-  if (this.services === 'Yes') {
-    return validatePeriodDetails(value);
-  }
-  return true;
-}, 'servicePeriod and exactly one of Hours, Days, Weeks, Months, or Kilometers must be provided when services is Yes.');
+// newPnmSchema.path('servicePeriod').validate(function (value) {
+//   if (this.services === 'Yes') {
+//     return validatePeriodDetails(value);
+//   }
+//   return true;
+// }, 'servicePeriod and exactly one of Hours, Days, Weeks, Months, or Kilometers must be provided when services is Yes.');
 
-// Custom validation to ensure hire-related fields are required if ownRhire is 'Hire'
-newPnmSchema.path("type").validate(function (value) {
-  if (value === "Hire") {
-    return (
-      this.hireVendorName &&
-      this.hirePreviousServiceDate &&
-      this.daysTypeHireHowManyDays &&
-      this.daysCountHireHowManyDays != null &&
-      this.hireCharges &&
-      this.hirePrice != null
-    );
-  }
-  if (value === "own") {
-    return !!this.own;
-  }
-  return true;
-}, "hireVendorName, hirePreviousServiceDate, daysTypeHireHowManyDays, daysCountHireHowManyDays, hireCharges, and hirePrice are required if type is Hire. OWN is required if type is Own.");
+// // Custom validation to ensure hire-related fields are required if ownRhire is 'Hire'
+// newPnmSchema.path("type").validate(function (value) {
+//   if (value === "Hire") {
+//     return (
+//       this.hireVendorName &&
+//       this.hirePreviousServiceDate &&
+//       this.daysTypeHireHowManyDays &&
+//       this.daysCountHireHowManyDays != null &&
+//       this.hireCharges &&
+//       this.hirePrice != null
+//     );
+//   }
+//   if (value === "own") {
+//     return !!this.own;
+//   }
+//   return true;
+// }, "hireVendorName, hirePreviousServiceDate, daysTypeHireHowManyDays, daysCountHireHowManyDays, hireCharges, and hirePrice are required if type is Hire. OWN is required if type is Own.");
 
-// Custom validation to ensure old-related fields are required if own is 'Old' and new-related fields if 'New'
-newPnmSchema.path('own').validate(function (value) {
-  if (value === 'Old') {
-    return (
-      this.oldPurchaseDate != null &&
-      this.oldPreviousPurchasePrice != null &&
-      this.oldPreviousServiceDate != null 
-    );
-  }
-  if (value === 'New') {
-    return (
-      this.newPurchaseDate != null &&
-      this.newPurchasePrice != null 
-    );
-  }
-  return true;
-}, 'Fields related to old or new ownership must be filled out based on the own value.');
+// // Custom validation to ensure old-related fields are required if own is 'Old' and new-related fields if 'New'
+// newPnmSchema.path('own').validate(function (value) {
+//   if (value === 'Old') {
+//     return (
+//       this.oldPurchaseDate != null &&
+//       this.oldPreviousPurchasePrice != null &&
+//       this.oldPreviousServiceDate != null 
+//     );
+//   }
+//   if (value === 'New') {
+//     return (
+//       this.newPurchaseDate != null &&
+//       this.newPurchasePrice != null 
+//     );
+//   }
+//   return true;
+// }, 'Fields related to old or new ownership must be filled out based on the own value.');
 
 
 const NewPnm = mongoose.model("NewPnm", newPnmSchema);

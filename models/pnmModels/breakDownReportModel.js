@@ -119,35 +119,35 @@ type: String
 const batchingPointSchema = new mongoose.Schema({
   weighingSystem:{
     type: String,
-    enum: ["Ok", "Not Ok","Not Applicable"],
+    enum: ["Ok", "Not","Not Applicable"],
   },
   concreteMixerSystem:{
     type: String,
-    enum: ["Ok", "Not Ok","Not Applicable"],
+    enum: ["Ok", "Not","Not Applicable"],
   },
   dustCollectors:{
     type: String,
-    enum: ["Ok", "Not Ok","Not Applicable"],
+    enum: ["Ok", "Not","Not Applicable"],
   },
   storageSilasSystem:{
     type: String,
-    enum: ["Ok", "Not Ok","Not Applicable"],
+    enum: ["Ok", "Not","Not Applicable"],
   },
   screwConveyor:{
     type: String,
-    enum: ["Ok", "Not Ok","Not Applicable"],
+    enum: ["Ok", "Not","Not Applicable"],
   },
   fourBinFeederSystem:{
     type: String,
-    enum: ["Ok", "Not Ok","Not Applicable"],
+    enum: ["Ok", "Not","Not Applicable"],
   },
   PlcControlSystem:{
     type: String,
-    enum: ["Ok", "Not Ok","Not Applicable"],
+    enum: ["Ok", "Not","Not Applicable"],
   },
   airCompressorSystem:{
     type: String,
-    enum: ["Ok", "Not Ok","Not Applicable"],
+    enum: ["Ok", "Not","Not Applicable"],
   },
   firstMeter:{
     type: String

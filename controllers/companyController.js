@@ -1,4 +1,5 @@
 const Company = require('../models/companyModel'); 
+const User =require('../models/userModel.js')
 const catchAsync = require("../utils/catchAsync").catchAsync;
 const AppError = require('../utils/appError'); 
 const path = require('path');
@@ -214,28 +215,42 @@ exports.getDocument = catchAsync(async (req, res, next) => {
     });
   }
 });
-
 exports.getAllCompanies = catchAsync(async (req, res, next) => {
-  const companies = await Company.find().sort({ createdAt: -1 }).populate('sites');
+  const companies = await Company.find()
+    .sort({ createdAt: -1 })
+    .populate("sites");
 
-  const filteredCompanies = companies.map((company) => {
-    const companyObj = company.toObject();
-    const companyEnableModules = companyObj.companyEnableModules || {};
+  // For each company, also fetch its Admin user
+  const filteredCompanies = await Promise.all(
+    companies.map(async (company) => {
+      const companyObj = company.toObject();
 
-    const filteredModules = {};
-    for (const [key, value] of Object.entries(companyEnableModules)) {
-      if (value === true) {
-        filteredModules[key] = value;
+      // filter enabled modules
+      const companyEnableModules = companyObj.companyEnableModules || {};
+      const filteredModules = {};
+      for (const [key, value] of Object.entries(companyEnableModules)) {
+        if (value === true) {
+          filteredModules[key] = value;
+        }
       }
-    }
-    return {
-      ...companyObj,
-      companyEnableModules: filteredModules,
-    };
-  });
+
+      // fetch admin user for this company
+      const adminUser = await User.findOne({
+        companyId: company._id,
+        role: "Admin",
+        department: "Company Admin",
+      }).select("firstName lastName email contactNumber empId role department");
+
+      return {
+        ...companyObj,
+        companyEnableModules: filteredModules,
+        adminUser: adminUser || null, // attach admin user if exists
+      };
+    })
+  );
 
   res.status(200).json({
-    status: 'success',
+    status: "success",
     results: filteredCompanies.length,
     data: {
       companies: filteredCompanies,

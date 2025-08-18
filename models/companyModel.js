@@ -58,6 +58,10 @@ const CdetailsSchema = new Schema({
     type: String,
     required: true,
   },
+  companyCode:{
+    type: String,
+    
+  },
   companyMailingaddress: {
     type: String,
     required: true,

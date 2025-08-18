@@ -468,6 +468,11 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.ObjectId,
     ref: "Task",
   },
+    loginUser: {
+    type: String,
+    enum: ["Support","User"],
+    default:"User" 
+  },
   assignFormatsForConsultant:[{
     type: assignFormatsSchema,
     default: {}

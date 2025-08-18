@@ -4,6 +4,7 @@ const authController = require("../controllers/authController");
 const Router = express.Router();
 
 Router.post("/login", authController.login);
+Router.post("/supportLogin", authController.supportLogin);
 Router.patch(
   "/updateMyPassword",
   authController.protect,

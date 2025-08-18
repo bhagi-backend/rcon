@@ -38,7 +38,7 @@ const createCognitoUser = async (email, password, department, phoneNumber, first
     DesiredDeliveryMediums: ['EMAIL'],
     UserAttributes: [
       { Name: 'email', Value: email },
-      { Name: 'name', Value: department },
+      { Name: 'name', Value: firstName },
       { Name: 'email_verified', Value: 'true' }
     ],
   };
@@ -304,12 +304,7 @@ exports.login = catchAsync(async (req, res, next) => {
       PASSWORD: password,
     },
   };
-
-  try {
-    const data = await cognitoClient.send(new InitiateAuthCommand(params));
-    const { AccessToken, IdToken, RefreshToken } = data.AuthenticationResult;
-
-   let user = await User.findOne({ email })
+ let user = await User.findOne({ email })
   .populate({
     path: "companyId",
     select: "companyDetails.companyName companyEnableModules",
@@ -318,7 +313,23 @@ exports.login = catchAsync(async (req, res, next) => {
     path: "permittedSites.siteId",
     select: "siteName",
   });
+  if (!user) {
+  return res.status(404).json({
+    status: "failed",
+    message: "You do not have account"
+  });
+}
+ if (user.loginUser === "Support") {
+    return res.status(403).json({
+    status: "failed",
+    message: "Support users cannot log in here. Please use the Support portal."
+  });
+    }
+  try {
+    const data = await cognitoClient.send(new InitiateAuthCommand(params));
+    const { AccessToken, IdToken, RefreshToken } = data.AuthenticationResult;
 
+  
     if (user.department === 'Company Admin') {
       user = await User.findOne({ email })
         .populate({
@@ -369,6 +380,98 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 });
 
+
+exports.supportLogin = catchAsync(async (req, res, next) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return next(new AppError('Please provide email and password', 400));
+  }
+
+  const params = {
+    AuthFlow: 'USER_PASSWORD_AUTH',
+    ClientId: process.env.COGNITO_CLIENT_ID,
+    AuthParameters: {
+      USERNAME: email,
+      PASSWORD: password,
+    },
+  };
+   let user = await User.findOne({ email })
+  .populate({
+    path: "companyId",
+    select: "companyDetails.companyName companyEnableModules",
+  })
+  .populate({
+    path: "permittedSites.siteId",
+    select: "siteName",
+  });
+    if (!user) {
+  return res.status(404).json({
+    status: "failed",
+    message: "You do not have account"
+  });
+}
+ if (user.loginUser === "User") {
+  return res.status(403).json({
+    status: "failed",
+    message: "Normal users cannot log in here. Please use the user portal."
+  });}
+  try {
+    const data = await cognitoClient.send(new InitiateAuthCommand(params));
+    const { AccessToken, IdToken, RefreshToken } = data.AuthenticationResult;
+
+
+    
+    
+    if (user.department === 'Company Admin') {
+      user = await User.findOne({ email })
+        .populate({
+          path: 'companyId',
+          select: " companyDetails.companyName companyEnableModules "
+        })
+        .exec();
+    }
+  // Convert to plain object to manipulate structure
+    let userObj = user.toObject();
+
+    // Flatten permittedSites
+    if (Array.isArray(userObj.permittedSites)) {
+      userObj.permittedSites = userObj.permittedSites.map(site => {
+        const populated = site.siteId || {};
+        return {
+          _id: site._id,
+          siteId: populated._id || site.siteId,
+          siteName: populated.siteName || null,
+          enableModules: site.enableModules,
+        };
+      });
+    }
+
+    const token = signToken(user._id);
+    const notificationMessage = `A user with email ${email} has logged in`;
+    await sendNotification(
+      "User",
+      notificationMessage,
+      'User login successfully',
+      'login',
+      user._id
+    );
+
+    res.status(200).json({
+      status: 'success',
+      token,
+      cognitoTokens: {
+        idToken: IdToken,
+        accessToken: AccessToken,
+        refreshToken: RefreshToken,
+      },
+      user:userObj
+    });
+  } catch (err) {
+    console.error('Error logging in:', err.message);
+    return next(new AppError('Error logging in: ' + err.message, 400));
+  }
+});
 exports.protect = catchAsync(async (req, res, next) => {
   let token;
   if (

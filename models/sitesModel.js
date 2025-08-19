@@ -241,6 +241,9 @@ const siteSchema = new mongoose.Schema({
   pinCode: {
     type: String,
   },
+  drawingNo: {
+    type: String,
+  },
   fetureDetails: {
     type: String,
     enum: ["1", "2", "3"],

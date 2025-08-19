@@ -68,22 +68,40 @@ const allowedOrigins = [
 ];
 
 
+// app.use(
+//   cors({
+//     origin: function(origin, callback) {
+//       // Allow requests with no origin (like mobile apps or curl)
+//       if (!origin) return callback(null, true);
+
+//       if (allowedOrigins.includes(origin)) {
+//         return callback(null, true);
+//       } else {
+//         return callback(new Error("Not allowed by CORS"));
+//       }
+//     },
+//     // credentials: true,
+//   })
+// );
+// app.use(cors());
+
 app.use(
   cors({
-    origin: function(origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl)
-      if (!origin) return callback(null, true);
-
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // allow curl, Postman, etc.
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
         return callback(new Error("Not allowed by CORS"));
       }
     },
-    // credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ allow PUT
+    allowedHeaders: ["Content-Type", "Authorization"], // ✅ allow JWT
   })
 );
-// app.use(cors());
+
+// ✅ Make sure preflight requests are handled
+app.options("*", cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan("dev"));
 app.use(express.json());

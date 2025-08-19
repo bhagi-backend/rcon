@@ -43,6 +43,18 @@ const SiteLocationDetailsSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+   totalPlotArea: {
+    type: String,
+    
+  },
+   totalBuiltArea: {
+    type: String,
+    
+  },
+   totalHeightOfBuilding: {
+    type: String,
+    
+  },
 });
 const ClubhousesSchema = new mongoose.Schema({
   
@@ -226,7 +238,7 @@ const siteSchema = new mongoose.Schema({
         type: mongoose.Schema.ObjectId,
         ref: "Company",
       },
-  companyKeyWord: {
+  siteKeyWord: {
     type: String,
   },
   siteAddress: {

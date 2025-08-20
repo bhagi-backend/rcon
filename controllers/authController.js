@@ -446,8 +446,40 @@ exports.supportLogin = catchAsync(async (req, res, next) => {
         };
       });
     }
+const companies = await Company.find()
+    .sort({ createdAt: -1 })
+    .populate("sites");
 
-    const token = signToken(user._id);
+  // For each company, also fetch its Admin user
+  const filteredCompanies = await Promise.all(
+    companies.map(async (company) => {
+      const companyObj = company.toObject();
+
+      // filter enabled modules
+      const companyEnableModules = companyObj.companyEnableModules || {};
+      const filteredModules = {};
+      for (const [key, value] of Object.entries(companyEnableModules)) {
+        if (value === true) {
+          filteredModules[key] = value;
+        }
+      }
+
+      // fetch admin user for this company
+      const adminUser = await User.findOne({
+        companyId: company._id,
+        role: "Admin",
+        department: "Company Admin",
+      }).select("firstName lastName email contactNumber empId role department");
+
+      return {
+        ...companyObj,
+        companyEnableModules: filteredModules,
+        adminUser: adminUser || null, // attach admin user if exists
+      };
+    })
+  );
+
+     const token = signToken(user._id);
     const notificationMessage = `A user with email ${email} has logged in`;
     await sendNotification(
       "User",
@@ -465,7 +497,9 @@ exports.supportLogin = catchAsync(async (req, res, next) => {
         accessToken: AccessToken,
         refreshToken: RefreshToken,
       },
-      user:userObj
+      user:userObj,
+      companiesLength: filteredCompanies.length,
+      companies:filteredCompanies
     });
   } catch (err) {
     console.error('Error logging in:', err.message);

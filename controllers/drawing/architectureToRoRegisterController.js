@@ -81,7 +81,7 @@ console.log("companyId",companyId);
       });
     }
 
-    if (!drawingNo || !drawingTitle || !designDrawingConsultant || !category || !acceptedROSubmissionDate || !acceptedSiteSubmissionDate) {
+    if (!drawingNo || !drawingTitle || !designDrawingConsultant ) {
       return next(new AppError('Each drawing object must have drawingNo, drawingTitle, designDrawingConsultant, category, acceptedROSubmissionDate, and acceptedSiteSubmissionDate', 400));
     }
     const count = await ArchitectureToRoRegister.countDocuments({ siteId });

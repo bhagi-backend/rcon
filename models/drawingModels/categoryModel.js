@@ -7,6 +7,13 @@ const CategorySchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
+   companyId:
+       {
+         type: mongoose.Schema.ObjectId,
+         ref: "Company",
+         default:null
+       },
+   
 });
 
 const Category = mongoose.model('Category', CategorySchema);

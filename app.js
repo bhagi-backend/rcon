@@ -100,7 +100,8 @@ app.use(
       }
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ allow PUT
-    allowedHeaders: ["Content-Type", "Authorization"], // ✅ allow JWT
+    allowedHeaders: ["Content-Type", "Authorization","Content-Disposition"], 
+    exposedHeaders: ["Content-Type", "Authorization","Content-Disposition"],// ✅ allow JWT
   })
 );
 

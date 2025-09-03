@@ -51,6 +51,10 @@ const checklistTemporaryRouter = require("./routes/checklistRoute/checklistTempo
 const connectedDevicesRouter = require("./routes/connectedDevicesRoutes");
 const mobileDashBoardRouter = require("./routes/mobileRoutes/dashBoardRoutes");
 const webDashBoardRouter = require("./routes/dashBoardRoutes");
+const excelRouter = require("./routes/drawingRoute/excelRoutes");
+
+
+
 const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
@@ -105,6 +109,9 @@ app.options("*", cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan("dev"));
 app.use(express.json());
+
+
+
 app.use("/api/architectureToRoRegister", ArchitectureToRORegisterRouter);
 app.use("/api/architect", ArchitectRouter);
 app.use("/api/analysis", AnalysisRouter);
@@ -160,5 +167,6 @@ app.use("/api/newPnmWorkFlow", newPnmWorkFlowRouter);
 app.use("/api/newPnmTransfer", newPnmTransferRouter);
 app.use("/api/dashBoard", mobileDashBoardRouter);
 app.use("/api/webDashBoard", webDashBoardRouter);
+app.use("/api/excel", excelRouter);
 
 module.exports = app;

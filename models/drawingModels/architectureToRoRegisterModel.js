@@ -327,11 +327,11 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
   },
   acceptedROSubmissionDate : {
     type: Date,
-    required: true
+   // required: true
   },
   acceptedSiteSubmissionDate : {
     type: Date,
-    required: true
+   // required: true
   },
   creationDate: {
     type: Date,

@@ -32,12 +32,12 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
 
   // 2. Fetch categories for dropdown
   const categories = await Category.find({
-    $or: [{ companyId }, { companyId: null }],
+    $or: [{ siteId }, { siteId: null }],
   }).lean();
   const categoryList = categories.length
     ? categories.map((c) => c.category.replace(/,/g, " ")).join(",")
     : "No Categories Available";
-  console.log("Category List:", categoryList); // Debug: Check the category list
+  //console.log("Category List:", categoryList); // Debug: Check the category list
 
   // 3. Create workbook
   const workbook = new ExcelJS.Workbook();
@@ -121,7 +121,7 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   categoriesArray.forEach((category, index) => {
     worksheet.getCell(`A${108 + index}`).value = category.trim(); // Column A, rows 108 onwards
   });
-  console.log("Categories populated in A108:A" + (107 + categoriesArray.length)); // Debug
+//  console.log("Categories populated in A108:A" + (107 + categoriesArray.length)); // Debug
 
   // Add sample data rows with dropdown starting in row 8
   worksheet.addRow([1, "", "", ""]); // Row 8
@@ -141,7 +141,7 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
         errorTitle: "Invalid Category",
         error: "Please select a category from the dropdown",
       };
-      console.log(`Applied dataValidation to C${row} with range $A$108:$A$${lastCategoryRow}`); // Debug
+     // console.log(`Applied dataValidation to C${row} with range $A$108:$A$${lastCategoryRow}`); // Debug
       // Unlock data cells to allow editing
       worksheet.getCell(`A${row}`).protection = { locked: false };
       worksheet.getCell(`B${row}`).protection = { locked: false };
@@ -188,6 +188,6 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   );
   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
 
-  // Stream workbook to response
-  await workbook.xlsx.write(res);
+ await workbook.xlsx.write(res);
+res.end();
 });

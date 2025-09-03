@@ -13,6 +13,12 @@ const CategorySchema = new mongoose.Schema({
          ref: "Company",
          default:null
        },
+       siteId:
+       {
+         type: mongoose.Schema.ObjectId,
+         ref: "Site",
+         default:null
+       },
    
 });
 

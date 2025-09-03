@@ -4,7 +4,7 @@ const Category = require("../../models/drawingModels/categoryModel");
 const { catchAsync } = require("../../utils/catchAsync");
 
 exports.downloadExcel = catchAsync(async (req, res, next) => {
-  const downloadedBy = req.user.firstName || req.user.email || "Unknown";
+  const downloadedBy = req.user.email;
   const { siteId, companyId } = req.body;
 
   // Validate required parameters
@@ -49,12 +49,12 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   const worksheet = workbook.addWorksheet("Drawing Register");
 
   // Top section (metadata)
-  const now = new Date(); // 10:36 AM IST on September 03, 2025
+  const now = new Date(); // 12:15 PM IST on September 03, 2025
   worksheet.addRow([]); // Row 2
   worksheet.mergeCells("A2:B2");
   worksheet.mergeCells("C2:D2");
   worksheet.getCell("A2").value = `Date: ${now.toISOString().split("T")[0]}`; // 2025-09-03
-  worksheet.getCell("C2").value = `Time: ${now.toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour12: false })}`; // 10:36:00
+  worksheet.getCell("C2").value = `Time: ${now.toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour12: false })}`; // 12:15:00
 
   worksheet.addRow([]); // Row 3
   worksheet.mergeCells("A3:B3");
@@ -69,9 +69,10 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   worksheet.getCell("C4").value = `Downloaded By: ${downloadedBy}`;
 
   worksheet.addRow([]); // Row 5
-  worksheet.mergeCells("A5:C5"); // Adjusted merge to leave D5 for Drawing No example
+  worksheet.mergeCells("A5:B5"); // Adjusted merge for Site Name
+  worksheet.mergeCells("C5:D5"); // Merge for Drawing No
   worksheet.getCell("A5").value = `Site Name: ${site.siteName || "N/A"}`;
-  worksheet.getCell("D5").value = `Drawing No: ${site.drawingNo || "N/A"}`; // Drawing No example
+  worksheet.getCell("C5").value = `Drawing No: ${site.drawingNo || "N/A"}`;
 
   worksheet.addRow([]); // Row 6 - Spacer
 
@@ -92,15 +93,35 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
       bottom: { style: "thin" },
       right: { style: "thin" },
     };
+    cell.protection = { locked: true }; // Lock header cells
   });
 
-  // Add categories in column E (hidden) starting from row 8
+  // Lock metadata cells (rows 2-5)
+  for (let row = 2; row <= 5; row++) {
+    for (let col = 1; col <= 4; col++) {
+      worksheet.getCell(row, col).protection = { locked: true };
+    }
+  }
+
+  // Unlock row 1 cells
+  for (let col = 1; col <= 4; col++) {
+    worksheet.getCell(1, col).protection = { locked: false };
+  }
+
+  // Set initial wider column widths for metadata, headers, and data
+  worksheet.getColumn(1).width = 15; // Wider for S.NO and metadata labels
+  worksheet.getColumn(2).width = 20; // Wider for Drawing No and metadata values
+  worksheet.getColumn(3).width = 25; // Wider for Category and metadata values
+  worksheet.getColumn(4).width = 30; // Wider for Drawing Title and metadata values
+
+  // Add categories in row range (hidden) starting from row 108
   const categoriesArray = categoryList !== "No Categories Available"
     ? categoryList.split(",")
     : [];
   categoriesArray.forEach((category, index) => {
-    worksheet.getCell(`E${index + 8}`).value = category.trim(); // Column E, rows 8 onwards
+    worksheet.getCell(`A${108 + index}`).value = category.trim(); // Column A, rows 108 onwards
   });
+  console.log("Categories populated in A108:A" + (107 + categoriesArray.length)); // Debug
 
   // Add sample data rows with dropdown starting in row 8
   worksheet.addRow([1, "", "", ""]); // Row 8
@@ -109,21 +130,37 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   // Apply dropdown for Category column (C) starting from row 8 using range
   if (categoriesArray.length > 0) {
     const dropdownRowCount = 100; // Adjustable: number of rows with dropdown
-    const lastCategoryRow = 7 + categoriesArray.length; // Last row with categories
+    const lastCategoryRow = 107 + categoriesArray.length; // Last row with categories (e.g., 153 for 46 categories)
     for (let row = 8; row <= 7 + dropdownRowCount; row++) {
-      worksheet.getCell(`C${row}`).dataValidation = {
+      const cell = worksheet.getCell(`C${row}`);
+      cell.dataValidation = {
         type: "list",
         allowBlank: true,
-        formulae: [`$E$8:$E$${lastCategoryRow}`], // Reference range in column E
+        formulae: [`$A$108:$A$${lastCategoryRow}`], // Range reference to hidden rows
         showErrorMessage: true,
         errorTitle: "Invalid Category",
         error: "Please select a category from the dropdown",
       };
+      console.log(`Applied dataValidation to C${row} with range $A$108:$A$${lastCategoryRow}`); // Debug
+      // Unlock data cells to allow editing
+      worksheet.getCell(`A${row}`).protection = { locked: false };
+      worksheet.getCell(`B${row}`).protection = { locked: false };
+      worksheet.getCell(`C${row}`).protection = { locked: false };
+      worksheet.getCell(`D${row}`).protection = { locked: false };
     }
   }
 
-  // Hide column E to keep it out of view
-  worksheet.getColumn(5).hidden = true; // Column E is index 5
+  // Hide the row range containing categories
+  for (let i = 108; i <= 107 + categoriesArray.length; i++) {
+    worksheet.getRow(i).hidden = true;
+  }
+
+  // Protect the worksheet with permission to adjust column widths
+  worksheet.protect("", { // Empty password, can be set to a string like "Pass123" if needed
+    selectLockedCells: true,
+    selectUnlockedCells: true,
+    formatColumns: true // Allows manual width adjustment
+  });
 
   // Apply borders to populated cells
   for (let i = 1; i <= Math.max(worksheet.rowCount, 9); i++) {

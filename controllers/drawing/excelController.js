@@ -181,13 +181,23 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   const randomNum = Math.floor(1000 + Math.random() * 9000);
   const fileName = `drawing-${site.siteKeyWord || "site"}-${year}${month}-${randomNum}.xlsx`;
 
-  // Set response headers
-  res.setHeader(
-    "Content-Type",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  );
-  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+//   // Set response headers
+//   res.setHeader(
+//     "Content-Type",
+//     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+//   );
+//   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
 
- await workbook.xlsx.write(res);
-res.end();
+//  await workbook.xlsx.write(res);
+// res.end();
+const buffer = await workbook.xlsx.writeBuffer();
+res.setHeader(
+  "Content-Type",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+);
+res.setHeader(
+  "Content-Disposition",
+  `attachment; filename="${fileName}"`
+);
+res.send(buffer);
 });

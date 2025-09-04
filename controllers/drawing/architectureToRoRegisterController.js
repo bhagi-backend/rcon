@@ -12,6 +12,7 @@ const multerWrapper = require('../../utils/multerFun');
 const  getUploadPath  = require("../../utils/pathFun");
 const User = require("../../models/userModel");
 const Site = require("../../models/sitesModel");
+const Category = require("../../models/drawingModels/categoryModel");
 
 
 const upload = multerWrapper();
@@ -39,6 +40,19 @@ console.log("companyId",companyId);
 
 
   for (const drawing of drawings) {
+    const categoryRecord = await Category.findOne({
+  $or: [
+    { category: drawing.category, siteId: null, companyId: null }, // Default category
+    { category: drawing.category, siteId: siteId, companyId: companyId } // Site & company-specific
+  ]
+});
+console.log("categoryRecord",categoryRecord);
+    if (!categoryRecord) {
+      return res.status(200).json({
+        status: 'error',
+         message: `category ${category} does not exist. Please create the category before assigning it to a drawing.`
+      });
+    }
     let folderId = drawing.folderId;
     const {
       drawingNo,
@@ -91,6 +105,7 @@ console.log("companyId",companyId);
     
     // Append it to the provided drawing number
     const uniqueDrawingNo = `${drawingNo}-${sequenceNumber}`;
+   
     try {
       // Create the record in ArchitectureToRoRegister
       const newRegister = await ArchitectureToRoRegister.create({
@@ -100,7 +115,7 @@ console.log("companyId",companyId);
         drawingNo:uniqueDrawingNo,
         drawingTitle,
         designDrawingConsultant,
-        category,
+        category:categoryRecord._id,
         tower,
         noOfRoHardCopyRevisions,
         noOfSiteHeadHardCopyRevisions,

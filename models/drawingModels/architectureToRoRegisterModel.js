@@ -344,6 +344,11 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
   tower: {
     type: String,
   },
+   drawingStatus: {
+    type: String,
+    enum: ["Approval", "Not Approval"],
+    default: "Not Approval"
+  },
   acceptedArchitectRevisions: {
     type: [architectSoftRevisionSchema],
     

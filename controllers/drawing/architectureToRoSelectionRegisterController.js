@@ -34,50 +34,85 @@ exports.selectionRegister = catchAsync(async (req, res, next) => {
   if ((!selectionType&& !categories)||(!selectionType&&!assignCategoriesToDesignDrawingConsultant )) {
     return next(new AppError('Invalid data format. Must provide selectionType and either categories or designDrawingConsultants or assignCategoriesToDesignDrawingConsultant ', 400));
   }
-  if (selectionType === 'category') {
-    if (!Array.isArray(categories) || categories.length === 0) {
-      return next(new AppError('Categories must be provided when selectionType is "category"', 400));
-    }
-  
-    const savedCategories = [];
-  
-    for (let i = 0; i < categories.length; i++) {
-      const { category } = categories[i];
-  
-      if (!category) {
-        return next(new AppError('Category name is required', 400));
-      }
-      const upperCaseCategory = category.toUpperCase();
-      
-      try {
-        
-        const newCategory = new Category({ category: upperCaseCategory });
-        const savedCategory = await newCategory.save();
-        savedCategories.push(savedCategory);
-  
-      } catch (err) {
-      
-        if (err.code === 11000) {
-          res.status(200).json({
-            status: 'fail',
-            message: { error: `Category '${upperCaseCategory}' already exists` },
-          
-          });
-         
-        }
-  
-        console.error('Error saving category:', err);
-        return res.status(500).json({ error: 'Failed to save category' });
-      }
-    }
-  
-    res.status(201).json({
-      status: 'success',
-      data: savedCategories
-    });
+if (selectionType === 'category') {
+  if (!Array.isArray(categories) || categories.length === 0) {
+    return next(
+      new AppError('Categories must be provided when selectionType is "category"', 400)
+    );
   }
-  
 
+  const savedCategories = [];
+
+  for (let i = 0; i < categories.length; i++) {
+    const { category, companyId, siteId,type } = categories[i];
+
+    if (!category) {
+      return next(new AppError('Category name is required', 400));
+    }
+
+    const upperCaseCategory = category.toUpperCase();
+
+    try {
+      // 1️⃣ Check if the category exists in default type (companyId and siteId are null)
+      const defaultCategory = await Category.findOne({
+        category: upperCaseCategory,
+        companyId: null,
+        siteId: null,
+        type: "Default"
+      });
+
+      if (defaultCategory) {
+        return res.status(200).json({
+          status: 'fail',
+          message: `Category '${upperCaseCategory}' already exists in default type`,
+        });
+      }
+
+      // 2️⃣ Check if category exists for given companyId and siteId
+      const specificCategory = await Category.findOne({
+        category: upperCaseCategory,
+        companyId: companyId || null,
+        siteId: siteId || null,
+      });
+
+      if (specificCategory) {
+        return res.status(200).json({
+          status: 'fail',
+          message: `Category '${upperCaseCategory}' already exists for this company and site`,
+        });
+      }
+
+      // 3️⃣ Save new category if both checks pass
+      const newCategory = new Category({
+        category: upperCaseCategory,
+        companyId: companyId || null,
+        siteId: siteId || null,
+        type: type 
+      });
+
+      const savedCategory = await newCategory.save();
+      savedCategories.push(savedCategory);
+
+    } catch (err) {
+      // Handle duplicate key errors or other unexpected errors
+      if (err.code === 11000) {
+        return res.status(200).json({
+          status: 'fail',
+          message: { error: `Category '${upperCaseCategory}' already exists` },
+        });
+      }
+
+      console.error('Error saving category:', err);
+      return res.status(400).json({ error: 'Failed to save category' });
+    }
+  }
+
+  // Final response
+  res.status(201).json({
+    status: 'success',
+    data: savedCategories,
+  });
+}
   if (selectionType === 'assignCategoriesToDesignDrawingConsultant') {
     const { designDrawingConsultant, categories } = assignCategoriesToDesignDrawingConsultant;
 
@@ -421,4 +456,51 @@ exports.getConsultants = catchAsync(async (req, res, next) => {
       users,
     },
   });
+});
+
+
+exports.deleteCategory = catchAsync(async (req, res, next) => {
+  const { category } = req.query;
+
+  if (!category) {
+    return res.status(400).json({
+      status: 'fail',
+      message: 'Category name is required in query parameters.',
+    });
+  }
+    const categoryRecord = await Category.findOne({ category: category });
+
+    if (!categoryRecord) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'No category found with the provided name.',
+      });
+    }
+
+    if (!categoryRecord.companyId && !categoryRecord.siteId) {
+      return res.status(200).json({
+        status: 'fail',
+        message: `Category '${category}' is a default category and cannot be deleted.`,
+      });
+    }
+
+    const isCategoryInUse = await ArchitectureToRoRegister.findOne({
+      category: category.toUpperCase(),
+    });
+
+    if (isCategoryInUse) {
+      return res.status(200).json({
+        status: 'fail',
+        message: `Category '${category}' is currently in use and cannot be deleted.`,
+      });
+    }
+
+    // 4️⃣ Delete the category
+    await Category.findOneAndDelete({ category: category.toUpperCase() });
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Category '${category}' has been deleted successfully.`,
+    });
+ 
 });

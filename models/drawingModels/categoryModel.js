@@ -7,6 +7,11 @@ const CategorySchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
+    type:{
+      type:String,
+      enum:["Default","Customized"],
+      default:"Default"
+    },
    companyId:
        {
          type: mongoose.Schema.ObjectId,

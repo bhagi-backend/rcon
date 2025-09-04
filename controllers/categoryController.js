@@ -38,15 +38,22 @@ exports.createCategories = catchAsync(async (req, res, next) => {
 
 // Get all planner categories
 exports.getAllCategories = catchAsync(async (req, res, next) => {
-    const categories = await Category.find();
+  const { siteId, companyId } = req.query; 
+  const defaultCategories = await Category.find({ siteId: { $eq: null },
+  companyId: { $eq: null } });
 
-    res.status(200).json({
-        status: 'success',
-        data: {
-            categories,
-        },
-    });
+  const siteCategories = await Category.find({ siteId, companyId, type: "Customized" });
+
+  const categories = [...defaultCategories, ...siteCategories];
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      categories,
+    },
+  });
 });
+
 exports.deleteCategory = catchAsync(async (req, res, next) => {
     const { id } = req.params;
 

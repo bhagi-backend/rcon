@@ -1,6 +1,7 @@
 const ExcelJS = require("exceljs");
 const Site = require("../../models/sitesModel");
 const Category = require("../../models/drawingModels/categoryModel");
+const User = require("../../models/userModel");
 const { catchAsync } = require("../../utils/catchAsync");
 
 exports.downloadExcel = catchAsync(async (req, res, next) => {
@@ -37,7 +38,6 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   const categoryList = categories.length
     ? categories.map((c) => c.category.replace(/,/g, " ")).join(",")
     : "No Categories Available";
-  //console.log("Category List:", categoryList); // Debug: Check the category list
 
   // 3. Create workbook
   const workbook = new ExcelJS.Workbook();
@@ -49,17 +49,21 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   const worksheet = workbook.addWorksheet("Drawing Register");
 
   // Top section (metadata)
-  const now = new Date(); // 12:15 PM IST on September 03, 2025
+  const now = new Date(); // 03:05 PM IST on September 04, 2025
   worksheet.addRow([]); // Row 2
   worksheet.mergeCells("A2:B2");
   worksheet.mergeCells("C2:D2");
-  worksheet.getCell("A2").value = `Date: ${now.toISOString().split("T")[0]}`; // 2025-09-03
-  worksheet.getCell("C2").value = `Time: ${now.toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour12: false })}`; // 12:15:00
+  worksheet.getCell("A2").value = `Date: ${now.toISOString().split("T")[0]}`; // 2025-09-04
+  worksheet.getCell("C2").value = `Time: ${now.toLocaleTimeString("en-US", {
+    timeZone: "Asia/Kolkata",
+    hour12: false,
+  })}`; // 15:05:00
 
   worksheet.addRow([]); // Row 3
   worksheet.mergeCells("A3:B3");
   worksheet.mergeCells("C3:D3");
-  worksheet.getCell("A3").value = `Company Keyword: ${site.companyId?.companyKeyWord || "N/A"}`;
+  worksheet.getCell("A3").value = `Company Keyword: ${site.companyId
+    ?.companyKeyWord || "N/A"}`;
   worksheet.getCell("C3").value = `Site Keyword: ${site.siteKeyWord || "N/A"}`;
 
   worksheet.addRow([]); // Row 4
@@ -72,68 +76,90 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   worksheet.mergeCells("A5:B5"); // Adjusted merge for Site Name
   worksheet.mergeCells("C5:D5"); // Merge for Drawing No
   worksheet.getCell("A5").value = `Site Name: ${site.siteName || "N/A"}`;
-  worksheet.getCell("C5").value = `Drawing No: ${site.drawingNo || "N/A"}`;
+  worksheet.getCell("C5").value = `Drawing No Format: ${site.drawingNo ||
+    "N/A"}`;
 
   worksheet.addRow([]); // Row 6 - Spacer
 
   // Set column headers in row 7 with enhanced styling
-  worksheet.addRow(["S.NO", "Drawing No", "Category", "Drawing Title"]); // Headers in row 7
+  worksheet.addRow([
+    "S.NO",
+    "Drawing No",
+    "Category",
+    "Drawing Title",
+    "Accepted RO Submission Date",
+    "Accepted Site Submission Date",
+  ]); // Headers in row 7
   const headerRow = worksheet.getRow(7); // Style row 7
   headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
-  headerRow.fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FF2D3436" }, // Dark gray background
-  };
+  for (let col = 1; col <= 6; col++) {
+    const cell = headerRow.getCell(col);
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF2D3436" }, // Dark gray background
+    };
+  }
   headerRow.alignment = { vertical: "middle", horizontal: "center" };
   headerRow.eachCell((cell) => {
     cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
+      top: { style: "medium", color: { argb: "FF000000" } }, // Thick black top border
+      left: { style: "medium", color: { argb: "FF000000" } }, // Thick black left border
+      bottom: { style: "medium", color: { argb: "FF000000" } }, // Thick black bottom border
+      right: { style: "medium", color: { argb: "FF000000" } }, // Thick black right border
     };
     cell.protection = { locked: true }; // Lock header cells
   });
 
   // Lock metadata cells (rows 2-5)
   for (let row = 2; row <= 5; row++) {
-    for (let col = 1; col <= 4; col++) {
+    for (let col = 1; col <= 6; col++) {
       worksheet.getCell(row, col).protection = { locked: true };
     }
   }
 
   // Unlock row 1 cells
-  for (let col = 1; col <= 4; col++) {
+  for (let col = 1; col <= 6; col++) {
     worksheet.getCell(1, col).protection = { locked: false };
   }
 
   // Set initial wider column widths for metadata, headers, and data
-  worksheet.getColumn(1).width = 15; // Wider for S.NO and metadata labels
-  worksheet.getColumn(2).width = 20; // Wider for Drawing No and metadata values
-  worksheet.getColumn(3).width = 25; // Wider for Category and metadata values
-  worksheet.getColumn(4).width = 30; // Wider for Drawing Title and metadata values
+  worksheet.getColumn(1).width = 15; // S.NO
+  worksheet.getColumn(2).width = 20; // Drawing No
+  worksheet.getColumn(3).width = 25; // Category
+  worksheet.getColumn(4).width = 30; // Drawing Title
+  worksheet.getColumn(5).width = 25; // acceptedROSubmissionDate
+  worksheet.getColumn(6).width = 25; // acceptedSiteSubmissionDate
 
   // Add categories in row range (hidden) starting from row 108
-  const categoriesArray = categoryList !== "No Categories Available"
-    ? categoryList.split(",")
-    : [];
+  const categoriesArray =
+    categoryList !== "No Categories Available" ? categoryList.split(",") : [];
   categoriesArray.forEach((category, index) => {
     worksheet.getCell(`A${108 + index}`).value = category.trim(); // Column A, rows 108 onwards
   });
-//  console.log("Categories populated in A108:A" + (107 + categoriesArray.length)); // Debug
 
-  // Add sample data rows with dropdown starting in row 8
-  worksheet.addRow([1, "", "", ""]); // Row 8
-  worksheet.addRow([2, "", "", ""]); // Row 9
+  worksheet.addRow([1, "", "", "", "", ""]);
+  worksheet.addRow([2, "", "", "", "", ""]);
 
-  // Apply dropdown for Category column (C) starting from row 8 using range
   if (categoriesArray.length > 0) {
     const dropdownRowCount = 100; // Adjustable: number of rows with dropdown
-    const lastCategoryRow = 107 + categoriesArray.length; // Last row with categories (e.g., 153 for 46 categories)
+    const lastCategoryRow = 107 + categoriesArray.length; // Last row with categories
     for (let row = 8; row <= 7 + dropdownRowCount; row++) {
-      const cell = worksheet.getCell(`C${row}`);
-      cell.dataValidation = {
+      // Validation for S.NO (column A) - Numbers only
+      const sNoCell = worksheet.getCell(`A${row}`);
+      sNoCell.dataValidation = {
+        type: "whole",
+        allowBlank: true,
+        operator: "between",
+        formulae: [0, 999999], // Allow numbers from 0 to 999999
+        showErrorMessage: true,
+        errorTitle: "Invalid S.NO",
+        error: "Please enter a valid number",
+      };
+
+      // Validation for Category (column C) - Dropdown
+      const categoryCell = worksheet.getCell(`C${row}`);
+      categoryCell.dataValidation = {
         type: "list",
         allowBlank: true,
         formulae: [`$A$108:$A$${lastCategoryRow}`], // Range reference to hidden rows
@@ -141,12 +167,35 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
         errorTitle: "Invalid Category",
         error: "Please select a category from the dropdown",
       };
-     // console.log(`Applied dataValidation to C${row} with range $A$108:$A$${lastCategoryRow}`); // Debug
-      // Unlock data cells to allow editing
-      worksheet.getCell(`A${row}`).protection = { locked: false };
-      worksheet.getCell(`B${row}`).protection = { locked: false };
-      worksheet.getCell(`C${row}`).protection = { locked: false };
-      worksheet.getCell(`D${row}`).protection = { locked: false };
+
+      // Validation for acceptedROSubmissionDate (column E) - Date only
+      const roDateCell = worksheet.getCell(`E${row}`);
+      roDateCell.dataValidation = {
+        type: "date",
+        allowBlank: true,
+        operator: "between",
+        formulae: ["1900-01-01", "9999-12-31"], // Allow dates from 1900 to 9999
+        showErrorMessage: true,
+        errorTitle: "Invalid Date",
+        error: "Please enter a valid date",
+      };
+
+      // Validation for acceptedSiteSubmissionDate (column F) - Date only
+      const siteDateCell = worksheet.getCell(`F${row}`);
+      siteDateCell.dataValidation = {
+        type: "date",
+        allowBlank: true,
+        operator: "between",
+        formulae: ["1900-01-01", "9999-12-31"], // Allow dates from 1900 to 9999
+        showErrorMessage: true,
+        errorTitle: "Invalid Date",
+        error: "Please enter a valid date",
+      };
+
+      // Unlock data cells to allow editing for all 6 columns
+      for (let col = 1; col <= 6; col++) {
+        worksheet.getCell(row, col).protection = { locked: false };
+      }
     }
   }
 
@@ -156,48 +205,75 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   }
 
   // Protect the worksheet with permission to adjust column widths
-  worksheet.protect("", { // Empty password, can be set to a string like "Pass123" if needed
+  worksheet.protect("", {
     selectLockedCells: true,
     selectUnlockedCells: true,
-    formatColumns: true // Allows manual width adjustment
+    formatColumns: true, // Allows manual width adjustment
   });
 
-  // Apply borders to populated cells
+  // Apply borders to populated cells (thin borders for non-header cells)
   for (let i = 1; i <= Math.max(worksheet.rowCount, 9); i++) {
-    for (let j = 1; j <= 4; j++) {
+    for (let j = 1; j <= 6; j++) {
       const cell = worksheet.getCell(i, j);
+      if (i === 7) {
+        // Header row (7) already has thick black borders
+        continue;
+      }
       cell.border = {
-        top: { style: "thin" },
-        left: { style: "thin" },
-        bottom: { style: "thin" },
-        right: { style: "thin" },
+        top: { style: "thin", color: { argb: "FF000000" } }, // Thin black borders for other cells
+        left: { style: "thin", color: { argb: "FF000000" } },
+        bottom: { style: "thin", color: { argb: "FF000000" } },
+        right: { style: "thin", color: { argb: "FF000000" } },
       };
     }
   }
 
   // Generate unique filename
-  const year = now.getFullYear().toString().slice(-2);
+  const year = now
+    .getFullYear()
+    .toString()
+    .slice(-2);
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const randomNum = Math.floor(1000 + Math.random() * 9000);
-  const fileName = `drawing-${site.siteKeyWord || "site"}-${year}${month}-${randomNum}.xlsx`;
+  const fileName = `drawing-${site.siteKeyWord ||
+    "site"}-${year}${month}-${randomNum}.xlsx`;
 
-//   // Set response headers
-//   res.setHeader(
-//     "Content-Type",
-//     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-//   );
-//   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  // Update user with filename
+  const files = await User.findByIdAndUpdate(
+    req.user.id,
+    { $push: { excelFiles: fileName } },
+    { new: true }
+  );
 
-//  await workbook.xlsx.write(res);
-// res.end();
-const buffer = await workbook.xlsx.writeBuffer();
-res.setHeader(
-  "Content-Type",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-);
-res.setHeader(
-  "Content-Disposition",
-  `attachment; filename="${fileName}"`
-);
-res.send(buffer);
+  // Send the Excel file
+  const buffer = await workbook.xlsx.writeBuffer();
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  res.send(buffer);
+});
+
+exports.checkFileName = catchAsync(async (req, res) => {
+  const { filename } = req.query;
+
+  const user = await User.findOne({
+    _id: req.user.id, // logged-in user
+    excelFiles: filename,
+  });
+
+  if (user) {
+    return res.status(200).json({
+      status: "success",
+      exists: true,
+      message: "File exists in user's excelFiles",
+    });
+  }
+
+  return res.status(200).json({
+    status: "Failed",
+    exists: false,
+    message: "File does not exist in user's excelFiles",
+  });
 });

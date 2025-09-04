@@ -124,6 +124,51 @@ const workFlowModuleSchema = new mongoose.Schema({
     default: true
   },
 });
+const deawingRegisterModuleSchema = new mongoose.Schema({
+  registerApproval: {
+    type: Boolean,
+    default: true
+  },
+  registerEdit: {
+    type: Boolean,
+    default: true
+  },
+ registerDelete: {
+    type: Boolean,
+    default: true
+  },
+  
+});
+const addRegisterModuleSchema = new mongoose.Schema({
+  addFolder: {
+    type: Boolean,
+    default: true
+  },
+  addRegister: {
+    type: Boolean,
+    default: true
+  },
+  deawingRegister: {
+    type: Boolean,
+    default: true
+  },
+   deawingRegisterDetails: {
+    type: deawingRegisterModuleSchema,
+    default: {}
+  },
+});
+const assignCategoryModuleSchema = new mongoose.Schema({
+  assignCategory: {
+    type: Boolean,
+    default: true
+  },
+  assignFileFormat: {
+    type: Boolean,
+    default: true
+  },
+ 
+  
+});
 const OptionsModuleSchema = new mongoose.Schema({
   categoryRegister: {
     type: Boolean,
@@ -133,9 +178,17 @@ const OptionsModuleSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  assignCategoryDetails: {
+    type: assignCategoryModuleSchema,
+    default: {}
+  },
   addRegister: {
     type: Boolean,
     default: false
+  },
+  addRegisterDetails: {
+    type: addRegisterModuleSchema,
+    default: {}
   },
   workFlow: {
     type: Boolean,
@@ -477,6 +530,9 @@ const userSchema = new mongoose.Schema({
     type: assignFormatsSchema,
     default: {}
   }],
+   excelFiles:[ {
+    type: String,
+  },],
   // assignnewPnmTasksForUser:[{
   //   type: assignNewPnmsSchema,
   //   default: {}

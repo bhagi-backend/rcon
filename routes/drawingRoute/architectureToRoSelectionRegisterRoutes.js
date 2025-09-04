@@ -12,4 +12,5 @@ router.put('/addFormats', authController.protect,ArchitectureToRoSelectionRegist
 router.delete('/removeFormats/:id', authController.protect,ArchitectureToRoSelectionRegisterController.removeFormatFromConsultant);
 router.get('/formats', authController.protect,ArchitectureToRoSelectionRegisterController.getFormatsByUserAndSite);
 router.get('/consultants/:id', authController.protect,ArchitectureToRoSelectionRegisterController.getConsultants);
+router.delete('/removeCategory', authController.protect,ArchitectureToRoSelectionRegisterController.deleteCategory);
 module.exports = router;

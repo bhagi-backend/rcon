@@ -7,6 +7,14 @@ const reasonSchema = new mongoose.Schema({
   reason:  {
     type: String,
   },
+   action: {
+    type: String,
+    enum: ["Completed", "Not Completed"],
+   
+  },
+   reasonFile: {
+    type: String,
+  },
 });
 
 const ArchitectureToRoRequestSchema = new mongoose.Schema({
@@ -82,7 +90,7 @@ const ArchitectureToRoRequestSchema = new mongoose.Schema({
   status: {
     type: String,
     default: "Requested",
-    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded"]
+    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded"]
   },
   rfiType: {
     type: String,

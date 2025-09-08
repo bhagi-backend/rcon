@@ -101,56 +101,68 @@ const SiteToSiteModuleSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  analysis: {
+    type: Boolean,
+    default: false
+  },
+  rfiRaisedAccess: {
+    type: Boolean,
+    default: false
+  },
+  forwardAccess: {
+    type: Boolean,
+    default: false
+  },
 });
 const workFlowModuleSchema = new mongoose.Schema({
   consultant: {
     type: Boolean,
-    default: true
+    default: false
   },
   ro: {
     type: Boolean,
-    default: true
+    default: false
   },
   siteHead: {
     type: Boolean,
-    default: true
+    default: false
   },
   siteLevel: {
     type: Boolean,
-    default: true
+    default: false
   },
   rfiTimeStamp: {
     type: Boolean,
-    default: true
+    default: false
   },
 });
 const deawingRegisterModuleSchema = new mongoose.Schema({
   registerApproval: {
     type: Boolean,
-    default: true
+    default: false
   },
   registerEdit: {
     type: Boolean,
-    default: true
+    default: false
   },
  registerDelete: {
     type: Boolean,
-    default: true
+    default: false
   },
   
 });
 const addRegisterModuleSchema = new mongoose.Schema({
   addFolder: {
     type: Boolean,
-    default: true
+    default: false
   },
   addRegister: {
     type: Boolean,
-    default: true
+    default: false
   },
   deawingRegister: {
     type: Boolean,
-    default: true
+    default: false
   },
    deawingRegisterDetails: {
     type: deawingRegisterModuleSchema,
@@ -160,11 +172,11 @@ const addRegisterModuleSchema = new mongoose.Schema({
 const assignCategoryModuleSchema = new mongoose.Schema({
   assignCategory: {
     type: Boolean,
-    default: true
+    default: false
   },
   assignFileFormat: {
     type: Boolean,
-    default: true
+    default: false
   },
  
   

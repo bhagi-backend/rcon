@@ -3,9 +3,11 @@ const Site = require("../../models/sitesModel");
 const Category = require("../../models/drawingModels/categoryModel");
 const User = require("../../models/userModel");
 const { catchAsync } = require("../../utils/catchAsync");
+const AssignCategoriesToDesignDrawingConsultant = require("../../models/drawingModels/assignCategoriesToDesignConsultantModel");
 
 exports.downloadExcel = catchAsync(async (req, res, next) => {
   const downloadedBy = req.user.email;
+
   const { siteId, companyId } = req.body;
 
   // Validate required parameters
@@ -30,11 +32,18 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
       message: "Site not found",
     });
   }
+console.log("req.user.id",req.user.id,)
+  // 2. Fetch categories for dropdown based on designDrawingConsultant
+  const assignedCategories = await AssignCategoriesToDesignDrawingConsultant.find({
+    designDrawingConsultant: req.user.id,
+  })
+    .populate({
+      path: "categories",
+      select: "category",
+    })
+    .lean();
 
-  // 2. Fetch categories for dropdown
-  const categories = await Category.find({
-    $or: [{ siteId }, { siteId: null }],
-  }).lean();
+  const categories = assignedCategories.flatMap((assignment) => assignment.categories);
   const categoryList = categories.length
     ? categories.map((c) => c.category.replace(/,/g, " ")).join(",")
     : "No Categories Available";

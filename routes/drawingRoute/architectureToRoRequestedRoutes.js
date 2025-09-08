@@ -3,6 +3,10 @@ const router = express.Router();
 const ArchitectureToRoRequestedController= require("../../controllers/drawing/architectureToRoRequestedController");
 const authController = require("../../controllers/authController");
 const pdfController= require("../../controllers/drawing/pdfDrawingFileNameController");
+const multerWrapper = require("../../utils/multerFun");
+router.use(express.urlencoded({ extended: true }));
+const upload = multerWrapper();
+
 
 
 router.post("/postRequest",
@@ -72,5 +76,10 @@ router.put(
   authController.protect,
   ArchitectureToRoRequestedController.uploadImpactImages,
   ArchitectureToRoRequestedController.updateImpactImages);
+router.put(
+  "/natureOfRequests/:id",
+  authController.protect,upload.any(),
+  ArchitectureToRoRequestedController.updateNatureOfReasons
+);
 
 module.exports = router;

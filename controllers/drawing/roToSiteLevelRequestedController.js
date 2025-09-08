@@ -1401,3 +1401,81 @@ console.log("cssFileUrl",cssFileUrl)
       .json({ message: "Failed to generate PDF", error: err.message });
   }
 });
+
+
+
+exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  // Log raw request data for debugging
+  console.log("Raw Request Body:", req.body);
+  console.log("Raw Request Files:", req.files);
+
+  // 1) Load request + drawing (for siteId used in S3 path)
+  const request = await ArchitectureToRoRequest.findById(id).populate("drawingId", "siteId");
+  if (!request || !request.drawingId) {
+    return next(new AppError("Request or associated drawing not found", 404));
+  }
+
+  const companyId = req.user.companyId;
+
+  // Normalize existing reasons as an array
+  const existingReasons = Array.isArray(request.natureOfRequestedInformationReasons)
+    ? request.natureOfRequestedInformationReasons
+    : [];
+
+  // Process single entry
+  const newReason = {};
+
+  // Body fields (handle flat text fields)
+  if (req.body.natureOfRequest) newReason.natureOfRequest = req.body.natureOfRequest || null;
+  if (req.body.reason) newReason.reason = req.body.reason || null;
+  if (req.body.action) newReason.action = req.body.action || null;
+
+  // File processing (handle single file)
+  const file = req.files && req.files.length > 0 ? req.files[0] : null;
+  if (file && file.fieldname.startsWith("reasonFile")) {
+    const ext = path.extname(file.originalname) || "";
+    const newFilename = `reason-${id}-${Date.now()}${ext}`;
+
+    const { uploadToS3, relativePath } = getUploadPath(
+      companyId,
+      newFilename,
+      "reasons",
+      request.drawingId.siteId
+    );
+
+    try {
+      await uploadToS3(file.buffer, file.mimetype);
+      newReason.reasonFile = relativePath;
+    } catch (err) {
+      return next(new AppError(`Failed to upload file: ${err.message}`, 500));
+    }
+  }
+
+  // Validate that at least one field is provided
+  if (!newReason.natureOfRequest && !newReason.reason && !newReason.action && !newReason.reasonFile) {
+    return next(new AppError("At least one field (natureOfRequest, reason, action, or reasonFile) is required", 400));
+  }
+
+  // Update reasons array (replace or append the single entry)
+  const updatedReasons = [newReason, ...existingReasons.filter(r => 
+    r.natureOfRequest || r.reason || r.action || r.reasonFile
+  )];
+
+  // Save
+  const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
+    id,
+    { $set: { natureOfRequestedInformationReasons: updatedReasons } },
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedRequest) {
+    return next(new AppError("No request found with that ID", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: updatedRequest,
+  });
+});

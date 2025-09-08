@@ -14,7 +14,11 @@ router.get('/', authController.protect,ArchitectureToRoRegisterController.getAll
 
 router.delete('/:id',authController.protect, ArchitectureToRoRegisterController.deleteDrawing);
 
-
+router.put(
+  "/viewDate",
+  authController.protect,
+  ArchitectureToRoRegisterController.updateViewDates
+);
 router.put('/revisions/:id',authController.protect,ArchitectureToRoRegisterController.uploadFiles,ArchitectureToRoRegisterController.updateRevisions,);
 
 router.put("/updateFolderId",authController.protect,ArchitectureToRoRegisterController.updateFolderIdForRegisters);

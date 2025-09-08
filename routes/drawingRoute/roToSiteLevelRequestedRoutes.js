@@ -3,6 +3,9 @@ const router = express.Router();
 const RoToSiteLevelRequestedController= require("../../controllers/drawing/roToSiteLevelRequestedController");
 const authController = require("../../controllers/authController");
 const pdfController= require("../../controllers/drawing/pdfDrawingFileNameController");
+const multerWrapper = require("../../utils/multerFun");
+router.use(express.urlencoded({ extended: true }));
+const upload = multerWrapper();
 
 
 router.post("/postRequest", 
@@ -68,5 +71,9 @@ router.put(
   authController.protect,
   RoToSiteLevelRequestedController.uploadImpactImages,
   RoToSiteLevelRequestedController.updateImpactImages);
-
+router.put(
+  "/natureOfRequests/:id",
+  authController.protect,upload.any(),
+  RoToSiteLevelRequestedController.updateNatureOfReasons
+);
 module.exports = router;

@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 
 const siteSoftrevisionSchema = new mongoose.Schema({
+  typeOfDrawing: {
+    type: String,
+    enum: ["General Arrangement","Conceptual", "Schematic","GFC"],},
   revision: {
     type: String,
     
@@ -54,9 +57,15 @@ const siteSoftrevisionSchema = new mongoose.Schema({
     type: mongoose.Schema.ObjectId,
     ref: "User",
   },
+  viewDates: {
+    type: [Date],
+  },
  
 });
 const SiteHeadSoftrevisionSchema = new mongoose.Schema({
+  typeOfDrawing: {
+    type: String,
+    enum: ["General Arrangement","Conceptual", "Schematic","GFC"],},
   revision: {
     type: String,
     
@@ -115,8 +124,14 @@ const SiteHeadSoftrevisionSchema = new mongoose.Schema({
     enum: ["Raised", "Not Raised"],
     default: "Not Raised"
   },
+  viewDates: {
+    type: [Date],
+  },
 });
 const RoSoftrevisionSchema = new mongoose.Schema({
+  typeOfDrawing: {
+    type: String,
+    enum: ["General Arrangement","Conceptual", "Schematic","GFC"],},
   revision: {
     type: String,
     
@@ -183,8 +198,14 @@ const RoSoftrevisionSchema = new mongoose.Schema({
   siteHeadRfiTimeStampDays: {
     type: Number,
 },
+viewDates: {
+    type: [Date],
+  },
 });
 const architectSoftRevisionSchema = new mongoose.Schema({
+   typeOfDrawing: {
+    type: String,
+    enum: ["General Arrangement","Conceptual", "Schematic","GFC"],},
   revision: {
     type: String,
     
@@ -242,6 +263,9 @@ const architectSoftRevisionSchema = new mongoose.Schema({
     type: Number,
     
 },
+viewDates: {
+    type: [Date],
+  },
 });
 
 const HardCopyRevisionSchema = new mongoose.Schema({

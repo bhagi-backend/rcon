@@ -37,6 +37,24 @@ console.log("companyId",companyId);
   const createdRegisters = [];
   const notifications= [];
   const createdFolders = [];
+const drawingNos = drawings.map(d => d.drawingNo); // extract all drawingNos
+const existingDrawings = await ArchitectureToRoRegister.find({
+  siteId,
+  drawingNo: { $in: drawingNos },
+});
+
+if (existingDrawings.length > 0) {
+  // Create a detailed error message for all duplicates
+  const duplicateDetails = existingDrawings.map(d => 
+    `Drawing No: "${d.drawingNo}", Title: "${d.drawingTitle}", Category: "${d.category}"`
+  );
+
+  return res.status(200).json({
+    status: 'error',
+    message: `The following drawings already exist for this site:\n${duplicateDetails.join('\n')}`,
+    duplicates: existingDrawings, // optional: return duplicate data
+  });
+}
 
 
   for (const drawing of drawings) {
@@ -87,24 +105,24 @@ console.log("categoryRecord",categoryRecord);
         }
       }
     }
-    const existingDrawing = await ArchitectureToRoRegister.findOne({ siteId, drawingNo });
-    if (existingDrawing) {
-      return res.status(200).json({
-        status: 'error',
-         message: `${drawingNo} drawing number already exists. Please provide a unique drawing number.`
-      });
-    }
+    // const existingDrawing = await ArchitectureToRoRegister.findOne({ siteId, drawingNo });
+    // if (existingDrawing) {
+    //   return res.status(200).json({
+    //     status: 'error',
+    //      message: `${drawingNo} drawing number already exists. Please provide a unique drawing number.`
+    //   });
+    // }
 
     if (!drawingNo || !drawingTitle || !designDrawingConsultant ) {
       return next(new AppError('Each drawing object must have drawingNo, drawingTitle, designDrawingConsultant, category, acceptedROSubmissionDate, and acceptedSiteSubmissionDate', 400));
     }
     const count = await ArchitectureToRoRegister.countDocuments({ siteId });
 
-    // Generate the 3-digit suffix
-    const sequenceNumber = (count + createdRegisters.length + 1).toString().padStart(3, '0');
+    // // Generate the 3-digit suffix
+    // const sequenceNumber = (count + createdRegisters.length + 1).toString().padStart(3, '0');
     
-    // Append it to the provided drawing number
-    const uniqueDrawingNo = `${drawingNo}-${sequenceNumber}`;
+    // // Append it to the provided drawing number
+    // const uniqueDrawingNo = `${drawingNo}-${sequenceNumber}`;
    
     try {
       // Create the record in ArchitectureToRoRegister
@@ -112,7 +130,7 @@ console.log("categoryRecord",categoryRecord);
         siteId,
         companyId,
         folderId,
-        drawingNo:uniqueDrawingNo,
+        drawingNo,
         drawingTitle,
         designDrawingConsultant,
         category:categoryRecord._id,
@@ -1706,5 +1724,75 @@ exports.getDrawingsByDesignConsultantAndCategory = catchAsync(async (req, res, n
   res.status(200).json({
     status: "success",
     data: drawings,
+  });
+});
+
+
+exports.updateViewDates = catchAsync(async (req, res, next) => {
+  const { _id, revision, newViewDate } = req.body;
+  const { revisionType } = req.query;
+
+  // Validate required parameters
+  if (!_id || !revision || !newViewDate || !revisionType) {
+    return res.status(400).json({
+      status: "fail",
+      message: "_id, revision, newViewDate, and revisionType are required",
+    });
+  }
+
+
+  // Define the valid revision types
+  const validRevisionTypes = [
+    "acceptedArchitectRevisions",
+    "acceptedRORevisions",
+    "acceptedSiteHeadRevisions",
+    "acceptedSiteRevisions",
+    "acceptedROHardCopyRevisions",
+    "acceptedSiteHeadHardCopyRevisions",
+  ];
+
+  if (!validRevisionTypes.includes(revisionType)) {
+    return res.status(400).json({
+      status: "fail",
+      message: `revisionType must be one of ${validRevisionTypes.join(", ")}`,
+    });
+  }
+
+  // Check if document and revision exist
+  const register = await ArchitectureToRoRegister.findOne({
+    _id: _id,
+    [revisionType]: {
+      $elemMatch: { revision: revision },
+    },
+  });
+
+  if (!register) {
+    return res.status(404).json({
+      status: "fail",
+      message: "No matching document or revision found",
+    });
+  }
+
+  // Update the viewDates
+  const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+    {
+      _id: _id,
+      [revisionType]: {
+        $elemMatch: { revision: revision },
+      },
+    },
+    {
+      $push: {
+        [`${revisionType}.$.viewDates`]: newViewDate,
+      },
+    },
+    { new: true }
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      register: updatedRegister,
+    },
   });
 });

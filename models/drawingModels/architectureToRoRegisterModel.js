@@ -1,12 +1,15 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const siteSoftrevisionSchema = new mongoose.Schema({
   typeOfDrawing: {
     type: String,
-    enum: ["General Arrangement","Conceptual", "Schematic","GFC"],},
+    enum: ["General Arrangement", "Conceptual", "Schematic", "GFC"],
+  },
   revision: {
     type: String,
-    
+  },
+  forwardRevision: {
+    type: String,
   },
   drawingFileName: {
     type: String,
@@ -16,42 +19,40 @@ const siteSoftrevisionSchema = new mongoose.Schema({
   },
 
   urn: {
-    type: String
+    type: String,
   },
 
   urnExpiration: {
     type: Date,
   },
-  
-  softCopySubmittedDate : {
+
+  softCopySubmittedDate: {
     type: Date,
-  
   },
   issuedSoftCopy: {
     type: String,
     enum: ["Yes", "No"],
-    default: "Yes"
+    default: "Yes",
   },
-  issuesInRevision:[
+  issuesInRevision: [
     {
       type: String,
-    }
+    },
   ],
-  changes:{
-    type:String
+  changes: {
+    type: String,
   },
-  siteHeadRef:
-  {
+  siteHeadRef: {
     type: String,
   },
   revisionCreationDate: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   siteTositeType: {
     type: String,
     enum: ["Created", "Forwarded"],
-    default: "Created"
+    default: "Created",
   },
   revisionCreatedBy: {
     type: mongoose.Schema.ObjectId,
@@ -60,15 +61,17 @@ const siteSoftrevisionSchema = new mongoose.Schema({
   viewDates: {
     type: [Date],
   },
- 
 });
 const SiteHeadSoftrevisionSchema = new mongoose.Schema({
   typeOfDrawing: {
     type: String,
-    enum: ["General Arrangement","Conceptual", "Schematic","GFC"],},
+    enum: ["General Arrangement", "Conceptual", "Schematic", "GFC"],
+  },
   revision: {
     type: String,
-    
+  },
+  forwardRevision: {
+    type: String,
   },
   drawingFileName: {
     type: String,
@@ -78,37 +81,35 @@ const SiteHeadSoftrevisionSchema = new mongoose.Schema({
   },
 
   urn: {
-    type: String
+    type: String,
   },
 
   urnExpiration: {
     type: Date,
   },
-  
-  softCopySubmittedDate : {
+
+  softCopySubmittedDate: {
     type: Date,
-  
   },
   issuedSoftCopy: {
     type: String,
     enum: ["Yes", "No"],
-    default: "Yes"
+    default: "Yes",
   },
-  issuesInRevision:[
+  issuesInRevision: [
     {
       type: String,
-    }
+    },
   ],
-  changes:{
-    type:String
+  changes: {
+    type: String,
   },
-  roRef:
-  {
+  roRef: {
     type: String,
   },
   revisionCreationDate: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   revisionCreatedBy: {
     type: mongoose.Schema.ObjectId,
@@ -117,12 +118,12 @@ const SiteHeadSoftrevisionSchema = new mongoose.Schema({
   siteHeadType: {
     type: String,
     enum: ["Created", "Forwarded"],
-    default: "Created"
+    default: "Created",
   },
   rfiStatus: {
     type: String,
     enum: ["Raised", "Not Raised"],
-    default: "Not Raised"
+    default: "Not Raised",
   },
   viewDates: {
     type: [Date],
@@ -131,10 +132,13 @@ const SiteHeadSoftrevisionSchema = new mongoose.Schema({
 const RoSoftrevisionSchema = new mongoose.Schema({
   typeOfDrawing: {
     type: String,
-    enum: ["General Arrangement","Conceptual", "Schematic","GFC"],},
+    enum: ["General Arrangement", "Conceptual", "Schematic", "GFC"],
+  },
   revision: {
     type: String,
-    
+  },
+  forwardRevision: {
+    type: String,
   },
   drawingFileName: {
     type: String,
@@ -144,37 +148,35 @@ const RoSoftrevisionSchema = new mongoose.Schema({
   },
 
   urn: {
-    type: String
+    type: String,
   },
 
   urnExpiration: {
     type: Date,
   },
-  
-  softCopySubmittedDate : {
+
+  softCopySubmittedDate: {
     type: Date,
-  
   },
   issuedSoftCopy: {
     type: String,
     enum: ["Yes", "No"],
-    default: "Yes"
+    default: "Yes",
   },
-  issuesInRevision:[
+  issuesInRevision: [
     {
       type: String,
-    }
+    },
   ],
-  changes:{
-    type:String
+  changes: {
+    type: String,
   },
-  architectRef:
-  {
+  architectRef: {
     type: String,
   },
   revisionCreationDate: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   revisionCreatedBy: {
     type: mongoose.Schema.ObjectId,
@@ -183,32 +185,32 @@ const RoSoftrevisionSchema = new mongoose.Schema({
   roType: {
     type: String,
     enum: ["Created", "Forwarded"],
-    default: "Created"
+    default: "Created",
   },
   rfiStatus: {
     type: String,
     enum: ["Raised", "Not Raised"],
-    default: "Not Raised"
+    default: "Not Raised",
   },
   roRevisionStatus: {
     type: String,
     enum: ["Not Forwarded", "Forwarded"],
-    default: "Not Forwarded"
+    default: "Not Forwarded",
   },
   siteHeadRfiTimeStampDays: {
     type: Number,
-},
-viewDates: {
+  },
+  viewDates: {
     type: [Date],
   },
 });
 const architectSoftRevisionSchema = new mongoose.Schema({
-   typeOfDrawing: {
+  typeOfDrawing: {
     type: String,
-    enum: ["General Arrangement","Conceptual", "Schematic","GFC"],},
+    enum: ["General Arrangement", "Conceptual", "Schematic", "GFC"],
+  },
   revision: {
     type: String,
-    
   },
   drawingFileName: {
     type: String,
@@ -217,33 +219,32 @@ const architectSoftRevisionSchema = new mongoose.Schema({
     type: String,
   },
   urn: {
-    type: String
+    type: String,
   },
 
   urnExpiration: {
     type: Date,
   },
-  
-  softCopySubmittedDate : {
+
+  softCopySubmittedDate: {
     type: Date,
-  
   },
   issuedSoftCopy: {
     type: String,
     enum: ["Yes", "No"],
-    default: "Yes"
+    default: "Yes",
   },
-  issuesInRevision:[
+  issuesInRevision: [
     {
       type: String,
-    }
+    },
   ],
-  changes:{
-    type:String
+  changes: {
+    type: String,
   },
   revisionCreationDate: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   revisionCreatedBy: {
     type: mongoose.Schema.ObjectId,
@@ -252,18 +253,17 @@ const architectSoftRevisionSchema = new mongoose.Schema({
   architectRevisionStatus: {
     type: String,
     enum: ["Not Forwarded", "Forwarded"],
-    default: "Not Forwarded"
+    default: "Not Forwarded",
   },
   rfiStatus: {
     type: String,
     enum: ["Raised", "Not Raised"],
-    default: "Not Raised"
+    default: "Not Raised",
   },
   roRfiTimeStampDays: {
     type: Number,
-    
-},
-viewDates: {
+  },
+  viewDates: {
     type: [Date],
   },
 });
@@ -271,31 +271,26 @@ viewDates: {
 const HardCopyRevisionSchema = new mongoose.Schema({
   revision: {
     type: String,
-    
   },
-  
-  receivedCopies:{
-    type: Number,
 
+  receivedCopies: {
+    type: Number,
   },
- 
-  hardCopySubmittedDate : {
+
+  hardCopySubmittedDate: {
     type: Date,
-  
   },
   receivedHardCopy: {
     type: String,
     enum: ["Yes", "No"],
-    default: "Yes"
-   
+    default: "Yes",
   },
   hardCopyFile: {
     type: String,
-    
   },
   revisionCreationDate: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   revisionCreatedBy: {
     type: mongoose.Schema.ObjectId,
@@ -303,9 +298,7 @@ const HardCopyRevisionSchema = new mongoose.Schema({
   },
 });
 
-
 const ArchitectureToRoRegisterSchema = new mongoose.Schema({
-  
   siteId: {
     type: mongoose.Schema.ObjectId,
     ref: "Site",
@@ -329,7 +322,7 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
   },
   drawingTitle: {
     type: String,
-    required: true
+    required: true,
   },
   category: {
     type: mongoose.Schema.ObjectId,
@@ -344,22 +337,22 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
   regState: {
     type: String,
     enum: ["Pending", "Drawing"],
-    default: "Pending"
+    default: "Pending",
   },
   archRevision: {
-    type: String
+    type: String,
   },
-  acceptedROSubmissionDate : {
+  acceptedROSubmissionDate: {
     type: Date,
-   // required: true
+    // required: true
   },
-  acceptedSiteSubmissionDate : {
+  acceptedSiteSubmissionDate: {
     type: Date,
-   // required: true
+    // required: true
   },
   creationDate: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   createdBy: {
     type: mongoose.Schema.ObjectId,
@@ -368,42 +361,39 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
   tower: {
     type: String,
   },
-   drawingStatus: {
+  drawingStatus: {
     type: String,
     enum: ["Approval", "Not Approval"],
-    default: "Not Approval"
+    default: "Not Approval",
   },
   acceptedArchitectRevisions: {
     type: [architectSoftRevisionSchema],
-    
   },
   acceptedRORevisions: {
     type: [RoSoftrevisionSchema],
-    
   },
   acceptedSiteHeadRevisions: {
     type: [SiteHeadSoftrevisionSchema],
-    
   },
   acceptedSiteRevisions: {
     type: [siteSoftrevisionSchema],
-    
   },
   // acceptedArchitectHardCopyRevisions: {
   //   type: [HardCopyRevisionSchema],
-    
+
   // },
-  
+
   acceptedROHardCopyRevisions: {
     type: [HardCopyRevisionSchema],
-    
   },
   acceptedSiteHeadHardCopyRevisions: {
     type: [HardCopyRevisionSchema],
-    
   },
 });
 
-const ArchitectureToRoRegister = mongoose.model('ArchitectureToRoRegister', ArchitectureToRoRegisterSchema);
+const ArchitectureToRoRegister = mongoose.model(
+  "ArchitectureToRoRegister",
+  ArchitectureToRoRegisterSchema
+);
 
 module.exports = ArchitectureToRoRegister;

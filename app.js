@@ -21,6 +21,7 @@ const DrawingWorkFlowRouter = require("./routes/drawingRoute/drawingWorkFlowRout
 const ArchitectureToRoSelectionRegisterRoutes = require("./routes/drawingRoute/architectureToRoSelectionRegisterRoutes");
 const ArchitectureToRORequestedRouter = require("./routes/drawingRoute/architectureToRoRequestedRoutes");
 const RoToSiteLevelRequestedRouter = require("./routes/drawingRoute/roToSiteLevelRequestedRoutes");
+const siteToSiteLevelRequestedRouter = require("./routes/drawingRoute/siteToSiteLevelRequestedRoutes");
 const PendingRegisterRouter = require("./routes/drawingRoute/pendingRegisterRoutes");
 const workSequenceRouter = require("./routes/workSequenceRoutes");
 const workSequenceDocumentRouter = require("./routes/workSequenceDocumentRoutes");
@@ -126,6 +127,7 @@ app.use(
 );
 app.use("/api/architectureToRoRequested", ArchitectureToRORequestedRouter);
 app.use("/api/roToSiteLevelRequested", RoToSiteLevelRequestedRouter);
+app.use("/api/siteToSiteLevelRequested",siteToSiteLevelRequestedRouter );
 app.use("/api/pending", PendingRegisterRouter);
 app.use("/api/Drawing", drawingRouter);
 app.use("/api/rfiTimeStamp", rfiTimeStampRouter);

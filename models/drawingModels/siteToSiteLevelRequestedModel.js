@@ -1,4 +1,3 @@
-const { response } = require("express");
 const mongoose = require("mongoose");
 const reasonSchema = new mongoose.Schema({
   natureOfRequest:  {
@@ -16,10 +15,9 @@ const reasonSchema = new mongoose.Schema({
     type: String,
   },
 });
-
-const ArchitectureToRoRequestSchema = new mongoose.Schema({
+const RoToSitelevelRequestSchema = new mongoose.Schema({
   siteId: {
-    type: mongoose.Schema.ObjectId, 
+    type: mongoose.Schema.Types.ObjectId, 
     ref: "Site",
   },
    companyId: {
@@ -48,7 +46,7 @@ const ArchitectureToRoRequestSchema = new mongoose.Schema({
   drawingNo: {
     type: String,
   },
-  architectRfiNo: {
+  roRfiNo: {
     type: String,
   },
   remarks: {
@@ -62,13 +60,33 @@ const ArchitectureToRoRequestSchema = new mongoose.Schema({
   natureOfRequestedInformation:[ {
     type: String,
     enum: ["A - Missing Information", "B - Clarification","C - Additional Information","D - Uncoordinated Drawings"],
+  
+   
   },] ,
   revision: {
     type: String,
-    required: true,
+    
+  },
+    roRevision: {
+    type: String,
+    
   },
   roRfiId: {
     type: String,
+    
+  },
+  architectRevision: {
+    type: String,
+    
+  },
+  architectRfiId: {
+    type: String,
+    
+  },
+  rfiState: {
+    type: String,
+    default: "Not Forwarded",
+    enum: ["Not Forwarded", "Forwarded",]
   },
   issuedSoftCopy: {
     type: String,
@@ -90,24 +108,20 @@ const ArchitectureToRoRequestSchema = new mongoose.Schema({
   status: {
     type: String,
     default: "Requested",
-    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded",,"Completed"]
-  },
-  rfiType: {
-    type: String,
-    default: "Created",
-    enum: ["Created", "Forwarded",]
+    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Not Responded","Completed"]
   },
   natureOfRequestedInformationReasons : {
     type: [reasonSchema],
     
   },
-  reason:  {
+  reason: {
     type: String,
   },
  
   rejectedFile: {
     type: String,
   },
+  
   rejectedDwgFile: {
     type: String,
   },
@@ -118,6 +132,7 @@ const ArchitectureToRoRequestSchema = new mongoose.Schema({
   rejectUrnExpiration: {
     type: Date,
   },
+
   urn: {
     type: String
   },
@@ -172,5 +187,5 @@ const ArchitectureToRoRequestSchema = new mongoose.Schema({
   },],
 });
 
-const ArchitectureToRoRequest = mongoose.model("ArchitectureToRoRequest", ArchitectureToRoRequestSchema);
-module.exports = ArchitectureToRoRequest;
+const SiteToSiteLevelRequest = mongoose.model("SiteToSiteLevelRequest", RoToSitelevelRequestSchema);
+module.exports = SiteToSiteLevelRequest;

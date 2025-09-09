@@ -6,6 +6,14 @@ const reasonSchema = new mongoose.Schema({
   reason:  {
     type: String,
   },
+   action: {
+    type: String,
+    enum: ["Completed", "Not Completed","Rejected","Reopened","Requested","Accepted"],
+   
+  },
+   reasonFile: {
+    type: String,
+  },
 });
 const RoToSitelevelRequestSchema = new mongoose.Schema({
   siteId: {
@@ -92,7 +100,7 @@ const RoToSitelevelRequestSchema = new mongoose.Schema({
   status: {
     type: String,
     default: "Requested",
-    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Not Responded"]
+    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Not Responded","Completed"]
   },
   natureOfRequestedInformationReasons : {
     type: [reasonSchema],

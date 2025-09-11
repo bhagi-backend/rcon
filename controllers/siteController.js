@@ -135,80 +135,237 @@ exports.getSiteDetails = catchAsync(async (req, res, next) => {
   });
 });
 
+// exports.createOne = catchAsync(async (req, res, next) => {
+//   try {
+//     const { companyId } = req.body;
+
+//     // Create the new site
+//     const newSite = await Site.create(req.body);
+
+//     // Update the corresponding company to include the new site's ID
+//     await Company.findByIdAndUpdate(
+//       companyId,
+//       { $push: { sites: newSite._id } },
+//       { new: true, useFindAndModify: false }
+//     );
+
+//     const companyAdmin = await User.findOne({ 
+//       companyId,
+//       role: "Admin",
+//       department: "Company Admin",  
+//     });
+//     let createdFolder = null;
+//     if (companyAdmin) {
+//       const enableModules = req.body.enableModules || {};
+//       const userenbaleModules= req.body.userenableModules || {};
+// console.log("hello")
+//       // Check if the site is already in permittedSites to avoid duplicates
+//       const isSiteAlreadyAdded = companyAdmin.permittedSites.some(
+//         (site) => site.siteId.toString() === newSite._id.toString()
+//       );
+
+//       if (!isSiteAlreadyAdded) {
+//         // Add the new site and its enabled modules to the Company Admin's permittedSites
+//         companyAdmin.permittedSites.push({
+//           siteId: newSite._id,
+//           enableModules: userenbaleModules, 
+//         });
+
+//     const user=    await companyAdmin.save();
+//     console.log("user",user)
+//       }
+//     }
+//     if (req.body.enableModules.drawings) {
+//       const folderName = newSite.siteName; 
+//       const existingFolder = await DrawingFolder.findOne({
+//         siteId: newSite._id,
+//         folderName,
+//       });
+// console.log("hi");
+//       if (!existingFolder) {
+        
+//           createdFolder = await DrawingFolder.create({
+//             siteId: newSite._id,
+//             folderName,
+//           });
+        
+//       }
+//     }
+  
+  
+
+//     res.status(201).json({
+//       status: 'success',
+//       site: newSite,
+//       createdFolder,
+//       user: companyAdmin 
+//     });
+//   } catch (err) {
+//     res.status(400).json({
+//       status: 'failed',
+//       data: {
+//         error: err.toString(),
+//       },
+//     });
+//   }
+// });
 exports.createOne = catchAsync(async (req, res, next) => {
   try {
-    const { companyId } = req.body;
+    const { siteId, companyId } = req.body;
 
-    // Create the new site
+    // 🟢 If siteId is provided → Update logic
+    if (siteId) {
+      const site = await Site.findById(siteId);
+
+      if (!site) {
+        return next(new AppError("Site not found", 404));
+      }
+
+      let newSite = req.body;
+      console.log("New site data: ", newSite);
+
+      const towerIds = [];
+      const clubHouseIds = [];
+
+      // 🏢 Apartments Venture Type
+      if (newSite.ventureType === "Apartments" && newSite.apartmentsDetails) {
+        for (const tower of newSite.apartmentsDetails.towers) {
+          const towerResult = await towerFun(tower, siteId);
+          towerIds.push(towerResult);
+        }
+        newSite.apartmentsDetails.towers = towerIds;
+
+        if (newSite.apartmentsDetails.clubhouse) {
+          for (const clubHouse of newSite.apartmentsDetails.clubhouse) {
+            const clubHouseResult = await clubHouseFun(clubHouse, siteId);
+            clubHouseIds.push(clubHouseResult);
+          }
+          newSite.apartmentsDetails.clubhouse = clubHouseIds;
+        }
+      } 
+      // 🏘 Villas Venture Type
+      else if (newSite.ventureType === "Villas" && newSite.villasDetails) {
+        if (newSite.villasDetails.clubhouse) {
+          for (const clubHouse of newSite.villasDetails.clubhouse) {
+            const clubHouseResult = await clubHouseFun(clubHouse, siteId);
+            clubHouseIds.push(clubHouseResult);
+          }
+          newSite.villasDetails.clubhouse = clubHouseIds;
+        }
+      } 
+      // 🏬 Highrise or Commercial Venture Type
+      else if (newSite.ventureType === "Highrise or Commercial" && newSite.buildingsDetails) {
+        const towerResult = await towerFun(newSite.buildingsDetails.towers, siteId);
+        towerIds.push(towerResult);
+        newSite.buildingsDetails.towers = towerIds;
+      }
+
+      const updatedSite = await Site.findByIdAndUpdate(siteId, newSite, {
+        new: true,
+        runValidators: true,
+      });
+
+      console.log("Updated site details: ", updatedSite);
+
+      if (updatedSite.ventureType === "Apartments") {
+        await Promise.all(
+          updatedSite.apartmentsDetails.towers.map(towerId => updateTower(towerId, updatedSite._id))
+        );
+
+        if (updatedSite.apartmentsDetails.clubhouse) {
+          await Promise.all(
+            updatedSite.apartmentsDetails.clubhouse.map(clubHouseId =>
+              updateClubHouse(clubHouseId, updatedSite._id)
+            )
+          );
+        }
+      } else if (updatedSite.ventureType === "Villas") {
+        if (updatedSite.villasDetails.clubhouse) {
+          await Promise.all(
+            updatedSite.villasDetails.clubhouse.map(clubHouseId =>
+              updateClubHouse(clubHouseId, updatedSite._id)
+            )
+          );
+        }
+      } else if (updatedSite.ventureType === "Highrise or Commercial") {
+        await updateTower(updatedSite.buildingsDetails.towers, updatedSite._id);
+      }
+
+      return res.status(201).json({
+        status: "success",
+        action: "update",
+        site: updatedSite,
+      });
+    }
+
+    // 🟢 If no siteId → Create logic
     const newSite = await Site.create(req.body);
 
-    // Update the corresponding company to include the new site's ID
+    // Update Company with new site
     await Company.findByIdAndUpdate(
       companyId,
       { $push: { sites: newSite._id } },
       { new: true, useFindAndModify: false }
     );
 
-    const companyAdmin = await User.findOne({ 
+    const companyAdmin = await User.findOne({
       companyId,
       role: "Admin",
-      department: "Company Admin",  
+      department: "Company Admin",
     });
+
     let createdFolder = null;
     if (companyAdmin) {
       const enableModules = req.body.enableModules || {};
-      const userenbaleModules= req.body.userenableModules || {};
-console.log("hello")
-      // Check if the site is already in permittedSites to avoid duplicates
+      const userenableModules = req.body.userenableModules || {};
+
       const isSiteAlreadyAdded = companyAdmin.permittedSites.some(
         (site) => site.siteId.toString() === newSite._id.toString()
       );
 
       if (!isSiteAlreadyAdded) {
-        // Add the new site and its enabled modules to the Company Admin's permittedSites
         companyAdmin.permittedSites.push({
           siteId: newSite._id,
-          enableModules: userenbaleModules, 
+          enableModules: userenableModules,
         });
 
-    const user=    await companyAdmin.save();
-    console.log("user",user)
+        await companyAdmin.save();
       }
     }
-    if (req.body.enableModules.drawings) {
-      const folderName = newSite.siteName; 
+
+    if (req.body.enableModules?.drawings) {
+      const folderName = newSite.siteName;
       const existingFolder = await DrawingFolder.findOne({
         siteId: newSite._id,
         folderName,
       });
-console.log("hi");
+
       if (!existingFolder) {
-        
-          createdFolder = await DrawingFolder.create({
-            siteId: newSite._id,
-            folderName,
-          });
-        
+        createdFolder = await DrawingFolder.create({
+          siteId: newSite._id,
+          folderName,
+        });
       }
     }
-  
-  
 
     res.status(201).json({
-      status: 'success',
+      status: "success",
+      action: "create",
       site: newSite,
       createdFolder,
-      user: companyAdmin 
+      user: companyAdmin,
     });
   } catch (err) {
+    console.error(err);
     res.status(400).json({
-      status: 'failed',
+      status: "failed",
       data: {
         error: err.toString(),
       },
     });
   }
 });
+
 
 const jsonToUrlEncoded = (json) => {
   return querystring.stringify(json);

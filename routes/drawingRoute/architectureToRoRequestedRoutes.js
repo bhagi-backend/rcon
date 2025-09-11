@@ -15,7 +15,11 @@ router.post("/postRequest",
     ArchitectureToRoRequestedController.resizeDrawingFile,
     ArchitectureToRoRequestedController.createRequest
 );
-
+router.put(
+  "/updateAction",
+  authController.protect,
+  ArchitectureToRoRequestedController.updateAction 
+);
 router.put(
   "/:id",
   authController.protect,
@@ -81,5 +85,7 @@ router.put(
   authController.protect,upload.any(),
   ArchitectureToRoRequestedController.updateNatureOfReasons
 );
+
+
 
 module.exports = router;

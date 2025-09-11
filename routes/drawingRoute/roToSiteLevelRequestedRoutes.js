@@ -14,7 +14,11 @@ router.post("/postRequest",
     RoToSiteLevelRequestedController.resizeDrawingFile,
     RoToSiteLevelRequestedController.createRequest
 );
-
+router.put(
+  "/updateAction",
+  authController.protect,
+  RoToSiteLevelRequestedController.updateAction 
+);
 router.put(
   "/:id",
   authController.protect,

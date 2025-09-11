@@ -844,11 +844,47 @@ exports.uploadFiles = upload.fields([
   { name: 'drawingFileName', maxCount: 1 },
   { name: 'pdfDrawingFileName', maxCount: 1 }
 ]);
-const getNextRevisionNumber = (revisions) => {
-  const revisionNumbers = revisions.map(r => parseInt(r.revision.slice(1), 10));
-  const maxRevisionNumber = revisionNumbers.length > 0 ? Math.max(...revisionNumbers) : -1;
-  return `R${maxRevisionNumber + 1}`;
+// const getNextRevisionNumber = (revisions) => {
+//   const revisionNumbers = revisions.map(r => parseInt(r.revision.slice(1), 10));
+//   const maxRevisionNumber = revisionNumbers.length > 0 ? Math.max(...revisionNumbers) : -1;
+//   return `R${maxRevisionNumber + 1}`;
+// };
+const getNextRevisionNumber = (revisions, typeOfDrawing) => {
+  // Map typeOfDrawing to prefix
+  const prefixMap = {
+    "General Arrangement": "GA",
+    "Conceptual": "C",
+    "Schematic": "S",
+    "GFC": ""
+  };
+
+  const currentPrefix = prefixMap[typeOfDrawing] || "";
+
+  if (!revisions.length) {
+    // If no revisions exist, always start from R0
+    return currentPrefix ? `${currentPrefix}-R0` : `R0`;
+  }
+
+  const latestRevision = revisions[revisions.length - 1].revision;
+
+  // Extract prefix and number
+  const [latestPrefix, latestNumberPart] = latestRevision.includes('-')
+    ? latestRevision.split('-')
+    : ["", latestRevision];
+
+  // If the typeOfDrawing matches the latest revision's prefix → increment
+  if (
+    (currentPrefix === latestPrefix) || 
+    (currentPrefix === "" && latestPrefix === "") // For GFC case
+  ) {
+    const nextNumber = parseInt(latestNumberPart.slice(1), 10) + 1;
+    return currentPrefix ? `${currentPrefix}-R${nextNumber}` : `R${nextNumber}`;
+  }
+
+  // If typeOfDrawing changed → start fresh from R0
+  return currentPrefix ? `${currentPrefix}-R0` : `R0`;
 };
+
 exports.updateRevisions = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const userId = req.user.id;
@@ -859,6 +895,7 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
 
   const drawingFileNameFromBody = req.body.drawingFileName || null;
   const pdfDrawingFileNameFromBody = req.body.pdfDrawingFileName || null;
+  const typeOfDrawing=req.body.typeOfDrawing
 
   if (!revisionType) {
     return res.status(400).json({
@@ -896,39 +933,19 @@ if (
     });
   }
 
-  // const processRevision = (revisionArray, newRevision, drawingFileName, pdfDrawingFileName) => {
-  //   const existingIndex = existingRegister[revisionType].findIndex(r => r.revision === newRevision.revision);
-  //   const finalDrawingFileName = drawingFileName || drawingFileNameFromBody || null;
-  //   const finalPdfDrawingFileName = pdfDrawingFileName || pdfDrawingFileNameFromBody || null;
-  //   if (existingIndex >= 0) {
-  //     revisionArray[existingIndex] = {
-  //       revisionCreatedBy: userId,
-  //       ...revisionArray[existingIndex],
-  //       ...newRevision,
-  //       ...(finalDrawingFileName && { drawingFileName: finalDrawingFileName }),
-  //       ...(finalPdfDrawingFileName && { pdfDrawingFileName: finalPdfDrawingFileName }),
-  //     };
-  //   } else {
-  //     const newRevisionData = {
-  //       ...newRevision,
-  //       revision: getNextRevisionNumber(revisionArray), 
-  //       revisionCreatedBy: userId,
-  //       remarks: newRevision.remarks || '', 
-  //       ...(finalDrawingFileName && { drawingFileName: finalDrawingFileName }),
-  //       ...(finalPdfDrawingFileName && { pdfDrawingFileName: finalPdfDrawingFileName }),
-  //     };
-  //     revisionArray.push(newRevisionData);
-  //   }
-  // };
   const processRevision = (revisionArray, newRevision, drawingFileName, pdfDrawingFileName) => {
   const existingIndex = existingRegister[revisionType].findIndex(r => r.revision === newRevision.revision);
   const finalDrawingFileName = drawingFileName || drawingFileNameFromBody || null;
   const finalPdfDrawingFileName = pdfDrawingFileName || pdfDrawingFileNameFromBody || null;
 
   const isArchitectRevision = revisionType === "acceptedArchitectRevisions";
+  // const revisionToUse = isArchitectRevision
+  //   ? getNextRevisionNumber(revisionArray)
+  //   : newRevision.revision;
   const revisionToUse = isArchitectRevision
-    ? getNextRevisionNumber(revisionArray)
-    : newRevision.revision;
+  ? getNextRevisionNumber(revisionArray, newRevision.typeOfDrawing)
+  : newRevision.revision;
+
 
   if (existingIndex >= 0) {
     revisionArray[existingIndex] = {
@@ -953,8 +970,8 @@ if (
 
   if(revisionType==="acceptedArchitectRevisions"){
   const latestRevision = existingRegister[revisionType][existingRegister[revisionType].length - 1];
- // console.log("Latest Revision:", latestRevision);
-if(latestRevision){
+  console.log("Latest Revision:", latestRevision);
+if (latestRevision && latestRevision.typeOfDrawing === typeOfDrawing) {
   if (latestRevision.rfiStatus === 'Not Raised') {
     return res.status(200).json({
       status: 'fail',
@@ -1046,6 +1063,7 @@ existingRegister.regState="Drawing";
           latestRevision.urnExpiration = expirationDate;
 
           existingRegister.markModified(revisionType);
+          existingRegister.currentDrawingType=typeOfDrawing
           await existingRegister.save();
         }
       } catch (e) {

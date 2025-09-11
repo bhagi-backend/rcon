@@ -12,6 +12,11 @@ router.post("/postRequest",
   authController.protect,
     RoToSiteLevelRequestedController.createRequest
 );
+router.put(
+  "/updateAction",
+  authController.protect,
+  RoToSiteLevelRequestedController.updateAction 
+);
 
 router.put(
   "/:id",

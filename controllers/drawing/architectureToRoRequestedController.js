@@ -1995,3 +1995,47 @@ exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
     data: updatedRequest,
   });
 });
+
+
+// PUT: /api/site-requests/updateAction?rfiId=...&reasonId=...
+exports.updateAction = catchAsync(async (req, res, next) => {
+  const { rfiId, reasonId } = req.query;
+  const { action } = req.body;
+
+  // Validate ObjectIds
+  if (!mongoose.Types.ObjectId.isValid(rfiId)) {
+    return next(new AppError("Invalid rfiId format", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(reasonId)) {
+    return next(new AppError("Invalid reasonId format", 400));
+  }
+
+  // Validate action field
+  if (!action) {
+    return next(new AppError("Action field is required", 400));
+  }
+
+  // Update nested array element
+const updatedRequest = await ArchitectureToRoRequest.findOneAndUpdate(
+  {
+    _id: rfiId, // Parent document
+    "natureOfRequestedInformationReasons._id": reasonId // Nested array match
+  },
+  {
+    $set: { "natureOfRequestedInformationReasons.$.action": action } // ✅ Correct usage
+  },
+  { new: true }
+);
+
+
+  if (!updatedRequest) {
+    return next(new AppError("Request or reason not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Action updated successfully",
+    data: updatedRequest
+  });
+});

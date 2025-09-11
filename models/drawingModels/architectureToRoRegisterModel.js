@@ -342,6 +342,9 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
   archRevision: {
     type: String,
   },
+   currentDrawingType: {
+    type: String,
+  },
   acceptedROSubmissionDate: {
     type: Date,
     // required: true

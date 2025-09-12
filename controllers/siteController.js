@@ -209,6 +209,9 @@ exports.getSiteDetails = catchAsync(async (req, res, next) => {
 //     });
 //   }
 // });
+const jsonToUrlEncoded = (json) => {
+  return querystring.stringify(json);
+};
 exports.createOne = catchAsync(async (req, res, next) => {
   try {
     const { siteId, companyId } = req.body;
@@ -367,9 +370,7 @@ exports.createOne = catchAsync(async (req, res, next) => {
 });
 
 
-const jsonToUrlEncoded = (json) => {
-  return querystring.stringify(json);
-};
+
 exports.updateSite = catchAsync(async (req, res, next) => {
   try {
   const site = await Site.findById(req.params.siteId);

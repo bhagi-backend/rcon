@@ -7,4 +7,7 @@ router.post('/',authController.protect, DrawingFolderController.createDrawingFol
 router.get('/bySiteId',authController.protect, DrawingFolderController.getDrawingFoldersBySiteId);
 router.delete('/:id',authController.protect, DrawingFolderController.deleteDrawingFolderById);
 
+
+router.get('/registers',authController.protect, DrawingFolderController.getFilteredDrawingData);
+
 module.exports = router;

@@ -81,60 +81,71 @@ exports.getSiteImage = catchAsync(async (req, res, next) => {
 
   res.sendFile(fullPath, (err) => {
     if (err) {
-      return next(new AppError('Error sending the image file', 500));
+      return next(new AppError('Error sending the image file', 400));
     }
   });
 });
+
 exports.getSiteDetails = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
 
-  
-  const site = await Site.findById(siteId).populate({
-        path: "apartmentsDetails.towers",
+  // Step 1: Fetch site details with nested population
+  const site = await Site.findById(siteId)
+    .populate({
+      path: "apartmentsDetails.towers",
+      populate: {
+        path: "floors",
         populate: {
-          path: "floors",
-          populate: {
-            path: "units",
-            model: "Unit",
-          },
+          path: "units",
+          model: "Unit",
         },
-      })
-       .populate({
-         path: "villasDetails.clubhouse",
+      },
+    })
+    .populate({
+      path: "villasDetails.clubhouse",
+      populate: {
+        path: "floors",
         populate: {
-          path: "floors",
-          populate: {
-            path: "units",
-            model: "Unit",
-          },
+          path: "units",
+          model: "Unit",
         },
-       })
-      .populate({
-        path: "buildingsDetails.towers",
+      },
+    })
+    .populate({
+      path: "buildingsDetails.towers",
+      populate: {
+        path: "floors",
         populate: {
-          path: "floors",
-          populate: {
-            path: "units",
-            model: "Unit",
-          },
+          path: "units",
+          model: "Unit",
         },
-      })
-      .exec();
-   if (!site) {
+      },
+    })
+    .exec();
+
+  // Step 2: Check if site exists
+  if (!site) {
     return res.status(404).json({
-      status: 'fail',
-      message: 'Site document not found',
+      status: "fail",
+      message: "Site document not found",
     });
   }
 
+  // Step 3: Check if siteId exists in ArchitectureToRoRegister
+  const existingRegister = await ArchitectureToRoRegister.findOne({ siteId });
+
+  // Step 4: Add `use` flag
+  const use = !!existingRegister; // true if record found, false otherwise
+
+  // Step 5: Return response
   res.status(200).json({
-    status: 'success',
+    status: "success",
     data: {
       site,
+      use,
     },
   });
 });
-
 // exports.createOne = catchAsync(async (req, res, next) => {
 //   try {
 //     const { companyId } = req.body;

@@ -53,6 +53,7 @@ const connectedDevicesRouter = require("./routes/connectedDevicesRoutes");
 const mobileDashBoardRouter = require("./routes/mobileRoutes/dashBoardRoutes");
 const webDashBoardRouter = require("./routes/dashBoardRoutes");
 const excelRouter = require("./routes/drawingRoute/excelRoutes");
+const sharedCategoriesRouter = require("./routes/drawingRoute/sharedCategoriesRoutes");
 
 
 
@@ -171,5 +172,6 @@ app.use("/api/newPnmTransfer", newPnmTransferRouter);
 app.use("/api/dashBoard", mobileDashBoardRouter);
 app.use("/api/webDashBoard", webDashBoardRouter);
 app.use("/api/excel", excelRouter);
+app.use("/api/sharedCategories", sharedCategoriesRouter);
 
 module.exports = app;

@@ -15,6 +15,9 @@ router.post("/postRequest",
     ArchitectureToRoRequestedController.resizeDrawingFile,
     ArchitectureToRoRequestedController.createRequest
 );
+router.post("/siteHeadRfi",
+  authController.protect,ArchitectureToRoRequestedController.createCombinedRequest
+);
 router.put(
   "/updateAction",
   authController.protect,

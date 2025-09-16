@@ -78,7 +78,7 @@ const RoToSitelevelRequestSchema = new mongoose.Schema({
   rfiState: {
     type: String,
     default: "Not Forwarded",
-    enum: ["Not Forwarded", "Forwarded",]
+    enum: ["Not Forwarded", "Forwarded","siteHead Forwarded"]
   },
   issuedSoftCopy: {
     type: String,
@@ -100,8 +100,9 @@ const RoToSitelevelRequestSchema = new mongoose.Schema({
   status: {
     type: String,
     default: "Requested",
-    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Not Responded","Completed"]
+    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Not Responded","Responded","Completed"]
   },
+ 
   natureOfRequestedInformationReasons : {
     type: [reasonSchema],
     

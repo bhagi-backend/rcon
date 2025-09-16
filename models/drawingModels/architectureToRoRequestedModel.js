@@ -90,7 +90,7 @@ const ArchitectureToRoRequestSchema = new mongoose.Schema({
   status: {
     type: String,
     default: "Requested",
-    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded",,"Completed"]
+    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded"]
   },
   rfiType: {
     type: String,
@@ -100,6 +100,11 @@ const ArchitectureToRoRequestSchema = new mongoose.Schema({
   natureOfRequestedInformationReasons : {
     type: [reasonSchema],
     
+  },
+   rfiRaisedBy: {
+    type: String,
+    default: "RO",
+    enum: ["RO", "SITE HEAD",]
   },
   reason:  {
     type: String,

@@ -786,7 +786,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
   const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
     req.params.id,
     {
-      status: 'Accepted',
+      status: 'Responded',
       acceptedBy:userId,
       acceptedDate:Date.now(),
       
@@ -858,14 +858,14 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
         console.log(`RFI Access Enabled for site ${site?.siteId}:`, rfiAccessEnabled);
     
         if (rfiAccessEnabled) {
-            const notificationMessage1 = `A RFI has been Accepted for drawing number ${drawingNo} with  revision ${revisionToUpdate}.`;
+            const notificationMessage1 = `A RFI has been Responded for drawing number ${drawingNo} with  revision ${revisionToUpdate}.`;
     
             try {
               const notificationToSiteHead = await sendNotification(
                 'Drawing', 
                 notificationMessage1, 
-                'RFI Accepted', 
-                'Accepted', 
+                'RFI Responded', 
+                'Responded', 
                 user._id
               );
               console.log("notificationToSiteHead", notificationToSiteHead);

@@ -1052,7 +1052,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
   const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
     req.params.id,
     {
-      status: "Accepted",
+      status: "Responded",
       acceptedBy: userId,
       acceptedDate: Date.now(),
     },
@@ -1114,7 +1114,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     ? await RoToSiteLevelRequest.findByIdAndUpdate(
         roRfiId,
         {
-          status: "Accepted",
+          status: "Responded",
           acceptedBy: userId,
           acceptedDate: Date.now(),
         },
@@ -1177,14 +1177,14 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
       );
 
       if (rfiAccessEnabled) {
-        const notificationMessage1 = `A RFI has been Accepted for drawing number ${drawingNo} with  revision ${revisionToUpdate}.`;
+        const notificationMessage1 = `A RFI has been Responded for drawing number ${drawingNo} with  revision ${revisionToUpdate}.`;
 
         try {
           const notificationToSiteHead = await sendNotification(
             "Drawing",
             notificationMessage1,
-            "RFI Accepted",
-            "Accepted",
+            "RFI Responded",
+            "Responded",
             user._id
           );
           console.log("notificationToSiteHead", notificationToSiteHead);
@@ -2038,4 +2038,164 @@ const updatedRequest = await ArchitectureToRoRequest.findOneAndUpdate(
     message: "Action updated successfully",
     data: updatedRequest
   });
+});
+
+
+
+
+exports.createCombinedRequest = catchAsync(async (req, res, next) => {
+  const {
+    drawingId,
+    drawingNo,
+    revision,
+    rfiType,
+    siteId
+  } = req.body;
+
+  const userId = req.user.id;
+  req.body.createdBy = userId;
+
+
+    // STEP 1: Fetch the common register data
+    const registerData = await ArchitectureToRoRegister.findOne({ _id: drawingId });
+    if (!registerData) {
+      return res.status(404).json({
+        status: "error",
+        message: "Drawing not found in ArchitectureToRoRegister",
+      });
+    }
+
+    req.body.designDrawingConsultant = registerData.designDrawingConsultant;
+    req.body.folderId = registerData.folderId;
+
+    // Helper to generate padded RFI numbers
+    const generateRfiNumber = (drawingNo) => {
+      const parts = drawingNo.split("-");
+      const lastPart = parts[parts.length - 1];
+      const number = lastPart.replace(/\D/g, "");
+      return number ? number.padStart(3, "0") : "000";
+    };
+
+    //---------------------------------------------
+    // STEP 2: Create Architecture → RO Request
+    //---------------------------------------------
+    const existingArchRequest = await ArchitectureToRoRequest.findOne({ drawingNo, revision });
+    if (existingArchRequest) {
+      return res.status(200).json({
+        status: "error",
+        message: `Revision ${revision} already requested from drawing No ${drawingNo}`,
+      });
+    }
+ const existingRoRequest = await RoToSiteLevelRequest.findOne({ drawingNo, revision });
+    if (existingRoRequest) {
+      return res.status(200).json({
+        status: "error",
+        message: `RO revision ${revision} already requested from drawing No ${drawingNo}`,
+      });
+    }
+    // Generate architect RFI number
+    req.body.architectRfiNo = generateRfiNumber(drawingNo);
+
+    // Create the Architecture → RO request
+    const archRequest = await ArchitectureToRoRequest.create(req.body);
+
+    // Populate created request
+    const populatedArchRequest = await ArchitectureToRoRequest.findById(archRequest._id)
+      .populate("drawingId", "designDrawingConsultant");
+
+    const { designDrawingConsultant } = populatedArchRequest.drawingId;
+
+    // Send notification to design drawing consultant
+    const notificationMessage = `A new architecture to RO RFI has been raised for drawing number ${drawingNo} with revision ${revision}.`;
+    const archNotification = await sendNotification(
+      "Drawing",
+      notificationMessage,
+      "New Request Created",
+      "Requested",
+      designDrawingConsultant
+    );
+
+    // Update register for Architect revision
+    const updatedArchRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+      { drawingNo, siteId },
+      { $set: { "acceptedArchitectRevisions.$[elem].rfiStatus": "Raised" } },
+      {
+        new: true,
+        arrayFilters: [{ "elem.revision": revision }],
+      }
+    );
+
+    //---------------------------------------------
+    // STEP 3: Create RO → Site Level Request
+    //---------------------------------------------
+   
+
+    // Generate RO RFI number
+    req.body.roRfiNo = generateRfiNumber(drawingNo);
+
+    // Link RO → Site Level request with Architect request
+    req.body.architectRfiId = archRequest._id;
+
+    const roRequest = await RoToSiteLevelRequest.create(req.body);
+
+    const populatedRoRequest = await RoToSiteLevelRequest.findById(roRequest._id)
+      .populate("drawingId", "designDrawingConsultant");
+
+    // Update register for RO revision
+    const updatedRoRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+      { drawingNo, siteId },
+      { $set: { "acceptedRORevisions.$[elem].rfiStatus": "Raised" } },
+      {
+        new: true,
+        arrayFilters: [{ "elem.revision": revision }],
+      }
+    );
+
+    //---------------------------------------------
+    // STEP 4: Send Notifications to Site Heads
+    //---------------------------------------------
+    const siteHeadIds = await User.find({ "permittedSites.siteId": siteId }).select("permittedSites _id");
+    for (let user of siteHeadIds) {
+      const siteConfig = user.permittedSites.find((site) => site.siteId.toString() === siteId);
+
+      // // Notify for Architecture → RO forwarding
+      // if (siteConfig?.enableModules.drawingDetails.roDetails.rfiRaisedAccess && rfiType) {
+      //   const forwardMsg = `A RFI has been forwarded for drawing number ${drawingNo} with architect revision ${revision}.`;
+      //   try {
+      //     await sendNotification("Drawing", forwardMsg, "Request Forwarded", "Forwarded", user._id);
+      //   } catch (error) {
+      //     console.error("Error notifying SiteHead (Arch):", error);
+      //   }
+      // }
+
+      // Notify for RO → Site Level raise
+      if (siteConfig?.enableModules.drawingDetails.roDetails.rfiRaisedAccess) {
+        const raisedMsg = `A RO RFI has been raised for drawing number ${drawingNo} with revision ${revision}.`;
+        try {
+          await sendNotification("Drawing", raisedMsg, "Request Raised", "Raised", user._id);
+        } catch (error) {
+          console.error("Error notifying SiteHead (RO):", error);
+        }
+      }
+    }
+
+    //---------------------------------------------
+    // STEP 5: Final response
+    //---------------------------------------------
+    res.status(200).json({
+      status: "success",
+      message: "Both Architecture → RO and RO → Site Level RFIs created successfully",
+      data: {
+        architectureToRo: archRequest,
+        roToSiteLevel: roRequest,
+      },
+      notifications: {
+        architectureNotification: archNotification,
+      },
+      updatedRegisters: {
+        architectureRegister: updatedArchRegister,
+        roRegister: updatedRoRegister,
+      },
+    });
+ 
 });

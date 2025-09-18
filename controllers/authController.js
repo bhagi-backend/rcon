@@ -799,15 +799,99 @@ const formatGroupName = (companyName) => {
   return formattedGroupName;
 };
 
+// exports.createCompany = catchAsync(async (req, res, next) => {
+//   let companyId, username;
+//   const newCompany = new Company(req.body);
+//     await newCompany.save();
+//     companyId = newCompany._id;
+//   const { companyName } = newCompany.companyDetails;
+//   const formattedGroupName = formatGroupName(companyName);
+//   try {
+    
+//     const createGroupParams = {
+//       GroupName: formattedGroupName,
+//       UserPoolId: process.env.COGNITO_USER_POOL_ID,
+//       Description: `Group for ${formattedGroupName}`,
+//     };
+
+//     await cognitoClient.send(new CreateGroupCommand(createGroupParams));
+
+//     const { email, firstName } = req.body.userDetails;
+//     const password = generateDefaultPassword(firstName);
+//     const username1 = `user_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+//     // Create user in Cognito
+//     const createUserParams = {
+//       UserPoolId: process.env.COGNITO_USER_POOL_ID,
+//        Username: username1,
+//       UserAttributes: [
+//         { Name: 'email', Value: email },
+//         { Name: 'given_name', Value: firstName },
+//         { Name: 'email_verified', Value: 'true' }
+//       ],
+//       TemporaryPassword: password,
+//      // MessageAction: 'SUPPRESS', // Suppress the sending of the welcome email
+//     };
+
+//     const cognitoResponse = await cognitoClient.send(new AdminCreateUserCommand(createUserParams));
+//     username = cognitoResponse.User.Username;
+
+//     // Add user to the Cognito group
+//     await addUserToGroup(username, formattedGroupName);
+
+//     // Create the user in MongoDB
+//     const newUser = new User({
+//       ...req.body.userDetails,
+//       companyId,
+//       createdBy: req.user.id,
+//     });
+//     await newUser.save();
+
+//     res.status(201).json({
+//       status: 'success',
+//       data: {
+//         company: newCompany,
+//         user: newUser,
+//       },
+//       msg: 'Company and user created successfully, and user added to the Cognito group.',
+//     });
+//   } catch (error) {
+//     console.error('Error during company creation:', error.message);
+
+//     // Rollback logic
+//     if (username) {
+//       await deleteCognitoUser(username).catch(deleteError =>
+//         console.error('Failed to delete Cognito user during rollback:', deleteError.message)
+//       );
+//     }
+//     if (formattedGroupName) {
+//       const deleteGroupParams = {
+//         GroupName: formattedGroupName,
+//         UserPoolId: process.env.COGNITO_USER_POOL_ID,
+//       };
+//       await cognitoClient
+//         .send(new DeleteGroupCommand(deleteGroupParams))
+//         .catch(groupDeleteError =>
+//           console.error('Failed to delete Cognito group during rollback:', groupDeleteError.message)
+//         );
+//     }
+//     if (companyId) {
+//       await Company.findByIdAndDelete(companyId).catch(companyDeleteError =>
+//         console.error('Failed to delete company during rollback:', companyDeleteError.message)
+//       );
+//     }
+
+//     next(new AppError('Error creating company and user: ' + error.message, 400));
+//   }
+// });
 exports.createCompany = catchAsync(async (req, res, next) => {
   let companyId, username;
   const newCompany = new Company(req.body);
-    await newCompany.save();
-    companyId = newCompany._id;
+  await newCompany.save();
+  companyId = newCompany._id;
   const { companyName } = newCompany.companyDetails;
   const formattedGroupName = formatGroupName(companyName);
+
   try {
-    
     const createGroupParams = {
       GroupName: formattedGroupName,
       UserPoolId: process.env.COGNITO_USER_POOL_ID,
@@ -819,20 +903,23 @@ exports.createCompany = catchAsync(async (req, res, next) => {
     const { email, firstName } = req.body.userDetails;
     const password = generateDefaultPassword(firstName);
     const username1 = `user_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
     // Create user in Cognito
     const createUserParams = {
       UserPoolId: process.env.COGNITO_USER_POOL_ID,
-       Username: username1,
+      Username: username1,
       UserAttributes: [
         { Name: 'email', Value: email },
         { Name: 'given_name', Value: firstName },
-        { Name: 'email_verified', Value: 'true' }
+        { Name: 'email_verified', Value: 'true' },
       ],
       TemporaryPassword: password,
-     // MessageAction: 'SUPPRESS', // Suppress the sending of the welcome email
+      // MessageAction: 'SUPPRESS', // Suppress the sending of the welcome email
     };
 
-    const cognitoResponse = await cognitoClient.send(new AdminCreateUserCommand(createUserParams));
+    const cognitoResponse = await cognitoClient.send(
+      new AdminCreateUserCommand(createUserParams)
+    );
     username = cognitoResponse.User.Username;
 
     // Add user to the Cognito group
@@ -880,7 +967,12 @@ exports.createCompany = catchAsync(async (req, res, next) => {
       );
     }
 
-    next(new AppError('Error creating company and user: ' + error.message, 400));
+    // Return JSON error response instead of using next(AppError)
+    return res.status(400).json({
+      status: 'error',
+      message: 'Error creating company and user',
+      error: error.message,
+    });
   }
 });
 

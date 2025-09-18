@@ -113,54 +113,111 @@ if (selectionType === 'category') {
     data: savedCategories,
   });
 }
-  if (selectionType === 'assignCategoriesToDesignDrawingConsultant') {
-    const { designDrawingConsultant, categories } = assignCategoriesToDesignDrawingConsultant;
+//   if (selectionType === 'assignCategoriesToDesignDrawingConsultant') {
+//     const { designDrawingConsultant, categories } = assignCategoriesToDesignDrawingConsultant;
 
-    if (!designDrawingConsultant || !categories || !Array.isArray(categories) || categories.length === 0) {
-      return next(new AppError('Design Drawing Consultant and Categories are required.', 400));
-    }
+//     if (!designDrawingConsultant || !categories || !Array.isArray(categories) || categories.length === 0) {
+//       return next(new AppError('Design Drawing Consultant and Categories are required.', 400));
+//     }
 
-    try {
+//     try {
       
-      const existingAssignment = await AssignCategoriesToDesignConsultant.findOne({ designDrawingConsultant });
+//       const existingAssignment = await AssignCategoriesToDesignConsultant.findOne({ designDrawingConsultant });
 
-      if (existingAssignment) {
+//       if (existingAssignment) {
         
-        const existingCategoryIds = existingAssignment.categories.map(cat => cat.toString());
+//         const existingCategoryIds = existingAssignment.categories.map(cat => cat.toString());
 
   
-        const newCategories = categories.filter(
-          category => !existingCategoryIds.includes(category.toString())
-        );
-        existingAssignment.categories.push(...newCategories);
+//         const newCategories = categories.filter(
+//           category => !existingCategoryIds.includes(category.toString())
+//         );
+//         existingAssignment.categories.push(...newCategories);
 
-        const updatedAssignment = await existingAssignment.save();
+//         const updatedAssignment = await existingAssignment.save();
 
-        res.status(200).json({
-          status: 'success',
-          data: updatedAssignment
-        });
-      } else {
+//         res.status(200).json({
+//           status: 'success',
+//           data: updatedAssignment
+//         });
+//       } else {
        
-        const newAssignment = new AssignCategoriesToDesignConsultant({
-          designDrawingConsultant,
-          categories
-        });
+//         const newAssignment = new AssignCategoriesToDesignConsultant({
+//           designDrawingConsultant,
+//           categories
+//         });
 
-        const savedAssignment = await newAssignment.save();
+//         const savedAssignment = await newAssignment.save();
 
-        res.status(201).json({
-          status: 'success',
-          data: savedAssignment
-        });
-      }
-    } catch (err) {
-      console.error('Error assigning categories to design drawing consultant:', err);
-      return res.status(500).json({ error: err.message });
-    }
+//         res.status(201).json({
+//           status: 'success',
+//           data: savedAssignment
+//         });
+//       }
+//     } catch (err) {
+//       console.error('Error assigning categories to design drawing consultant:', err);
+//       return res.status(500).json({ error: err.message });
+//     }
+//   }
+// });
+  if (selectionType === 'assignCategoriesToDesignDrawingConsultant') {
+  const { designDrawingConsultant, categories } = assignCategoriesToDesignDrawingConsultant;
+
+  // Validation
+  if (!designDrawingConsultant || !categories || !Array.isArray(categories) || categories.length === 0) {
+    return next(new AppError('Design Drawing Consultant and Categories are required.', 400));
   }
+
+  try {
+    // Find existing assignment for this consultant
+    const existingAssignment = await AssignCategoriesToDesignConsultant.findOne({ designDrawingConsultant });
+
+    if (existingAssignment) {
+      // Extract existing categoryIds from the nested objects
+      const existingCategoryIds = existingAssignment.categories.map(cat => cat.categoryId.toString());
+
+      // Filter out duplicate categories
+      const newCategories = categories
+        .filter(categoryObj => !existingCategoryIds.includes(categoryObj.categoryId.toString()))
+        .map(categoryObj => ({
+          categoryId: categoryObj.categoryId,
+          siteId: categoryObj.siteId || null, // Store null if siteId not provided
+        }));
+
+      // Push only the new unique categories
+      existingAssignment.categories.push(...newCategories);
+
+      const updatedAssignment = await existingAssignment.save();
+
+      return res.status(200).json({
+        status: 'success',
+        data: updatedAssignment,
+      });
+    } else {
+      // For new assignment, ensure siteId is either provided or null
+      const formattedCategories = categories.map(categoryObj => ({
+        categoryId: categoryObj.categoryId,
+        siteId: categoryObj.siteId || null,
+      }));
+
+      const newAssignment = new AssignCategoriesToDesignConsultant({
+        designDrawingConsultant,
+        categories: formattedCategories,
+      });
+
+      const savedAssignment = await newAssignment.save();
+
+      return res.status(201).json({
+        status: 'success',
+        data: savedAssignment,
+      });
+    }
+  } catch (err) {
+    console.error('Error assigning categories to design drawing consultant:', err);
+    return res.status(400).json({ error: err.message });
+  }
+}
 });
-  
 
  
 exports.handleValidationError = (err, req, res, next) => {
@@ -177,16 +234,86 @@ exports.handleValidationError = (err, req, res, next) => {
 
 const mongoose = require('mongoose');
 
+// exports.getAllCategoriesAssignments = catchAsync(async (req, res, next) => {
+//   try {
+//     let { designDrawingConsultantId } = req.query;
+
+//     if (designDrawingConsultantId) {
+//       // Trim whitespace and validate ObjectId format
+//       designDrawingConsultantId = designDrawingConsultantId.trim();
+
+//       if (!mongoose.Types.ObjectId.isValid(designDrawingConsultantId)) {
+//         return next(new AppError('Invalid designDrawingConsultantId format', 400));
+//       }
+//     }
+
+//     const query = {};
+
+//     if (designDrawingConsultantId) {
+//       query.designDrawingConsultant = designDrawingConsultantId;
+//     }
+
+//     const allCategories = await Category.find();
+//     if (!allCategories || allCategories.length === 0) {
+//       return next(new AppError('No categories found', 404));
+//     }
+
+//     const assignments = await AssignCategoriesToDesignConsultant.find(query)
+//       .populate('categories')
+//       .populate('designDrawingConsultant');
+
+//     //console.log('Assignments:', assignments);
+
+//     if (!designDrawingConsultantId) {
+//       return res.status(200).json({
+//         status: 'success',
+//         data: {
+//           assignments
+//         }
+//       });
+//     }
+
+//     const assignedCategoryIds = assignments.flatMap(assignment =>
+//       assignment.categories ? assignment.categories.map(category => category._id.toString()) : []
+//     );
+
+//     //console.log('Assigned Category IDs:', assignedCategoryIds);
+
+//     const assignedCategories = allCategories.filter(category => assignedCategoryIds.includes(category._id.toString()));
+//     const unassignedCategories = allCategories.filter(category => !assignedCategoryIds.includes(category._id.toString()));
+
+//     res.status(200).json({
+//       status: 'success',
+//       data: {
+//         assignedCategories,
+//         unassignedCategories
+//       }
+//     });
+//   } catch (err) {
+//     console.error('Error in getAllCategoriesAssignments:', err); // More detailed logging
+//     return next(new AppError('Failed to fetch categories and assignments', 500));
+//   }
+// });
+
 exports.getAllCategoriesAssignments = catchAsync(async (req, res, next) => {
   try {
-    let { designDrawingConsultantId } = req.query;
+    let { designDrawingConsultantId, siteId } = req.query;
 
+    // ===== Validate designDrawingConsultantId =====
     if (designDrawingConsultantId) {
-      // Trim whitespace and validate ObjectId format
       designDrawingConsultantId = designDrawingConsultantId.trim();
 
       if (!mongoose.Types.ObjectId.isValid(designDrawingConsultantId)) {
         return next(new AppError('Invalid designDrawingConsultantId format', 400));
+      }
+    }
+
+    // ===== Validate siteId =====
+    if (siteId) {
+      siteId = siteId.trim();
+
+      if (!mongoose.Types.ObjectId.isValid(siteId)) {
+        return next(new AppError('Invalid siteId format', 400));
       }
     }
 
@@ -196,17 +323,19 @@ exports.getAllCategoriesAssignments = catchAsync(async (req, res, next) => {
       query.designDrawingConsultant = designDrawingConsultantId;
     }
 
+    // ===== Fetch all categories =====
     const allCategories = await Category.find();
     if (!allCategories || allCategories.length === 0) {
       return next(new AppError('No categories found', 404));
     }
 
+    // ===== Fetch assignments =====
     const assignments = await AssignCategoriesToDesignConsultant.find(query)
-      .populate('categories')
+      .populate('categories.categoryId') // Populating nested categoryId
+      .populate('categories.siteId')     // Populating nested siteId
       .populate('designDrawingConsultant');
 
-    //console.log('Assignments:', assignments);
-
+    // ===== If no designDrawingConsultantId provided =====
     if (!designDrawingConsultantId) {
       return res.status(200).json({
         status: 'success',
@@ -216,15 +345,42 @@ exports.getAllCategoriesAssignments = catchAsync(async (req, res, next) => {
       });
     }
 
-    const assignedCategoryIds = assignments.flatMap(assignment =>
-      assignment.categories ? assignment.categories.map(category => category._id.toString()) : []
+    // ===== Filter based on siteId (if provided) =====
+    let filteredAssignments = assignments;
+    if (siteId) {
+      filteredAssignments = assignments.map(assignment => {
+        return {
+          ...assignment.toObject(),
+          categories: assignment.categories.filter(cat => {
+            // Include categories where:
+            // 1. siteId matches the given siteId
+            // 2. OR siteId is null
+            return (
+              (cat.siteId && cat.siteId._id.toString() === siteId) ||
+              cat.siteId === null
+            );
+          }),
+        };
+      }).filter(assignment => assignment.categories.length > 0);
+    }
+
+    // ===== Extract assigned categoryIds =====
+    const assignedCategoryIds = filteredAssignments.flatMap(assignment =>
+      assignment.categories
+        ? assignment.categories.map(cat => cat.categoryId._id.toString())
+        : []
     );
 
-    //console.log('Assigned Category IDs:', assignedCategoryIds);
+    // ===== Separate assigned and unassigned categories =====
+    const assignedCategories = allCategories.filter(category =>
+      assignedCategoryIds.includes(category._id.toString())
+    );
 
-    const assignedCategories = allCategories.filter(category => assignedCategoryIds.includes(category._id.toString()));
-    const unassignedCategories = allCategories.filter(category => !assignedCategoryIds.includes(category._id.toString()));
+    const unassignedCategories = allCategories.filter(category =>
+      !assignedCategoryIds.includes(category._id.toString())
+    );
 
+    // ===== Final Response =====
     res.status(200).json({
       status: 'success',
       data: {
@@ -233,8 +389,8 @@ exports.getAllCategoriesAssignments = catchAsync(async (req, res, next) => {
       }
     });
   } catch (err) {
-    console.error('Error in getAllCategoriesAssignments:', err); // More detailed logging
-    return next(new AppError('Failed to fetch categories and assignments', 500));
+    console.error('Error in getAllCategoriesAssignments:', err);
+    return next(new AppError('Failed to fetch categories and assignments', 400));
   }
 });
 

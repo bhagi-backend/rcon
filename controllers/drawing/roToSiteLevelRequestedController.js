@@ -1403,13 +1403,8 @@ console.log("cssFileUrl",cssFileUrl)
 });
 
 
-
 exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-
-  // Log raw request data for debugging
-  console.log("Raw Request Body:", req.body);
-  console.log("Raw Request Files:", req.files);
 
   // 1) Load request + drawing (for siteId used in S3 path)
   const request = await ArchitectureToRoRequest.findById(id).populate("drawingId", "siteId");
@@ -1431,6 +1426,9 @@ exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
   if (req.body.natureOfRequest) newReason.natureOfRequest = req.body.natureOfRequest || null;
   if (req.body.reason) newReason.reason = req.body.reason || null;
   if (req.body.action) newReason.action = req.body.action || null;
+
+  // **Add createdBy field from logged-in user**
+  newReason.createdBy = req.user.id;
 
   // File processing (handle single file)
   const file = req.files && req.files.length > 0 ? req.files[0] : null;
@@ -1454,16 +1452,29 @@ exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
   }
 
   // Validate that at least one field is provided
-  if (!newReason.natureOfRequest && !newReason.reason && !newReason.action && !newReason.reasonFile) {
-    return next(new AppError("At least one field (natureOfRequest, reason, action, or reasonFile) is required", 400));
+  if (
+    !newReason.natureOfRequest &&
+    !newReason.reason &&
+    !newReason.action &&
+    !newReason.reasonFile
+  ) {
+    return next(
+      new AppError(
+        "At least one field (natureOfRequest, reason, action, or reasonFile) is required",
+        400
+      )
+    );
   }
 
-  // Update reasons array (replace or append the single entry)
-  const updatedReasons = [newReason, ...existingReasons.filter(r => 
-    r.natureOfRequest || r.reason || r.action || r.reasonFile
-  )];
+  // Update reasons array (prepend the new entry)
+  const updatedReasons = [
+    newReason,
+    ...existingReasons.filter(
+      (r) => r.natureOfRequest || r.reason || r.action || r.reasonFile
+    ),
+  ];
 
-  // Save
+  // Save updated reasons back to the document
   const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
     id,
     { $set: { natureOfRequestedInformationReasons: updatedReasons } },
@@ -1479,7 +1490,6 @@ exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
     data: updatedRequest,
   });
 });
-
 
 
 // PUT: /api/site-requests/updateAction?rfiId=...&reasonId=...

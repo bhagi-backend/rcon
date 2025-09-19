@@ -13,6 +13,11 @@ const  getUploadPath  = require("../../utils/pathFun");
 const User = require("../../models/userModel");
 const Site = require("../../models/sitesModel");
 const Category = require("../../models/drawingModels/categoryModel");
+const ArchitectureToRoRequest = require("../../models/drawingModels/architectureToRoRequestedModel");
+const RoToSiteLevelRequest = require("../../models/drawingModels/roToSiteLevelRequestedModel");
+const SiteToSiteLevelRequest = require("../../models/drawingModels/siteToSiteLevelRequestedModel");
+const mongoose = require("mongoose");
+
 
 
 const upload = multerWrapper();
@@ -1813,4 +1818,126 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
       register: updatedRegister,
     },
   });
+});
+
+
+
+
+// GET register by ID + related requests
+exports.getArchitectureToRoRegisterById = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+
+  // 1) Fetch the main register
+  const register = await ArchitectureToRoRegister.findById(id)
+    .populate("siteId","siteName")
+    //.populate("companyId")
+    //.populate("folderId")
+    .populate("designDrawingConsultant", "firstName lastName email role");
+
+  if (!register) {
+    return next(new AppError("No register found with that ID", 404));
+  }
+
+  // 2) Fetch related requests with populated reasons
+const architectureRequests = await ArchitectureToRoRequest.find({ drawingId: id })
+  .select("natureOfRequestedInformationReasons") // ✅ correct
+  .populate(
+    "natureOfRequestedInformationReasons.createdBy",
+    "firstName lastName email role"
+  );
+
+
+  const roToSiteRequests = await RoToSiteLevelRequest.find({ drawingId: id })
+   .select("natureOfRequestedInformationReasons") // ✅ correct
+  .populate(
+    "natureOfRequestedInformationReasons.createdBy",
+    "firstName lastName email role"
+  );
+
+  const siteToSiteRequests = await SiteToSiteLevelRequest.find({ drawingId: id })
+   .select("natureOfRequestedInformationReasons") // ✅ correct
+  .populate(
+    "natureOfRequestedInformationReasons.createdBy",
+    "firstName lastName email role"
+  );
+  // 3) Combine data
+  const result = {
+    register,
+    relatedRequests: {
+      architectureRequests,
+      roToSiteRequests,
+      siteToSiteRequests,
+    },
+  };
+
+  res.status(200).json({
+    status: "success",
+    data: result,
+  });
+});
+
+exports.deleteMultipleRegisters = catchAsync(async (req, res, next) => {
+  const { ids } = req.body; // Expect an array of register IDs
+
+ console.log(ids)
+  // 1. Fetch all registers by provided IDs
+  const registers = await ArchitectureToRoRegister.find({ _id: { $in: ids } });
+
+  if (!registers || registers.length === 0) {
+    return next(new AppError("No registers found for the provided IDs", 404));
+  }
+
+  // 2. Separate registers into two groups
+  const cannotDelete = registers.filter(
+    (reg) => reg.acceptedArchitectRevisions && reg.acceptedArchitectRevisions.length > 0
+  );
+
+  const canDelete = registers.filter(
+    (reg) => !reg.acceptedArchitectRevisions || reg.acceptedArchitectRevisions.length === 0
+  );
+
+  // 3. Delete only those without revisions
+  const deleted = await ArchitectureToRoRegister.deleteMany({
+    _id: { $in: canDelete.map((reg) => reg._id) },
+  });
+
+  // 4. Return response
+  return res.status(200).json({
+    status: "success",
+    message: `${deleted.deletedCount} registers deleted successfully.`,
+    skippedRegisters: cannotDelete.map((reg) => ({
+      id: reg._id,
+      drawingNo: reg.drawingNo,
+      message: "This register has soft copy submitted, so it was not deleted",
+    })),
+  });
+});
+
+
+exports.updateMultipleRegisters = catchAsync(async (req, res, next) => {
+  const { updates } = req.body;
+
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return next(new AppError("Please provide an array of updates.", 400));
+  }
+
+  const results = await Promise.all(
+    updates.map(async ({ id, data }) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return { id, status: "failed", message: "Invalid register ID" };
+      }
+
+      const updated = await ArchitectureToRoRegister.findByIdAndUpdate(id, data, {
+        new: true,
+        runValidators: true,
+      });
+
+      return updated
+        ? { id, status: "success", updatedFields: data }
+        : { id, status: "failed", message: "Register not found" };
+    })
+  );
+
+  res.status(200).json({ status: "success", results });
 });

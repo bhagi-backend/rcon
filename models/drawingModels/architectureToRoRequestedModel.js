@@ -15,6 +15,10 @@ const reasonSchema = new mongoose.Schema({
    reasonFile: {
     type: String,
   },
+  createdBy: {
+    type: mongoose.Schema.ObjectId,
+    ref: "User",
+  },
 });
 
 const ArchitectureToRoRequestSchema = new mongoose.Schema({

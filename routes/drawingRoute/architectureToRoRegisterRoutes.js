@@ -11,13 +11,16 @@ router.post('/create', authController.protect,ArchitectureToRoRegisterController
 router.put('/update/:id',authController.protect, ArchitectureToRoRegisterController.updateArchitectureToRoRegister);
 router.get('/getRegisterBySiteId',authController.protect, ArchitectureToRoRegisterController.getRegisterBySiteId);
 router.get('/', authController.protect,ArchitectureToRoRegisterController.getAllDrawing);
-
+router.delete("/registers", authController.protect,ArchitectureToRoRegisterController.deleteMultipleRegisters);
 router.delete('/:id',authController.protect, ArchitectureToRoRegisterController.deleteDrawing);
 
 router.put(
   "/viewDate",
   authController.protect,
   ArchitectureToRoRegisterController.updateViewDates
+);
+router.put(
+  "/edit",authController.protect,ArchitectureToRoRegisterController.updateMultipleRegisters
 );
 router.put('/revisions/:id',authController.protect,ArchitectureToRoRegisterController.uploadFiles,ArchitectureToRoRegisterController.updateRevisions,);
 
@@ -92,4 +95,7 @@ router.put(
 );
 router.get("/categories", authController.protect,ArchitectureToRoRegisterController.getCategoriesByDesignConsultant);
 router.get("/drawings", authController.protect,ArchitectureToRoRegisterController.getDrawingsByDesignConsultantAndCategory);
+router.get("/register/:id", authController.protect,ArchitectureToRoRegisterController.getArchitectureToRoRegisterById);
+
+
 module.exports = router;

@@ -106,6 +106,7 @@ exports.getArchitectReports = async (req, res) => {
     const query = {
       siteId: siteId,
       designDrawingConsultant: designDrawingConsultantId,
+      drawingStatus: "Approval",
     };
     if (folderId) {
       query.folderId = folderId;
@@ -132,6 +133,7 @@ exports.getArchitectReports = async (req, res) => {
         const pendingQuery = {
           designDrawingConsultant: designDrawingConsultantId,
           siteId: siteId,
+          drawingStatus: "Approval",
           $or: [
             { acceptedArchitectRevisions: { $size: 0 } },
            // { acceptedROHardCopyRevisions: { $size: 0 } },
@@ -349,6 +351,7 @@ exports.getRoReports = async (req, res) => {
     const query = {
       siteId: siteId,
       designDrawingConsultant: designDrawingConsultantId,
+       drawingStatus: "Approval",
     };
     if (folderId) {
       query.folderId = folderId; // Include folderId if provided
@@ -433,6 +436,7 @@ exports.getRoReports = async (req, res) => {
         const pendingQuery = {
           designDrawingConsultant: designDrawingConsultantId,
           siteId: siteId,
+          drawingStatus: "Approval",
           $or: [
             { acceptedArchitectRevisions: { $size: 0 } },
             { acceptedRORevisions: { $size: 0 } },
@@ -834,6 +838,7 @@ exports.getsiteHeadReports = async (req, res) => {
     const query = {
       siteId: siteId,
       designDrawingConsultant: designDrawingConsultantId,
+       drawingStatus: "Approval",
     };
     if (folderId) {
       query.folderId = folderId; // Include folderId if provided

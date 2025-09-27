@@ -24,6 +24,10 @@ const ArchitectureToRoModuleSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  reports: {
+    type: Boolean,
+    default: false
+  },
 });
 
 const RoModuleSchema = new mongoose.Schema({
@@ -40,6 +44,10 @@ const RoModuleSchema = new mongoose.Schema({
     default: false
   },
   register: {
+    type: Boolean,
+    default: false
+  },
+  reports: {
     type: Boolean,
     default: false
   },
@@ -78,6 +86,10 @@ const SiteHeadModuleSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  reports: {
+    type: Boolean,
+    default: false
+  },
   rfiRaisedAccess: {
     type: Boolean,
     default: false
@@ -102,6 +114,10 @@ const SiteToSiteModuleSchema = new mongoose.Schema({
     default: false
   },
   analysis: {
+    type: Boolean,
+    default: false
+  },
+  reports: {
     type: Boolean,
     default: false
   },

@@ -6,28 +6,69 @@ const RoToSiteLevelRequest = require("../../models/drawingModels/roToSiteLevelRe
 const SiteToSiteLevelRequest = require("../../models/drawingModels/siteToSiteLevelRequestedModel");
 const assignDesignConsultantsToDepartment = require("../../models/drawingModels/assignDesignConsultantsToDepartMentModel");
 
-const calculateDateRange = (selectTimePeriod, month, year) => {
+// const calculateDateRange = (selectTimePeriod, month, year) => {
+//   let startDate, endDate;
+
+//   switch (selectTimePeriod) {
+//     case "monthly":
+//       startDate = new Date(year, month - 1, 1); // First day of the month
+//       endDate = new Date(year, month, 1); // First day of the next month (not inclusive)
+//       console.log("startDate",startDate)
+//       console.log("endDate",endDate)
+//       break;
+
+//     case "quarterly":
+//       startDate = new Date(year, month - 1, 1); // First day of the starting month
+//       endDate = new Date(year, month + 2, 1); // First day of the 4th month (not inclusive)
+      
+//       break;
+
+//     case "halfYearly":
+//       startDate = new Date(year, month - 1, 1); // First day of the starting month
+//       endDate = new Date(year, month + 5, 1); // First day of the 7th month (not inclusive)
+//       break;
+
+//     case "yearly":
+//       startDate = new Date(year, 0, 1); // January 1st of the year
+//       endDate = new Date(year + 1, 0, 1); // January 1st of the next year (not inclusive)
+//       break;
+
+//     default:
+//       throw new Error(
+//         "Invalid selectTimePeriod. Use 'monthly', 'quarterly', 'halfYearly', or 'yearly'."
+//       );
+//   }
+
+//   return { startDate, endDate };
+// };
+const createLocalDate = (year, month, day) => {
+  return new Date(year, month, day, 0, 0, 0); // midnight local time
+};
+
+const calculateDateRange = (selectTimePeriod, endMonth, year) => {
   let startDate, endDate;
+
+  const endMonthIndex = endMonth - 1;
 
   switch (selectTimePeriod) {
     case "monthly":
-      startDate = new Date(year, month - 1, 1); // First day of the month
-      endDate = new Date(year, month, 1); // First day of the next month (not inclusive)
+      startDate = createLocalDate(year, endMonthIndex, 1);
+      endDate = createLocalDate(year, endMonthIndex + 1, 0);
       break;
 
     case "quarterly":
-      startDate = new Date(year, month - 1, 1); // First day of the starting month
-      endDate = new Date(year, month + 2, 1); // First day of the 4th month (not inclusive)
+      endDate = createLocalDate(year, endMonthIndex + 1, 0);
+      startDate = createLocalDate(year, endMonthIndex - 2, 1);
       break;
 
     case "halfYearly":
-      startDate = new Date(year, month - 1, 1); // First day of the starting month
-      endDate = new Date(year, month + 5, 1); // First day of the 7th month (not inclusive)
+      endDate = createLocalDate(year, endMonthIndex + 1, 0);
+      startDate = createLocalDate(year, endMonthIndex - 5, 1);
       break;
 
     case "yearly":
-      startDate = new Date(year, 0, 1); // January 1st of the year
-      endDate = new Date(year + 1, 0, 1); // January 1st of the next year (not inclusive)
+      startDate = createLocalDate(year, 0, 1);
+      endDate = createLocalDate(year, 11, 31);
       break;
 
     default:
@@ -36,8 +77,14 @@ const calculateDateRange = (selectTimePeriod, month, year) => {
       );
   }
 
+  console.log("SelectTimePeriod:", selectTimePeriod);
+  console.log("Start Date:", startDate.toLocaleDateString()); // local date
+  console.log("End Date:", endDate.toLocaleDateString());     // local date
+
   return { startDate, endDate };
 };
+
+
 
 exports.getAcceptedArchitectRevisions = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
@@ -87,17 +134,10 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
     const { siteId } = req.params;
     const { selectTimePeriod, month, year, folderId } = req.query;
 
-    const { startDate, endDate } = calculateDateRange(
-      selectTimePeriod,
-      parseInt(month),
-      parseInt(year)
-    );
-
     const userId = req.user.id;
 
-    const user = await User.findById(userId)
-      .select("role")
-      .exec();
+    // Get user role
+    const user = await User.findById(userId).select("role").exec();
     if (!user) {
       return next(new Error("User not found."));
     }
@@ -107,10 +147,20 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
     const baseQuery = {
       siteId,
       designDrawingConsultant: userId,
-      creationDate: { $gte: startDate, $lt: endDate },
       drawingStatus: "Approval",
     };
 
+    // ✅ Apply date filter ONLY if selectTimePeriod is provided
+    if (selectTimePeriod) {
+      const { startDate, endDate } = calculateDateRange(
+        selectTimePeriod,
+        parseInt(month),
+        parseInt(year)
+      );
+      baseQuery.creationDate = { $gte: startDate, $lt: endDate };
+    }
+
+    // Optional folder filter
     if (folderId) {
       baseQuery.folderId = folderId;
     }
@@ -135,7 +185,7 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
       const latestRevision =
         revisions.length > 0 ? revisions[revisions.length - 1] : null;
 
-      // 2. Pending drawings
+      // 1. Pending drawings
       if (
         revisions.length <= 0 ||
         (latestRevision && latestRevision.rfiStatus === "Raised")
@@ -143,7 +193,7 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
         pendingCount++;
       }
 
-      // 3. Drawings count
+      // 2. Drawings count
       if (
         revisions.length > 0 &&
         latestRevision &&
@@ -153,7 +203,7 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
       }
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       status: "success",
       data: {
         totalApprovalCount: data.length,
@@ -168,12 +218,6 @@ exports.getRfiAnalysisCountForConsultant = catchAsync(
     const { siteId } = req.params;
     const { selectTimePeriod, month, year, folderId } = req.query;
 
-    const { startDate, endDate } = calculateDateRange(
-      selectTimePeriod,
-      parseInt(month),
-      parseInt(year)
-    );
-
     const userId = req.user.id;
 
     const user = await User.findById(userId)
@@ -182,11 +226,22 @@ exports.getRfiAnalysisCountForConsultant = catchAsync(
     if (!user) {
       return next(new Error("User not found."));
     }
+
+    // Base query
     const baseQuery = {
       siteId,
       designDrawingConsultant: userId,
-      creationDate: { $gte: startDate, $lt: endDate },
     };
+
+    // Only add creationDate filter if selectTimePeriod is provided
+    if (selectTimePeriod) {
+      const { startDate, endDate } = calculateDateRange(
+        selectTimePeriod,
+        parseInt(month),
+        parseInt(year)
+      );
+      baseQuery.creationDate = { $gte: startDate, $lt: endDate };
+    }
 
     if (folderId) {
       baseQuery.folderId = folderId;
@@ -208,8 +263,7 @@ exports.getRfiAnalysisCountForConsultant = catchAsync(
       Requested: 0,
       Accepted: 0,
     };
-    // console.log("RO Data:", roData);
-    // console.log("siteHeadData Data:", siteHeadData);
+
     const roActionCounts = { ...initialActionCounts };
     const siteHeadActionCounts = { ...initialActionCounts };
 
@@ -245,16 +299,17 @@ exports.getRfiAnalysisCountForConsultant = catchAsync(
         totalCount: data.length,
         ro: {
           totalROCount: roData.length,
-          actionCounts: roActionCounts, // Counts of actions for RO
+          actionCounts: roActionCounts,
         },
         siteHead: {
           totalSiteHeadCount: siteHeadData.length,
-          actionCounts: siteHeadActionCounts, // Counts of actions for SITE HEAD
+          actionCounts: siteHeadActionCounts,
         },
       },
     });
   }
 );
+
 
 exports.getAcceptedRoRevisions = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
@@ -287,33 +342,37 @@ exports.getAcceptedRoRevisions = catchAsync(async (req, res, next) => {
     ? consultantsInDepartment.designConsultants
     : [];
 
-  // Step 1: Calculate the date range based on selectTimePeriod
-  const { startDate, endDate } = calculateDateRange(
-    selectTimePeriod,
-    parseInt(month),
-    parseInt(year)
-  );
-
-  // Combine the query based on customizedView flag
-  let query = {
-    siteId,
-    creationDate: { $gte: startDate, $lt: endDate },
-  };
-
-  if (folderId) {
-    query.folderId = folderId; // Include folderId if it's provided
+  // Step 1: Calculate the date range only if selectTimePeriod is provided
+  let startDate, endDate;
+  if (selectTimePeriod) {
+    ({ startDate, endDate } = calculateDateRange(
+      selectTimePeriod,
+      parseInt(month),
+      parseInt(year)
+    ));
   }
 
-  // Add additional conditions if customizedView is true
+  // Step 2: Build the base query
+  let query = { siteId };
+
+  if (selectTimePeriod) {
+    query.creationDate = { $gte: startDate, $lt: endDate };
+  }
+
+  if (folderId) {
+    query.folderId = folderId;
+  }
+
+  // Step 3: Add customizedView conditions
   if (customizedView) {
     query = {
       ...query,
       $and: [
-        ...(folderId ? [{ folderId }] : []), // Include folderId condition if exists
+        ...(folderId ? [{ folderId }] : []),
         {
           $or: [
-            { designDrawingConsultant: { $in: designConsultantIds } }, // Match design consultants
-            { designDrawingConsultant: { $exists: false } }, // Include documents without designDrawingConsultant
+            { designDrawingConsultant: { $in: designConsultantIds } },
+            { designDrawingConsultant: { $exists: false } },
           ],
         },
       ],
@@ -321,27 +380,30 @@ exports.getAcceptedRoRevisions = catchAsync(async (req, res, next) => {
     console.log("query for customizedView");
   }
 
-  // Fetch data based on the constructed query
+  // Step 4: Fetch data
   const data = await ArchitectureToRoRegister.find(query);
 
-  // Step 3: Filter acceptedArchitectRevisions based on the date range
+  // Step 5: Filter acceptedRORevisions only if selectTimePeriod is provided
   const filteredData = data
     .map((item) => ({
       siteId: item.siteId,
-      acceptedRORevisions: item.acceptedRORevisions.filter(
-        (revision) =>
-          revision.revisionCreationDate >= startDate &&
-          revision.revisionCreationDate < endDate
-      ),
+      acceptedRORevisions: selectTimePeriod
+        ? item.acceptedRORevisions.filter(
+            (revision) =>
+              revision.revisionCreationDate >= startDate &&
+              revision.revisionCreationDate < endDate
+          )
+        : item.acceptedRORevisions, // If no period, include all revisions
     }))
-    .filter((item) => item.acceptedRORevisions.length > 0); // Keep only items with matching revisions
+    .filter((item) => item.acceptedRORevisions.length > 0);
 
-  // Step 4: Send the filtered response
+  // Step 6: Send response
   res.status(200).json({
     status: "success",
     data: filteredData,
   });
 });
+
 
 // Controller function
 exports.getSiteHeadRevisions = catchAsync(async (req, res, next) => {
@@ -374,33 +436,37 @@ exports.getSiteHeadRevisions = catchAsync(async (req, res, next) => {
     ? consultantsInDepartment.designConsultants
     : [];
 
-  // Step 1: Calculate the date range based on selectTimePeriod
-  const { startDate, endDate } = calculateDateRange(
-    selectTimePeriod,
-    parseInt(month),
-    parseInt(year)
-  );
-
-  // Combine the query based on customizedView flag
-  let query = {
-    siteId,
-    creationDate: { $gte: startDate, $lt: endDate },
-  };
-
-  if (folderId) {
-    query.folderId = folderId; // Include folderId if it's provided
+  // Step 1: Calculate the date range only if selectTimePeriod is provided
+  let startDate, endDate;
+  if (selectTimePeriod) {
+    ({ startDate, endDate } = calculateDateRange(
+      selectTimePeriod,
+      parseInt(month),
+      parseInt(year)
+    ));
   }
 
-  // Add additional conditions if customizedView is true
+  // Step 2: Build the base query
+  let query = { siteId };
+
+  if (selectTimePeriod) {
+    query.creationDate = { $gte: startDate, $lt: endDate };
+  }
+
+  if (folderId) {
+    query.folderId = folderId;
+  }
+
+  // Step 3: Add customizedView conditions
   if (customizedView) {
     query = {
       ...query,
       $and: [
-        ...(folderId ? [{ folderId }] : []), // Include folderId condition if exists
+        ...(folderId ? [{ folderId }] : []),
         {
           $or: [
-            { designDrawingConsultant: { $in: designConsultantIds } }, // Match design consultants
-            { designDrawingConsultant: { $exists: false } }, // Include documents without designDrawingConsultant
+            { designDrawingConsultant: { $in: designConsultantIds } },
+            { designDrawingConsultant: { $exists: false } },
           ],
         },
       ],
@@ -408,14 +474,16 @@ exports.getSiteHeadRevisions = catchAsync(async (req, res, next) => {
     console.log("query for customizedView");
   }
 
-  // Step 4: Fetch data based on the query and user role
+  // Step 4: Fetch data
   const data = await ArchitectureToRoRegister.find(query);
 
+  // Step 5: Send response
   res.status(200).json({
     status: "success",
     data: data,
   });
 });
+
 
 exports.getArchitectRfi = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
@@ -423,6 +491,7 @@ exports.getArchitectRfi = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
   const dep = req.user.department;
   console.log("dep", dep);
+
   // Fetch user and site-specific permissions
   const user = await User.findOne({
     _id: userId,
@@ -448,24 +517,26 @@ exports.getArchitectRfi = catchAsync(async (req, res, next) => {
   const isArchitect =
     sitePermissions?.enableModules?.drawingDetails?.architectureToRo || false;
 
-  // Calculate date range
-  const { startDate, endDate } = calculateDateRange(
-    selectTimePeriod,
-    parseInt(month),
-    parseInt(year)
-  );
-
-  // Initialize query
-  let query = {
-    siteId,
-    creationDate: { $gte: startDate, $lt: endDate },
-  };
-
-  if (folderId) {
-    query.folderId = folderId; // Include folderId if provided
+  // Step 1: Calculate date range only if selectTimePeriod is provided
+  let startDate, endDate;
+  if (selectTimePeriod) {
+    ({ startDate, endDate } = calculateDateRange(
+      selectTimePeriod,
+      parseInt(month),
+      parseInt(year)
+    ));
   }
 
-  // Logic for fetching based on user roles
+  // Step 2: Initialize query
+  let query = { siteId };
+  if (selectTimePeriod) {
+    query.creationDate = { $gte: startDate, $lt: endDate };
+  }
+  if (folderId) {
+    query.folderId = folderId;
+  }
+
+  // Step 3: Logic for fetching based on user roles
   let designConsultantIds = [];
   if (isSiteHead) {
     const consultants = await assignDesignConsultantsToDepartment
@@ -489,60 +560,44 @@ exports.getArchitectRfi = catchAsync(async (req, res, next) => {
       .lean();
     console.log("ro");
     designConsultantIds = consultants ? consultants.designConsultants : [];
-  } else if (isArchitect) {
-    // Fetch ArchitectureToRoRegister data based on query
+  } else if (isArchitect || dep === "Design Consultant") {
+    // Fetch ArchitectureToRoRequest data for architect or design consultant
     const data = await ArchitectureToRoRequest.find({
       designDrawingConsultant: userId,
     })
       .populate({
         path: "designDrawingConsultant",
-        match: { role: user.role }, // Match user role if applicable
+        match: { role: user.role },
         select: "role",
       })
       .exec();
-    console.log("architect");
-    return res.status(200).json({
-      status: "success",
-      data: data,
-    });
-  } else if (dep == "Design Consultant") {
-    // Fetch ArchitectureToRoRegister data based on query
-    const data = await ArchitectureToRoRequest.find({
-      designDrawingConsultant: userId,
-    })
-      .populate({
-        path: "designDrawingConsultant",
-        match: { role: user.role }, // Match user role if applicable
-        select: "role",
-      })
-      .exec();
-    console.log("design consultant");
+
+    console.log(isArchitect ? "architect" : "design consultant");
     return res.status(200).json({
       status: "success",
       data: data,
     });
   }
 
-  // Add additional query filters for customizedView
+  // Step 4: Add additional query filters for customizedView
   if (customizedView) {
     query = {
       ...query,
       $and: [
-        ...(folderId ? [{ folderId }] : []), // Include folderId condition if provided
+        ...(folderId ? [{ folderId }] : []),
         {
           $or: [
-            { designDrawingConsultant: { $in: designConsultantIds } }, // Match design consultants
-            //{ designDrawingConsultant: { $exists: false } }, // Include documents without design consultants
+            { designDrawingConsultant: { $in: designConsultantIds } },
           ],
         },
       ],
     };
   }
 
-  // Fetch data based on final query
+  // Step 5: Fetch data based on final query
   const data = await ArchitectureToRoRequest.find(query);
 
-  // Send response
+  // Step 6: Send response
   res.status(200).json({
     status: "success",
     data: data,
@@ -555,6 +610,7 @@ exports.getRoRfi = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
   const dep = req.user.department;
   console.log("dep", dep);
+
   // Fetch user and site-specific permissions
   const user = await User.findOne({
     _id: userId,
@@ -578,24 +634,27 @@ exports.getRoRfi = catchAsync(async (req, res, next) => {
     sitePermissions?.enableModules?.drawingDetails?.siteHead || false;
   const isRo = sitePermissions?.enableModules?.drawingDetails?.ro || false;
 
-  // Calculate date range
-  const { startDate, endDate } = calculateDateRange(
-    selectTimePeriod,
-    parseInt(month),
-    parseInt(year)
-  );
+  // Step 1: Calculate date range only if selectTimePeriod is provided
+  let startDate, endDate;
+  if (selectTimePeriod) {
+    ({ startDate, endDate } = calculateDateRange(
+      selectTimePeriod,
+      parseInt(month),
+      parseInt(year)
+    ));
+  }
 
-  // Initialize query
-  let query = {
-    siteId,
-    creationDate: { $gte: startDate, $lt: endDate },
-  };
+  // Step 2: Initialize query
+  let query = { siteId };
+  if (selectTimePeriod) {
+    query.creationDate = { $gte: startDate, $lt: endDate };
+  }
 
   if (folderId) {
     query.folderId = folderId; // Include folderId if provided
   }
 
-  // Logic for fetching based on user roles
+  // Step 3: Logic for fetching based on user roles
   let designConsultantIds = [];
   if (isSiteHead) {
     const consultants = await assignDesignConsultantsToDepartment
@@ -621,30 +680,31 @@ exports.getRoRfi = catchAsync(async (req, res, next) => {
     designConsultantIds = consultants ? consultants.designConsultants : [];
   }
 
-  // Add additional query filters for customizedView
+  // Step 4: Add additional query filters for customizedView
   if (customizedView) {
     query = {
       ...query,
       $and: [
-        ...(folderId ? [{ folderId }] : []), // Include folderId condition if provided
+        ...(folderId ? [{ folderId }] : []),
         {
           $or: [
             { designDrawingConsultant: { $in: designConsultantIds } }, // Match design consultants
-            //{ designDrawingConsultant: { $exists: false } }, // Include documents without design consultants
           ],
         },
       ],
     };
   }
 
+  // Step 5: Fetch data
   const data = await RoToSiteLevelRequest.find(query);
 
-  // Step 4: Send the filtered response
+  // Step 6: Send response
   res.status(200).json({
     status: "success",
     data: data,
   });
 });
+
 
 exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
@@ -677,19 +737,25 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
     ? consultantsInDepartment.designConsultants
     : [];
   console.log(designConsultantIds, "designConsultantIds");
-  // Step 1: Calculate the date range
-  const { startDate, endDate } = calculateDateRange(
-    selectTimePeriod,
-    parseInt(month),
-    parseInt(year)
-  );
+
+  // Step 1: Calculate the date range only if selectTimePeriod is provided
+  let startDate, endDate;
+  if (selectTimePeriod) {
+    ({ startDate, endDate } = calculateDateRange(
+      selectTimePeriod,
+      parseInt(month),
+      parseInt(year)
+    ));
+  }
 
   // Step 2: Construct base query
   let query = {
     siteId,
-    creationDate: { $gte: startDate, $lt: endDate },
     drawingStatus: "Approval",
   };
+  if (selectTimePeriod) {
+    query.creationDate = { $gte: startDate, $lt: endDate };
+  }
 
   if (folderId) {
     query.folderId = folderId;
@@ -740,6 +806,7 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
     if (latestRoRevision.rfiStatus === "Not Raised") {
       if (
         latestRoRevision &&
+        latestArchitectRevision &&
         latestArchitectRevision.revision === latestRoRevision.revision
       ) {
         totalDrawingCount++;
@@ -758,6 +825,7 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
     },
   });
 });
+
 
 exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
@@ -789,21 +857,26 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     sitePermissions?.enableModules?.customizedView || false;
   const isSiteHead =
     sitePermissions?.enableModules?.drawingDetails?.siteHead || false;
-  const isRo = sitePermissions?.enableModules?.drawingDetails?.ro || false;
+  const isRo =
+    sitePermissions?.enableModules?.drawingDetails?.ro || false;
 
-  // Step 2: Calculate date range
-  const { startDate, endDate } = calculateDateRange(
-    selectTimePeriod,
-    parseInt(month),
-    parseInt(year)
-  );
+  // Step 2: Calculate date range only if selectTimePeriod is provided
+  let startDate, endDate;
+  if (selectTimePeriod) {
+    ({ startDate, endDate } = calculateDateRange(
+      selectTimePeriod,
+      parseInt(month),
+      parseInt(year)
+    ));
+  }
 
   // Step 3: Base query
   let query = {
     siteId,
-    creationDate: { $gte: startDate, $lt: endDate },
   };
-
+  if (selectTimePeriod) {
+    query.creationDate = { $gte: startDate, $lt: endDate };
+  }
   if (folderId) {
     query.folderId = folderId;
   }
@@ -876,7 +949,7 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
 
     const siteToSiteLevelCount = await SiteToSiteLevelRequest.countDocuments(query);
 
-const archToRoCount = await ArchitectureToRoRequest.countDocuments({
+    const archToRoCount = await ArchitectureToRoRequest.countDocuments({
       ...query,
       rfiRaisedBy: "SITE HEAD", // Add extra filter
     });
@@ -895,6 +968,7 @@ const archToRoCount = await ArchitectureToRoRequest.countDocuments({
     counts: counts,
   });
 });
+
 
 
 exports.getDrawingsAnalysisCountForSiteHead = catchAsync(async (req, res, next) => {
@@ -918,7 +992,7 @@ exports.getDrawingsAnalysisCountForSiteHead = catchAsync(async (req, res, next) 
     .findOne({
       department: userDepartment,
       siteId: siteId,
-      module: "siteHead", // Add siteId filter if needed
+      module: "siteHead",
     })
     .select("designConsultants")
     .exec();
@@ -928,19 +1002,26 @@ exports.getDrawingsAnalysisCountForSiteHead = catchAsync(async (req, res, next) 
     : [];
 
   console.log(designConsultantIds, "designConsultantIds");
-  // Step 1: Calculate the date range
-  const { startDate, endDate } = calculateDateRange(
-    selectTimePeriod,
-    parseInt(month),
-    parseInt(year)
-  );
+
+  // Step 1: Calculate the date range only if selectTimePeriod is provided
+  let startDate, endDate;
+  if (selectTimePeriod) {
+    ({ startDate, endDate } = calculateDateRange(
+      selectTimePeriod,
+      parseInt(month),
+      parseInt(year)
+    ));
+  }
 
   // Step 2: Construct base query
   let query = {
     siteId,
-    creationDate: { $gte: startDate, $lt: endDate },
     drawingStatus: "Approval",
   };
+
+  if (selectTimePeriod) {
+    query.creationDate = { $gte: startDate, $lt: endDate };
+  }
 
   if (folderId) {
     query.folderId = folderId;
@@ -1010,18 +1091,20 @@ exports.getDrawingsAnalysisCountForSiteHead = catchAsync(async (req, res, next) 
   });
 });
 
-
 exports.getHardCopyAnalysisCountForConsultant = catchAsync(
   async (req, res, next) => {
     const { siteId } = req.params;
     const { selectTimePeriod, month, year, folderId } = req.query;
 
-    // Step 1: Calculate date range
-    const { startDate, endDate } = calculateDateRange(
-      selectTimePeriod,
-      parseInt(month),
-      parseInt(year)
-    );
+    // Step 1: Calculate date range only if selectTimePeriod is provided
+    let startDate, endDate;
+    if (selectTimePeriod) {
+      ({ startDate, endDate } = calculateDateRange(
+        selectTimePeriod,
+        parseInt(month),
+        parseInt(year)
+      ));
+    }
 
     const userId = req.user.id;
 
@@ -1036,9 +1119,12 @@ exports.getHardCopyAnalysisCountForConsultant = catchAsync(
     const baseQuery = {
       siteId,
       designDrawingConsultant: userId,
-      creationDate: { $gte: startDate, $lt: endDate },
       drawingStatus: "Approval",
     };
+
+    if (selectTimePeriod) {
+      baseQuery.creationDate = { $gte: startDate, $lt: endDate };
+    }
 
     if (folderId) {
       baseQuery.folderId = folderId;
@@ -1051,109 +1137,26 @@ exports.getHardCopyAnalysisCountForConsultant = catchAsync(
         match: { role: userRole },
         select: "role",
       })
-      .lean() // faster for calculations
+      .lean()
       .exec();
 
-    let pendingCount = 0;
-    let drawingCount = 0;
-
-    // Step 5: Iterate and calculate counts
-   data.forEach((record) => {
-  const acceptedArchitectRevisions = record.acceptedArchitectRevisions || [];
-  const acceptedROHardCopyRevisions = record.acceptedROHardCopyRevisions || [];
-
-  // 🚨 Skip this record if no Architect revisions are present
-  if (acceptedArchitectRevisions.length === 0) {
-    return; // move to the next record
-  }
-
-  const architectCount = acceptedArchitectRevisions.length;
-  const roCount = acceptedROHardCopyRevisions.length;
-
-  if (architectCount === roCount) {
-    // ✅ Drawing count increases when both revision lengths are equal
-    drawingCount++;
-  } else if (architectCount > roCount) {
-    // ✅ Pending count increases when Architect revisions are greater than RO revisions
-    pendingCount++;
-  }
-});
-
-    // Step 6: Send response
-    res.status(200).json({
-      status: "success",
-      data: {
-        totalApprovalCount: data.length, // Total records
-        totalPendingDrawings: pendingCount,
-        totalDrawingCount: drawingCount,
-      },
-    });
-  }
-);
-
-
-exports.getHardCopyAnalysisCountForRo = catchAsync(
-  async (req, res, next) => {
-    const { siteId } = req.params;
-    const { selectTimePeriod, month, year, folderId } = req.query;
-
-    // Step 1: Calculate date range
-    const { startDate, endDate } = calculateDateRange(
-      selectTimePeriod,
-      parseInt(month),
-      parseInt(year)
-    );
-
-    const userId = req.user.id;
-
-    // Step 2: Fetch user role
-    const user = await User.findById(userId).select("role").exec();
-    if (!user) {
-      return next(new Error("User not found."));
-    }
-    const userRole = user.role;
-
-    // Step 3: Build base query
-    const baseQuery = {
-      siteId,
-      designDrawingConsultant: userId,
-      creationDate: { $gte: startDate, $lt: endDate },
-      drawingStatus: "Approval",
-    };
-
-    if (folderId) {
-      baseQuery.folderId = folderId;
-    }
-
-    // Step 4: Fetch data
-    const data = await ArchitectureToRoRegister.find(baseQuery)
-      .populate({
-        path: "designDrawingConsultant",
-        match: { role: userRole },
-        select: "role",
-      })
-      .lean() // faster for calculations
-      .exec();
-//console.log("data",data)
     let pendingCount = 0;
     let drawingCount = 0;
 
     // Step 5: Iterate and calculate counts
     data.forEach((record) => {
-      const acceptedRORevisions = record.acceptedRORevisions || [];
-      const acceptedSiteHeadHardCopyRevisions = record.acceptedSiteHeadHardCopyRevisions || [];
-// 🚨 Skip this record if no Architect revisions are present
-  if (acceptedRORevisions.length === 0) {
-    return; // move to the next record
-  }
-      const architectCount = acceptedRORevisions.length;
-      const roCount = acceptedSiteHeadHardCopyRevisions.length;
+      const acceptedArchitectRevisions = record.acceptedArchitectRevisions || [];
+      const acceptedROHardCopyRevisions = record.acceptedROHardCopyRevisions || [];
+
+      // Skip this record if no Architect revisions are present
+      if (acceptedArchitectRevisions.length === 0) return;
+
+      const architectCount = acceptedArchitectRevisions.length;
+      const roCount = acceptedROHardCopyRevisions.length;
 
       if (architectCount === roCount) {
-        // ✅ Drawing count increases when both revision lengths are equal
         drawingCount++;
       } else if (architectCount > roCount) {
-        // ✅ Pending count increases when Architect revisions are less than RO revisions
         pendingCount++;
       }
     });
@@ -1162,10 +1165,92 @@ exports.getHardCopyAnalysisCountForRo = catchAsync(
     res.status(200).json({
       status: "success",
       data: {
-        totalApprovalCount: data.length, // Total records
+        totalApprovalCount: data.length,
         totalPendingDrawings: pendingCount,
         totalDrawingCount: drawingCount,
       },
     });
   }
 );
+
+
+
+exports.getHardCopyAnalysisCountForRo = catchAsync(async (req, res, next) => {
+  const { siteId } = req.params;
+  const { selectTimePeriod, month, year, folderId } = req.query;
+
+  let startDate, endDate;
+  if (selectTimePeriod) {
+    // Step 1: Calculate date range only if selectTimePeriod is provided
+    ({ startDate, endDate } = calculateDateRange(
+      selectTimePeriod,
+      parseInt(month),
+      parseInt(year)
+    ));
+  }
+
+  const userId = req.user.id;
+
+  // Step 2: Fetch user role
+  const user = await User.findById(userId).select("role").exec();
+  if (!user) return next(new Error("User not found."));
+  const userRole = user.role;
+
+  // Step 3: Build base query
+  const baseQuery = {
+    siteId,
+    designDrawingConsultant: userId,
+    drawingStatus: "Approval",
+  };
+
+  if (selectTimePeriod) {
+    baseQuery.creationDate = { $gte: startDate, $lt: endDate };
+  }
+
+  if (folderId) {
+    baseQuery.folderId = folderId;
+  }
+
+  // Step 4: Fetch data
+  const data = await ArchitectureToRoRegister.find(baseQuery)
+    .populate({
+      path: "designDrawingConsultant",
+      match: { role: userRole },
+      select: "role",
+    })
+    .lean()
+    .exec();
+
+  let pendingCount = 0;
+  let drawingCount = 0;
+
+  // Step 5: Iterate and calculate counts
+  data.forEach((record) => {
+    const acceptedRORevisions = record.acceptedRORevisions || [];
+    const acceptedSiteHeadHardCopyRevisions =
+      record.acceptedSiteHeadHardCopyRevisions || [];
+
+    // Skip this record if no RO revisions are present
+    if (acceptedRORevisions.length === 0) return;
+
+    const architectCount = acceptedRORevisions.length;
+    const roCount = acceptedSiteHeadHardCopyRevisions.length;
+
+    if (architectCount === roCount) {
+      drawingCount++;
+    } else if (architectCount > roCount) {
+      pendingCount++;
+    }
+  });
+
+  // Step 6: Send response
+  res.status(200).json({
+    status: "success",
+    data: {
+      totalApprovalCount: data.length,
+      totalPendingDrawings: pendingCount,
+      totalDrawingCount: drawingCount,
+    },
+  });
+});
+

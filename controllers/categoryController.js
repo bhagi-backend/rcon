@@ -54,36 +54,78 @@ exports.getAllCategories = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.deleteCategory = catchAsync(async (req, res, next) => {
-    const { id } = req.params;
+// exports.deleteCategory = catchAsync(async (req, res, next) => {
+//     const { id } = req.params;
 
-    const categories = await Category.findById(id);
-    if (!categories) {
-        return next(new AppError('No category found with that ID', 404));
-    }
-const category = id;
-const categoryName= categories.category;
-    const isCategoryInUse = await ArchitectureToRoRegister.findOne({
-        category
-      });
-      if (isCategoryInUse) {
-        return res.status(200).json({
-          status: 'fail',
-          message: `Category ${categoryName} is currently in use in the ArchitectureToRoRegister and cannot be deleted.`
-        });
-      }
-      const isCategoryAssigned = await AssignCategoriesToDesignDrawingConsultant.findOne({ categories: id });
-      if (isCategoryAssigned) {
-          return res.status(200).json({
-              status: 'fail',
-              message: `Category ${categoryName} is  assigned to Design Consultant and cannot be deleted.`
-          });
-      }
+//     const categories = await Category.findById(id);
+//     if (!categories) {
+//         return next(new AppError('No category found with that ID', 404));
+//     }
+// const category = id;
+// const categoryName= categories.category;
+//     const isCategoryInUse = await ArchitectureToRoRegister.findOne({
+//         category
+//       });
+//       if (isCategoryInUse) {
+//         return res.status(200).json({
+//           status: 'fail',
+//           message: `Category ${categoryName} is currently in use in the ArchitectureToRoRegister and cannot be deleted.`
+//         });
+//       }
+//       const isCategoryAssigned = await AssignCategoriesToDesignDrawingConsultant.findOne({ categories: id });
+//       if (isCategoryAssigned) {
+//           return res.status(200).json({
+//               status: 'fail',
+//               message: `Category ${categoryName} is  assigned to Design Consultant and cannot be deleted.`
+//           });
+//       }
       
      
-    const category1 = await Category.findByIdAndDelete(id);
-    res.status(204).json({
-        status: 'success',
-        data: null
+//     const category1 = await Category.findByIdAndDelete(id);
+//     res.status(204).json({
+//         status: 'success',
+//         data: null
+//     });
+// });
+exports.deleteCategory = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  // Step 1: Find category by ID
+  const categories = await Category.findById(id);
+  if (!categories) {
+    return next(new AppError('No category found with that ID', 404));
+  }
+
+  const category = id;
+  const categoryName = categories.category;
+
+  // Step 2: Check if category is used in ArchitectureToRoRegister
+  const isCategoryInUse = await ArchitectureToRoRegister.findOne({ category });
+  if (isCategoryInUse) {
+    return res.status(200).json({
+      status: 'fail',
+      message: `Category ${categoryName} is currently in use in the ArchitectureToRoRegister and cannot be deleted.`,
     });
+  }
+
+  // ✅ Step 3: Check if category is assigned to a consultant (search inside subdocument array)
+  const isCategoryAssigned = await AssignCategoriesToDesignDrawingConsultant.findOne({
+    'categories._id': id, // ✅ FIXED: target embedded _id field
+  });
+
+  if (isCategoryAssigned) {
+    return res.status(200).json({
+      status: 'fail',
+      message: `Category ${categoryName} is assigned to Design Consultant and cannot be deleted.`,
+    });
+  }
+
+  // Step 4: Delete the category
+  await Category.findByIdAndDelete(id);
+
+  res.status(204).json({
+    status: 'success',
+    data: null,
+  });
 });
+

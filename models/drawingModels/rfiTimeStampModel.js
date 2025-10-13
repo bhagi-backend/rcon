@@ -27,6 +27,12 @@ const RfiTimeStampSchema = new mongoose.Schema({
         enum: ["Yes", "No"],
         default:'Yes'
       },
+      noOfRoHardCopyRevisions: {
+    type: Number,
+  },
+  noOfSiteHeadHardCopyRevisions: {
+    type: Number,
+  },
       drawingAddFolder: { type: Boolean,default: true  },
       customizedView: { type: Boolean,default: true  },
       rfiRaised: { type: Boolean,default: true  },

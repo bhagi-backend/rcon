@@ -70,7 +70,8 @@ const allowedOrigins = [
   "http://localhost:3001",
   "https://staging-ui.rconspace.com",
   "https://rconspace.com",
-  "https://dev.rconspace.com", // ✅ Add this
+  "https://dev.rconspace.com", 
+  "https://rconspace-ui-git-main-mrchamsdevs-projects.vercel.app",
 ];
 
 

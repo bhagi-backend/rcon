@@ -25,41 +25,50 @@ const qs = require('qs');
 
 const upload = multerWrapper();
 exports.uploadSiteImage = upload.single('siteImage');
-
 exports.updateSiteImage = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
-  const companyId =req.user.companyId;
+  const companyId = req.user?.companyId || "support";
 
   if (!isValidObjectId(siteId)) {
-    return next(new AppError('Invalid Site ID format', 400));
+    return next(new AppError("Invalid Site ID format", 400));
   }
 
   const site = await Site.findById(siteId);
   if (!site) {
-    return next(new AppError('Site document not found', 404));
+    return next(new AppError("Site document not found", 404));
   }
+
   if (!req.file) {
-    return next(new AppError('No image file uploaded or wrong field name', 400));
+    return next(new AppError("No image file uploaded or wrong field name", 400));
+  }
+
+  if (!companyId) {
+    return next(new AppError("Company ID not found for user", 400));
   }
 
   const file = req.file;
   const fileName = `${Date.now()}-${file.originalname}`;
 
-  const { uploadToS3, relativePath } = getUploadPath(companyId, fileName, "siteImages",siteId);
+  console.log({ companyId, siteId, fileName }); // 🧠 Debug line
 
-// Upload file to S3
-await uploadToS3(file.buffer, file.mimetype);
+  const { uploadToS3, relativePath } = getUploadPath(
+    companyId.toString(), // ✅ ensure string
+    fileName,
+    "siteImages",
+    siteId.toString()
+  );
 
-// Update siteImage field with S3 key
-site.siteImage = relativePath;
+  await uploadToS3(file.buffer, file.mimetype);
 
-// Save changes to the database
-await site.save()
+  site.siteImage = relativePath;
+  await site.save();
+
   res.status(200).json({
-    status: 'success',
-    data: site
+    status: "success",
+    data: site,
   });
 });
+
 
 exports.getSiteImage = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;

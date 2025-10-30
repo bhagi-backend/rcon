@@ -154,6 +154,10 @@ const companySchema = new Schema({
   companyKeyWord: {
     type: String,
   },
+  isDelete: {
+    type: Boolean,
+    default: false,
+  },
   companyDocuments: CDocumentsSchema,
   companyDetails: CdetailsSchema,
   personalInfo: PersonalDetailsSchema,

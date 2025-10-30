@@ -63,19 +63,41 @@ console.log("userName:",username)
 };
 
 const addUserToGroup = async (username, groupName) => {
+  // Sanitize group name (replace spaces with underscores)
+  const sanitizedGroupName = groupName.replace(/\s+/g, '_');
+
   const params = {
-    GroupName: groupName,
+    GroupName: sanitizedGroupName,
     UserPoolId: process.env.COGNITO_USER_POOL_ID,
-    Username: username, 
+    Username: username,
   };
 
   try {
     await cognitoClient.send(new AdminAddUserToGroupCommand(params));
   } catch (error) {
-    console.error('Detailed error:', error);
-    throw new Error('Error adding user to group in Cognito: ' + error.message);
+    // If group not found, create it and retry
+    if (error.name === "ResourceNotFoundException") {
+      try {
+        const createGroupParams = {
+          UserPoolId: process.env.COGNITO_USER_POOL_ID,
+          GroupName: sanitizedGroupName,
+          Description: `${groupName} group`,
+        };
+        await cognitoClient.send(new CreateGroupCommand(createGroupParams));
+
+        // Retry adding user to the newly created group
+        await cognitoClient.send(new AdminAddUserToGroupCommand(params));
+      } catch (createError) {
+        console.error('Error creating group or re-adding user:', createError);
+        throw new Error('Error creating or adding user to group in Cognito: ' + createError.message);
+      }
+    } else {
+      console.error('Detailed error:', error);
+      throw new Error('Error adding user to group in Cognito: ' + error.message);
+    }
   }
 };
+
 
 exports.signup = catchAsync(async (req, res, next) => {
   const { role, permittedSites, department, email, phoneNumber, firstName, bloodGroup, emergencyContact } = req.body;
@@ -144,7 +166,8 @@ if (existingEmpId) {
       }
 
       // Step 3: Ensure the user's company exists
-      const company = await Company.findById(currentUser.companyId).exec();
+      // const company = await Company.findById(currentUser.companyId).exec();
+      const company = await Company.findById(req.body.companyId).exec();
       if (!company) {
         await deleteCognitoUser(username);
         return res.status(404).json({

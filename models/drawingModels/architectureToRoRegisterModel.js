@@ -342,7 +342,7 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
   archRevision: {
     type: String,
   },
-   currentDrawingType: {
+  currentDrawingType: {
     type: String,
   },
   acceptedROSubmissionDate: {

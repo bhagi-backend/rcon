@@ -216,7 +216,7 @@ exports.getDocument = catchAsync(async (req, res, next) => {
   }
 });
 exports.getAllCompanies = catchAsync(async (req, res, next) => {
-  const companies = await Company.find()
+  const companies = await Company.find({ isDelete: false }) // ✅ Filter deleted companies
     .sort({ createdAt: -1 })
     .populate("sites");
 
@@ -257,6 +257,7 @@ exports.getAllCompanies = catchAsync(async (req, res, next) => {
     },
   });
 });
+
 
 exports.updateCompany = catchAsync(async (req, res, next) => {
   const company = await Company.findByIdAndUpdate(req.params.id, req.body, {

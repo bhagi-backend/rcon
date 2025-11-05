@@ -73,7 +73,8 @@ const allowedOrigins = [
   "https://rconspace.com",
   "https://dev.rconspace.com", 
   "https://rconspace-ui-git-main-mrchamsdevs-projects.vercel.app",
-  "https://rconspace-support-ui-git-main-mrchamsdevs-projects.vercel.app"
+  "https://rconspace-support-ui-git-main-mrchamsdevs-projects.vercel.app",
+  "https://support.rconspace.com/"
 ];
 
 

@@ -21,6 +21,7 @@ const { isValidObjectId } = require('mongoose');
 const Company = require("../models/companyModel");
 //const querystring = require('querystring');
 const qs = require('qs'); 
+const RfiTimeStamp = require("../models/drawingModels/rfiTimeStampModel");
 
 
 const upload = multerWrapper();
@@ -370,25 +371,37 @@ exports.createOne = catchAsync(async (req, res, next) => {
         });
       }
     }
+ const rfiTimeStamp = await RfiTimeStamp.create({
+      companyId,
+      siteId: newSite._id,
+      roRfiTimeStampDays: 7,
+      siteHeadRfiTimeStampDays: 7,
+      noOfRoHardCopyRevisions: 5,
+      noOfSiteHeadHardCopyRevisions: 4,
+      customizedView: false,
+      isDrawingAddFolder: "Yes",
+      drawingAddFolder: true,
+      rfiRaised: true,
+      areYouReceivingHardCopiesFromAllConsultants: true,
+      createdBy: companyAdmin ? companyAdmin._id : null,
+    });
 
     res.status(201).json({
       status: "success",
       action: "create",
       site: newSite,
       createdFolder,
+      rfiTimeStamp,
       user: companyAdmin,
     });
   } catch (err) {
     console.error(err);
     res.status(400).json({
       status: "failed",
-      data: {
-        error: err.toString(),
-      },
+      data: { error: err.toString() },
     });
   }
 });
-
 
 
 exports.updateSite = catchAsync(async (req, res, next) => {

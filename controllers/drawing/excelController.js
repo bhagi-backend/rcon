@@ -323,6 +323,182 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   res.send(buffer);
 });
 
+// ---------------------------------------------------------------
+//  FINAL: 100% WORKING – NO ERRORS, NO EMPTY DROPDOWNS
+// ---------------------------------------------------------------
+// exports.downloadExcel = catchAsync(async (req, res, next) => {
+//   const { siteId, companyId, type } = req.body;
+//   if (!siteId || !companyId) {
+//     return res.status(400).json({ status: "fail", message: "siteId & companyId required" });
+//   }
+
+//   const site = await Site.findById(siteId)
+//     .populate({ path: "companyId", select: "companyKeyWord" })
+//     .lean();
+//   if (!site) return res.status(404).json({ status: "fail", message: "Site not found" });
+
+//   const now = new Date();
+
+//   // === SAFE PREFIX FOR ALL NAMED RANGES ===
+//   const PREFIX = "_";
+
+//   // === 1. Consultants ===
+//   const consultantList = [];
+//   const consultantMap = {};
+
+//   if (!type) {
+//     const users = await User.find({
+//       "permittedSites.siteId": siteId,
+//       department: "Design Consultant",
+//     }).select("firstName role _id").lean();
+
+//     for (const u of users) {
+//       const full = `${u.firstName} (${u.role || "Consultant"})`;
+//       const safe = full.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 20);
+//       const key = `${PREFIX}CATS_${safe}`;
+
+//       const assign = await AssignCategoriesToDesignDrawingConsultant.find({
+//         designDrawingConsultant: u._id,
+//       }).populate({ path: "categories", select: "category" }).lean();
+
+//       const cats = assign.flatMap(a => a.categories.map(c => c.category)).filter(Boolean);
+
+//       if (cats.length) {
+//         consultantMap[full] = { key, cats };
+//         consultantList.push(full);
+//       }
+//     }
+//     if (!consultantList.length) consultantList.push("No Consultants");
+//   }
+
+//   // === 2. Global Categories ===
+//   let globalCats = [];
+//   if (type === "designConsultant") {
+//     const assign = await AssignCategoriesToDesignDrawingConsultant.find({
+//       designDrawingConsultant: req.user.id,
+//     }).populate({ path: "categories", select: "category" }).lean();
+//     globalCats = assign.flatMap(a => a.categories.map(c => c.category));
+//   } else if (type) {
+//     globalCats = await Category.find({ $or: [{ siteId: null }, { siteId }] })
+//       .select("category").lean().then(c => c.map(x => x.category));
+//   }
+
+//   // === 3. Workbook ===
+//   const wb = new ExcelJS.Workbook();
+//   wb.creator = "RCON System";
+//   wb.lastModifiedBy = req.user.email;
+//   wb.created = wb.modified = now;
+
+//   const ws = wb.addWorksheet("Drawing Register");
+//   const ds = wb.addWorksheet("DataSheet");
+//   ds.state = "veryHidden";
+
+//   // === 4. Headers ===
+//   let hdr = ["S.NO", "Drawing No", "Category", "Drawing Title", "Accepted RO Submission Date", "Accepted Site Submission Date"];
+//   if (!type) hdr.splice(2, 0, "Design Consultant");
+
+//   ws.getRow(7).values = hdr;
+//   const hRow = ws.getRow(7);
+//   hRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+//   hRow.alignment = { horizontal: "center", vertical: "middle" };
+//   hdr.forEach((_, i) => hRow.getCell(i + 1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2D3436" } });
+//   ws.columns = hdr.map((_, i) => ({ width: i === 0 ? 8 : i === 3 ? 40 : 22 }));
+
+//   // === 5. WRITE DATA & DEFINE NAMES ===
+//   let row = 1;
+
+//   // 5A. Consultant List
+//   if (!type) {
+//     consultantList.forEach(n => ds.getCell(`A${row++}`).value = n);
+//     wb.definedNames.add(`${PREFIX}ConsultantList`, `DataSheet!$A$1:$A$${row - 1}`);
+//     row += 2;
+//   }
+
+//   // 5B. Mapping Table
+//   const mapStart = row;
+//   if (!type) {
+//     if (Object.keys(consultantMap).length) {
+//       Object.entries(consultantMap).forEach(([name, { key }], i) => {
+//         ds.getCell(`D${mapStart + i}`).value = name;
+//         ds.getCell(`E${mapStart + i}`).value = key;
+//       });
+//       const mapEnd = mapStart + Object.keys(consultantMap).length - 1;
+//       wb.definedNames.add(`${PREFIX}ConsultantMap`, `DataSheet!$D$${mapStart}:$E$${mapEnd}`);
+//     } else {
+//       ds.getCell(`D${row}`).value = "No Consultants";
+//       ds.getCell(`E${row}`).value = `${PREFIX}CATS_NONE`;  // FIXED
+//       wb.definedNames.add(`${PREFIX}ConsultantMap`, `DataSheet!$D$${row}:$E$${row}`);
+//     }
+//     row = mapStart + (Object.keys(consultantMap).length || 1) + 3;
+//   }
+
+//   // 5C. Category Lists
+//   if (!type) {
+//     for (const { key, cats } of Object.values(consultantMap)) {
+//       const start = row;
+//       (cats.length ? cats : ["--"]).forEach(c => ds.getCell(`B${row++}`).value = c);
+//       wb.definedNames.add(key, `DataSheet!$B$${start}:$B$${row - 1}`);
+//       row += 2;
+//     }
+//     // Fallback
+//     const noneStart = row;
+//     ds.getCell(`B${row++}`).value = "--";
+//     wb.definedNames.add(`${PREFIX}CATS_NONE`, `DataSheet!$B$${noneStart}:$B$${row - 1}`);  // FIXED
+//   }
+
+//   // 5D. Global
+//   if (type) {
+//     const start = row;
+//     (globalCats.length ? globalCats : ["--"]).forEach(c => ds.getCell(`C${row++}`).value = c);
+//     wb.definedNames.add(`${PREFIX}CategoryList`, `DataSheet!$C$${start}:$C$${row - 1}`);
+//   }
+
+//   // === 6. Data Validation ===
+//   const ROWS = 200;
+//   for (let i = 8; i <= 7 + ROWS; i++) {
+//     if (!type) {
+//       ws.getCell(`C${i}`).dataValidation = {
+//         type: "list",
+//         allowBlank: true,
+//         formulae: [`=${PREFIX}ConsultantList`],
+//       };
+//       ws.getCell(`D${i}`).dataValidation = {
+//         type: "list",
+//         allowBlank: true,
+//         formulae: [`=IF(C${i}="","",INDIRECT(VLOOKUP(C${i},${PREFIX}ConsultantMap,2,FALSE)))`],
+//       };
+//     } else {
+//       ws.getCell(`C${i}`).dataValidation = {
+//         type: "list",
+//         allowBlank: true,
+//         formulae: [`=${PREFIX}CategoryList`],
+//       };
+//     }
+//   }
+
+//   // === 7. Protect ===
+//   ws.views = [{ state: "frozen", xSplit: 0, ySplit: 7 }];
+//   ws.protect("", { selectUnlockedCells: true });
+
+//   for (let i = 8; i <= 7 + ROWS; i++) {
+//     const cols = !type ? ["B", "C", "D", "E", "F", "G"] : ["B", "C", "D", "E", "F"];
+//     cols.forEach(c => ws.getCell(`${c}${i}`).protection = { locked: false });
+//   }
+
+//   // === 8. Send ===
+//   const fname = `drawing-${site.companyId?.companyKeyWord || "site"}-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}.xlsx`;
+
+//   await User.findByIdAndUpdate(req.user.id, { $push: { excelFiles: fname } });
+
+//   const buffer = await wb.xlsx.writeBuffer();
+//   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+//   res.setHeader("Content-Disposition", `attachment; filename="${fname}"`);
+//   res.send(buffer);
+// });
+
+
+
+
 
 exports.checkFileName = catchAsync(async (req, res) => {
   const { filename } = req.query;

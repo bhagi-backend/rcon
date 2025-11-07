@@ -44,7 +44,7 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
       .populate({
         path: "categories",
         select: "category",
-      })
+      }) 
       .lean();
 
     const categories = assignedCategories.flatMap((assignment) => assignment.categories);

@@ -66,6 +66,7 @@ const app = express();
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const allowedOrigins = [
+  "https://support.rconspace.com",
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:3002",
@@ -74,7 +75,8 @@ const allowedOrigins = [
   "https://dev.rconspace.com", 
   "https://rconspace-ui-git-main-mrchamsdevs-projects.vercel.app",
   "https://rconspace-support-ui-git-main-mrchamsdevs-projects.vercel.app",
-  "https://support.rconspace.com/"
+  
+  
 ];
 
 

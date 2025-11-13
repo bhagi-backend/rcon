@@ -5,6 +5,7 @@ const User = require("../../models/userModel");
 const { catchAsync } = require("../../utils/catchAsync");
 const AssignCategoriesToDesignDrawingConsultant = require("../../models/drawingModels/assignCategoriesToDesignConsultantModel");
 const mongoose = require("mongoose");
+const AssignDesignConsultantsToDepartment = require('../../models/drawingModels/assignDesignConsultantsToDepartMentModel'); 
 
 exports.downloadExcel = catchAsync(async (req, res, next) => {
   const downloadedBy = req.user.email;
@@ -322,179 +323,223 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
   res.send(buffer);
 });
+exports.downloadExcelForAll = catchAsync(async (req, res, next) => {
+  const downloadedBy = req.user.email;
+  const { siteId, companyId, type } = req.body;
 
-// ---------------------------------------------------------------
-//  FINAL: 100% WORKING – NO ERRORS, NO EMPTY DROPDOWNS
-// ---------------------------------------------------------------
-// exports.downloadExcel = catchAsync(async (req, res, next) => {
-//   const { siteId, companyId, type } = req.body;
-//   if (!siteId || !companyId) {
-//     return res.status(400).json({ status: "fail", message: "siteId & companyId required" });
-//   }
+  if (!siteId || !companyId) {
+    return res.status(400).json({
+      status: "fail",
+      message: "siteId and companyId are required",
+    });
+  }
 
-//   const site = await Site.findById(siteId)
-//     .populate({ path: "companyId", select: "companyKeyWord" })
-//     .lean();
-//   if (!site) return res.status(404).json({ status: "fail", message: "Site not found" });
+  const site = await Site.findById(siteId)
+    .populate({ path: "companyId", select: "companyKeyWord" })
+    .lean();
 
-//   const now = new Date();
+  if (!site) {
+    return res.status(404).json({
+      status: "fail",
+      message: "Site not found",
+    });
+  }
 
-//   // === SAFE PREFIX FOR ALL NAMED RANGES ===
-//   const PREFIX = "_";
+  console.log("req.user.id", req.user.id);
 
-//   // === 1. Consultants ===
-//   const consultantList = [];
-//   const consultantMap = {};
+  let categoryList;
+  if (type === "designConsultant") {
+    // Keep original logic
+    const assignedCategories = await AssignCategoriesToDesignDrawingConsultant.find({
+      designDrawingConsultant: req.user.id,
+    })
+      .populate({ path: "categories", select: "category" })
+      .lean();
 
-//   if (!type) {
-//     const users = await User.find({
-//       "permittedSites.siteId": siteId,
-//       department: "Design Consultant",
-//     }).select("firstName role _id").lean();
+    const categories = assignedCategories.flatMap((a) => a.categories);
+    categoryList = categories.length
+      ? categories.map((c) => c.category.replace(/,/g, " ")).join(",")
+      : "No Categories Available";
+  } else {
+    // Existing logic for categories
+    const categories = await Category.find({
+      $or: [{ siteId: null }, { siteId: siteId }],
+    })
+      .select("category")
+      .lean();
 
-//     for (const u of users) {
-//       const full = `${u.firstName} (${u.role || "Consultant"})`;
-//       const safe = full.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 20);
-//       const key = `${PREFIX}CATS_${safe}`;
+    categoryList = categories.length
+      ? categories.map((c) => c.category.replace(/,/g, " ")).join(",")
+      : "No Categories Available";
+  }
 
-//       const assign = await AssignCategoriesToDesignDrawingConsultant.find({
-//         designDrawingConsultant: u._id,
-//       }).populate({ path: "categories", select: "category" }).lean();
+  // ✅ Fetch Design Consultants only if NOT designConsultant type
+  let consultantList = [];
+  if (type !== "designConsultant") {
+    const assignments = await AssignDesignConsultantsToDepartment.find({})
+      .populate({ path: "designConsultants", select: "role" })
+      .lean();
 
-//       const cats = assign.flatMap(a => a.categories.map(c => c.category)).filter(Boolean);
+    consultantList = assignments.flatMap((a) =>
+      a.designConsultants.map((c) => c.role)
+    );
+  }
 
-//       if (cats.length) {
-//         consultantMap[full] = { key, cats };
-//         consultantList.push(full);
-//       }
-//     }
-//     if (!consultantList.length) consultantList.push("No Consultants");
-//   }
+  // --- Site location preparation ---
+  let siteLocationList = ["Select location", "General Arrangement"];
+  if (site.ventureType === "Apartments" && site.apartmentsDetails) {
+    if (site.apartmentsDetails.towers?.length)
+      siteLocationList = siteLocationList.concat(
+        site.apartmentsDetails.towers.map((t) => t.name || "Unnamed Tower")
+      );
+    if (site.apartmentsDetails.clubhouse?.length)
+      siteLocationList = siteLocationList.concat(
+        site.apartmentsDetails.clubhouse.map((c) => c.name || "Unnamed Clubhouse")
+      );
+  } else if (site.ventureType === "Highrise or Commercial" && site.buildingsDetails) {
+    if (site.buildingsDetails.towers?.length)
+      siteLocationList = siteLocationList.concat(
+        site.buildingsDetails.towers.map((t) => t.name || "Unnamed Tower")
+      );
+  } else if (site.ventureType === "Villas" && site.villasDetails) {
+    if (site.villasDetails.clubhouse?.length)
+      siteLocationList = siteLocationList.concat(
+        site.villasDetails.clubhouse.map((c) => c.name || "Unnamed Clubhouse")
+      );
+  }
 
-//   // === 2. Global Categories ===
-//   let globalCats = [];
-//   if (type === "designConsultant") {
-//     const assign = await AssignCategoriesToDesignDrawingConsultant.find({
-//       designDrawingConsultant: req.user.id,
-//     }).populate({ path: "categories", select: "category" }).lean();
-//     globalCats = assign.flatMap(a => a.categories.map(c => c.category));
-//   } else if (type) {
-//     globalCats = await Category.find({ $or: [{ siteId: null }, { siteId }] })
-//       .select("category").lean().then(c => c.map(x => x.category));
-//   }
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Drawing Register");
 
-//   // === 3. Workbook ===
-//   const wb = new ExcelJS.Workbook();
-//   wb.creator = "RCON System";
-//   wb.lastModifiedBy = req.user.email;
-//   wb.created = wb.modified = now;
+  // Metadata rows (same as before)
+  const now = new Date();
+  worksheet.getCell("A2").value = `Date: ${now.toISOString().split("T")[0]}`;
+  worksheet.mergeCells("A2:B2");
+  worksheet.getCell("C2").value = `Time: ${now.toLocaleTimeString("en-US", {
+    timeZone: "Asia/Kolkata",
+    hour12: false,
+  })}`;
+  worksheet.mergeCells("C2:D2");
 
-//   const ws = wb.addWorksheet("Drawing Register");
-//   const ds = wb.addWorksheet("DataSheet");
-//   ds.state = "veryHidden";
+  worksheet.getCell("A3").value = `Company Keyword: ${site.companyId?.companyKeyWord || "N/A"}`;
+  worksheet.mergeCells("A3:B3");
+  worksheet.getCell("C3").value = `Site Keyword: ${site.siteKeyWord || "N/A"}`;
+  worksheet.mergeCells("C3:D3");
 
-//   // === 4. Headers ===
-//   let hdr = ["S.NO", "Drawing No", "Category", "Drawing Title", "Accepted RO Submission Date", "Accepted Site Submission Date"];
-//   if (!type) hdr.splice(2, 0, "Design Consultant");
+  worksheet.getCell("A4").value = `Site Location: ${siteLocationList[0] || "N/A"}`;
+  worksheet.mergeCells("A4:B4");
+  worksheet.getCell("C4").value = `Downloaded By: ${downloadedBy}`;
+  worksheet.mergeCells("C4:D4");
 
-//   ws.getRow(7).values = hdr;
-//   const hRow = ws.getRow(7);
-//   hRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
-//   hRow.alignment = { horizontal: "center", vertical: "middle" };
-//   hdr.forEach((_, i) => hRow.getCell(i + 1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2D3436" } });
-//   ws.columns = hdr.map((_, i) => ({ width: i === 0 ? 8 : i === 3 ? 40 : 22 }));
+  worksheet.getCell("A5").value = `Site Name: ${site.siteName || "N/A"}`;
+  worksheet.mergeCells("A5:B5");
+  worksheet.getCell("C5").value = `Drawing No Format: ${site.drawingNo || "N/A"}`;
+  worksheet.mergeCells("C5:D5");
 
-//   // === 5. WRITE DATA & DEFINE NAMES ===
-//   let row = 1;
+  // --- Headers setup ---
+  const headers =
+    type === "designConsultant"
+      ? [
+          "S.NO",
+          "Drawing No",
+          "Category",
+          "Drawing Title",
+          "Accepted RO Submission Date",
+          "Accepted Site Submission Date",
+        ]
+      : [
+          "S.NO",
+          "Drawing No",
+          "Category",
+          "Design Drawing Consultant",
+          "Drawing Title",
+          "Accepted RO Submission Date",
+          "Accepted Site Submission Date",
+        ];
 
-//   // 5A. Consultant List
-//   if (!type) {
-//     consultantList.forEach(n => ds.getCell(`A${row++}`).value = n);
-//     wb.definedNames.add(`${PREFIX}ConsultantList`, `DataSheet!$A$1:$A$${row - 1}`);
-//     row += 2;
-//   }
+  worksheet.getRow(7).values = headers;
+  const headerRow = worksheet.getRow(7);
+  headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  headerRow.eachCell((cell) => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2D3436" } };
+    cell.border = {
+      top: { style: "medium" },
+      left: { style: "medium" },
+      bottom: { style: "medium" },
+      right: { style: "medium" },
+    };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+  });
 
-//   // 5B. Mapping Table
-//   const mapStart = row;
-//   if (!type) {
-//     if (Object.keys(consultantMap).length) {
-//       Object.entries(consultantMap).forEach(([name, { key }], i) => {
-//         ds.getCell(`D${mapStart + i}`).value = name;
-//         ds.getCell(`E${mapStart + i}`).value = key;
-//       });
-//       const mapEnd = mapStart + Object.keys(consultantMap).length - 1;
-//       wb.definedNames.add(`${PREFIX}ConsultantMap`, `DataSheet!$D$${mapStart}:$E$${mapEnd}`);
-//     } else {
-//       ds.getCell(`D${row}`).value = "No Consultants";
-//       ds.getCell(`E${row}`).value = `${PREFIX}CATS_NONE`;  // FIXED
-//       wb.definedNames.add(`${PREFIX}ConsultantMap`, `DataSheet!$D$${row}:$E$${row}`);
-//     }
-//     row = mapStart + (Object.keys(consultantMap).length || 1) + 3;
-//   }
+  // Column widths (updated if extra column)
+  const columnWidths =
+    type === "designConsultant"
+      ? [15, 20, 25, 30, 25, 25]
+      : [15, 20, 25, 25, 30, 25, 25];
+  columnWidths.forEach((w, i) => (worksheet.getColumn(i + 1).width = w));
 
-//   // 5C. Category Lists
-//   if (!type) {
-//     for (const { key, cats } of Object.values(consultantMap)) {
-//       const start = row;
-//       (cats.length ? cats : ["--"]).forEach(c => ds.getCell(`B${row++}`).value = c);
-//       wb.definedNames.add(key, `DataSheet!$B$${start}:$B$${row - 1}`);
-//       row += 2;
-//     }
-//     // Fallback
-//     const noneStart = row;
-//     ds.getCell(`B${row++}`).value = "--";
-//     wb.definedNames.add(`${PREFIX}CATS_NONE`, `DataSheet!$B$${noneStart}:$B$${row - 1}`);  // FIXED
-//   }
+  // Add categories (hidden rows)
+  const categoriesArray =
+    categoryList !== "No Categories Available" ? categoryList.split(",") : [];
+  categoriesArray.forEach((c, i) => {
+    worksheet.getCell(`A${108 + i}`).value = c.trim();
+  });
 
-//   // 5D. Global
-//   if (type) {
-//     const start = row;
-//     (globalCats.length ? globalCats : ["--"]).forEach(c => ds.getCell(`C${row++}`).value = c);
-//     wb.definedNames.add(`${PREFIX}CategoryList`, `DataSheet!$C$${start}:$C$${row - 1}`);
-//   }
+  // Add consultants (hidden rows, only if applicable)
+  if (type !== "designConsultant" && consultantList.length > 0) {
+    consultantList.forEach((c, i) => {
+      worksheet.getCell(`B${158 + i}`).value = c.trim();
+    });
+  }
 
-//   // === 6. Data Validation ===
-//   const ROWS = 200;
-//   for (let i = 8; i <= 7 + ROWS; i++) {
-//     if (!type) {
-//       ws.getCell(`C${i}`).dataValidation = {
-//         type: "list",
-//         allowBlank: true,
-//         formulae: [`=${PREFIX}ConsultantList`],
-//       };
-//       ws.getCell(`D${i}`).dataValidation = {
-//         type: "list",
-//         allowBlank: true,
-//         formulae: [`=IF(C${i}="","",INDIRECT(VLOOKUP(C${i},${PREFIX}ConsultantMap,2,FALSE)))`],
-//       };
-//     } else {
-//       ws.getCell(`C${i}`).dataValidation = {
-//         type: "list",
-//         allowBlank: true,
-//         formulae: [`=${PREFIX}CategoryList`],
-//       };
-//     }
-//   }
+  // Add dropdown validations
+  const dropdownRowCount = 100;
+  const lastCategoryRow = 107 + categoriesArray.length;
+  const lastConsultantRow = 157 + consultantList.length;
 
-//   // === 7. Protect ===
-//   ws.views = [{ state: "frozen", xSplit: 0, ySplit: 7 }];
-//   ws.protect("", { selectUnlockedCells: true });
+  for (let row = 8; row <= 7 + dropdownRowCount; row++) {
+    // Validation for Category
+    const categoryCell = worksheet.getCell(`C${row}`);
+    categoryCell.dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [`$A$108:$A$${lastCategoryRow}`],
+      errorTitle: "Invalid Category",
+      error: "Please select a category from the dropdown",
+    };
 
-//   for (let i = 8; i <= 7 + ROWS; i++) {
-//     const cols = !type ? ["B", "C", "D", "E", "F", "G"] : ["B", "C", "D", "E", "F"];
-//     cols.forEach(c => ws.getCell(`${c}${i}`).protection = { locked: false });
-//   }
+    // Validation for Consultant (if not designConsultant type)
+    if (type !== "designConsultant") {
+      const consultantCell = worksheet.getCell(`D${row}`);
+      consultantCell.dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: [`$B$158:$B$${lastConsultantRow}`],
+        errorTitle: "Invalid Consultant",
+        error: "Please select a consultant from the dropdown",
+      };
+    }
+  }
 
-//   // === 8. Send ===
-//   const fname = `drawing-${site.companyId?.companyKeyWord || "site"}-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}.xlsx`;
+  // Hide dropdown data rows
+  for (let i = 108; i <= lastCategoryRow; i++) worksheet.getRow(i).hidden = true;
+  if (type !== "designConsultant") {
+    for (let i = 158; i <= lastConsultantRow; i++) worksheet.getRow(i).hidden = true;
+  }
 
-//   await User.findByIdAndUpdate(req.user.id, { $push: { excelFiles: fname } });
+  // Save and send file
+  const year = now.getFullYear().toString().slice(-2);
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const randomNum = Math.floor(1000 + Math.random() * 9000);
+  const fileName = `drawing-${site.siteKeyWord || "site"}-${year}${month}-${randomNum}.xlsx`;
 
-//   const buffer = await wb.xlsx.writeBuffer();
-//   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-//   res.setHeader("Content-Disposition", `attachment; filename="${fname}"`);
-//   res.send(buffer);
-// });
+  await User.findByIdAndUpdate(req.user.id, { $push: { excelFiles: fileName } });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  res.send(buffer);
+});
 
 
 

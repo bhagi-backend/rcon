@@ -31,12 +31,22 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
   const companyId=user.companyId
 console.log("companyId",companyId);
   if (!siteId || !drawings || !Array.isArray(drawings) || drawings.length === 0) {
-    return next(new AppError('siteId and drawings array are required fields', 400));
-  }
+  return res.status(400).json({
+    status: "error",
+    statusCode: 400,
+    message: "siteId and drawings array are required fields",
+  });
+}
+
   const site = await Site.findOne({ _id: siteId });
-  if (!site) {
-    return next(new AppError('Invalid siteId provided. Site does not exist.', 404));
-  }
+ if (!site) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "Invalid siteId provided. Site does not exist.",
+  });
+}
+
   const siteName = site.siteName;
 
   const createdRegisters = [];
@@ -118,9 +128,15 @@ console.log("categoryRecord",categoryRecord);
     //   });
     // }
 
-    if (!drawingNo || !drawingTitle || !designDrawingConsultant ) {
-      return next(new AppError('Each drawing object must have drawingNo, drawingTitle, designDrawingConsultant, category, acceptedROSubmissionDate, and acceptedSiteSubmissionDate', 400));
-    }
+   if (!drawingNo || !drawingTitle || !designDrawingConsultant) {
+  return res.status(400).json({
+    status: "error",
+    statusCode: 400,
+    message:
+      "Each drawing object must have drawingNo, drawingTitle, designDrawingConsultant, category, acceptedROSubmissionDate, and acceptedSiteSubmissionDate",
+  });
+}
+
     const count = await ArchitectureToRoRegister.countDocuments({ siteId });
 
     // // Generate the 3-digit suffix
@@ -226,10 +242,14 @@ exports.resizeDrawingPhoto = catchAsync(async (req, res, next) => {
   if (!req.drawing) {
     req.drawing = await ArchitectureToRoRegister.findById(req.params.id);
   }
+if (!req.drawing) {
+  return res.status(200).json({
+    status: "error",
+    statusCode: 200,
+    message: "Drawing not found",
+  });
+}
 
-  if (!req.drawing) {
-    return next(new AppError('Drawing not found', 200)); // Use 200 instead of 404
-  }
 
   const fileExtension = path.extname(req.file.originalname);
   const newFilename = `drawing-ArchitectureToRoRegister-${req.drawing._id}-${Date.now()}${fileExtension}`;
@@ -253,10 +273,14 @@ exports.resizeDrawingPhoto = catchAsync(async (req, res, next) => {
     if (result.urn && req.route.path.includes('/Ro/')) {
       const latestRevisionIndex = registerDrawing.acceptedRORevisions.length - 1;
       const latestRevision = registerDrawing.acceptedRORevisions[latestRevisionIndex];
+if (!latestRevision) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No revisions found for this drawing",
+  });
+}
 
-      if (!latestRevision) {
-        return next(new AppError("No revisions found for this drawing", 404));
-      }
 
       // Update the urn field
       registerDrawing.acceptedRORevisions[latestRevisionIndex].urn = result.urn;
@@ -276,9 +300,14 @@ exports.resizeDrawingPhoto = catchAsync(async (req, res, next) => {
       const latestRevisionIndex = registerDrawing.acceptedSiteRevisions.length - 1;
       const latestRevision = registerDrawing.acceptedSiteRevisions[latestRevisionIndex];
 
-      if (!latestRevision) {
-        return next(new AppError("No revisions found for this drawing", 404));
-      }
+     if (!latestRevision) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No revisions found for this drawing",
+  });
+}
+
 
       // Update the urn field
       registerDrawing.acceptedSiteRevisions[latestRevisionIndex].urn = result.urn;
@@ -298,9 +327,14 @@ exports.resizeDrawingPhoto = catchAsync(async (req, res, next) => {
       const latestRevisionIndex = registerDrawing.acceptedSiteHeadRevisions.length - 1;
       const latestRevision = registerDrawing.acceptedSiteHeadRevisions[latestRevisionIndex];
 
-      if (!latestRevision) {
-        return next(new AppError("No revisions found for this drawing", 404));
-      }
+    if (!latestRevision) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No revisions found for this drawing",
+  });
+}
+
 
       // Update the urn field
       registerDrawing.acceptedSiteHeadRevisions[latestRevisionIndex].urn = result.urn;
@@ -319,10 +353,14 @@ exports.resizeDrawingPhoto = catchAsync(async (req, res, next) => {
     } else if (result.urn) {
       const latestRevisionIndex = registerDrawing.acceptedArchitectRevisions.length - 1;
       const latestRevision = registerDrawing.acceptedArchitectRevisions[latestRevisionIndex];
+if (!latestRevision) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No revisions found for this drawing",
+  });
+}
 
-      if (!latestRevision) {
-        return next(new AppError("No revisions found for this drawing", 404));
-      }
 
       // Update the urn field
       registerDrawing.acceptedArchitectRevisions[latestRevisionIndex].urn = result.urn;
@@ -348,21 +386,36 @@ exports.resizeDrawingPhoto = catchAsync(async (req, res, next) => {
 
 exports.updateLatestAcceptedArchitectRevisionsDrawing = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  if (!req.file) {
-    return next(new AppError("No file uploaded", 400));
-  }
+ if (!req.file) {
+  return res.status(400).json({
+    status: "error",
+    statusCode: 400,
+    message: "No file uploaded",
+  });
+}
+
 
   // Find the document and get the latest revision
   const architectureToRoRegister = await ArchitectureToRoRegister.findById(id);
-  if (!architectureToRoRegister) {
-    return next(new AppError("No drawing found with that ID", 404));
-  }
+ if (!architectureToRoRegister) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No drawing found with that ID",
+  });
+}
+
 
   // Get the latest revision
   const latestRevision = architectureToRoRegister.acceptedArchitectRevisions[architectureToRoRegister.acceptedArchitectRevisions.length - 1];
   if (!latestRevision) {
-    return next(new AppError("No revisions found for this drawing", 404));
-  }
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No revisions found for this drawing",
+  });
+}
+
   latestRevision.drawingFileName = req.file.filename;
 
   await architectureToRoRegister.save();
@@ -389,21 +442,36 @@ exports.updateLatestAcceptedArchitectRevisionsDrawing = catchAsync(async (req, r
 exports.updateLatestAcceptedRoRevisionsDrawing = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
-  if (!req.file) {
-    return next(new AppError("No file uploaded", 400));
-  }
+ if (!req.file) {
+  return res.status(400).json({
+    status: "error",
+    statusCode: 400,
+    message: "No file uploaded",
+  });
+}
+
 
   // Find the document and get the latest revision
   const architectureToRoRegister = await ArchitectureToRoRegister.findById(id);
-  if (!architectureToRoRegister) {
-    return next(new AppError("No drawing found with that ID", 404));
-  }
+ if (!architectureToRoRegister) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No drawing found with that ID",
+  });
+}
+
 
   // Get the latest revision
   const latestRevision = architectureToRoRegister.acceptedRORevisions[architectureToRoRegister.acceptedRORevisions.length - 1];
-  if (!latestRevision) {
-    return next(new AppError("No revisions found for this drawing", 404));
-  }
+ if (!latestRevision) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No revisions found for this drawing",
+  });
+}
+
 
   // Update the latest revision's drawingFileName
   latestRevision.drawingFileName = req.file.filename;
@@ -432,22 +500,36 @@ exports.updateLatestAcceptedRoRevisionsDrawing = catchAsync(async (req, res, nex
 
 exports.updateLatestAcceptedSiteRevisionsDrawing = catchAsync(async (req, res, next) => {
   const { id } = req.params;
+if (!req.file) {
+  return res.status(400).json({
+    status: "error",
+    statusCode: 400,
+    message: "No file uploaded"
+  });
+}
 
-  if (!req.file) {
-    return next(new AppError("No file uploaded", 400));
-  }
 
   // Find the document and get the latest revision
   const architectureToRoRegister = await ArchitectureToRoRegister.findById(id);
-  if (!architectureToRoRegister) {
-    return next(new AppError("No drawing found with that ID", 404));
-  }
+ if (!architectureToRoRegister) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No drawing found with that ID"
+  });
+}
+
 
   // Get the latest revision
   const latestRevision = architectureToRoRegister.acceptedSiteRevisions[architectureToRoRegister.acceptedSiteRevisions.length - 1];
   if (!latestRevision) {
-    return next(new AppError("No revisions found for this drawing", 404));
-  }
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No revisions found for this drawing"
+  });
+}
+
 
   // Update the latest revision's drawingFileName
   latestRevision.drawingFileName = req.file.filename;
@@ -475,21 +557,36 @@ exports.updateLatestAcceptedSiteRevisionsDrawing = catchAsync(async (req, res, n
 });
 exports.updateLatestAcceptedSiteHeadRevisionsDrawing = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  if (!req.file) {
-    return next(new AppError("No file uploaded", 400));
-  }
+if (!req.file) {
+  return res.status(400).json({
+    status: "error",
+    statusCode: 400,
+    message: "No file uploaded",
+  });
+}
+
 
   // Find the document and get the latest site head revision
   const architectureToRoRegister = await ArchitectureToRoRegister.findById(id);
   if (!architectureToRoRegister) {
-    return next(new AppError("No drawing found with that ID", 404));
-  }
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No drawing found with that ID",
+  });
+}
+
 
   // Get the latest site head revision
   const latestRevision = architectureToRoRegister.acceptedSiteHeadRevisions[architectureToRoRegister.acceptedSiteHeadRevisions.length - 1];
-  if (!latestRevision) {
-    return next(new AppError("No site head revisions found for this drawing", 404));
-  }
+ if (!latestRevision) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No site head revisions found for this drawing",
+  });
+}
+
 
   // Update the drawingFileName with the uploaded file's name
   latestRevision.drawingFileName = req.file.filename;
@@ -524,23 +621,35 @@ exports.getAcceptedArchitectRevisionsDrawing = catchAsync(async (req, res, next)
   const { id, revision } = req.params; // Extract both ID and revision from the URL parameters
   const companyId = req.user.companyId;
   const drawing = await ArchitectureToRoRegister.findById(id);
+if (!drawing) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No drawing found with that ID",
+  });
+}
 
-  if (!drawing) {
-    return next(new AppError("No drawing found with that ID", 404));
-  }
 
-  if (!drawing.acceptedArchitectRevisions || !Array.isArray(drawing.acceptedArchitectRevisions)) {
-    return next(new AppError("No revisions found for this drawing.", 404));
-  }
+ if (!drawing.acceptedArchitectRevisions || !Array.isArray(drawing.acceptedArchitectRevisions)) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No revisions found for this drawing.",
+  });
+}
+
 
   // Find the revision object based on the provided revision parameter
   const revisionObj = drawing.acceptedArchitectRevisions.find((el) => el.revision === revision);
 
   const revisionIndex = drawing.acceptedArchitectRevisions.findIndex(r => r.revision === revision);
-
-  if (!revisionObj) {
-    return next(new AppError(`No drawing file found for the ${revision} revision.`, 404));
-  }
+if (!revisionObj) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: `No drawing file found for the ${revision} revision.`,
+  });
+}
 
   const drawingFileName = revisionObj.drawingFileName;
   const filePath = path.join(__dirname, `../../uploads/${companyId}/${drawing.siteId}/drawings`, drawingFileName);
@@ -564,8 +673,13 @@ exports.getAcceptedArchitectRevisionsDrawing = catchAsync(async (req, res, next)
     }
 
     if (!result) {
-      return next(new AppError("Failed to process the DWG file", 400));
-    }
+  return res.status(400).json({
+    status: "error",
+    statusCode: 400,
+    message: "Failed to process the DWG file",
+  });
+}
+
     res.status(200).json({
       status: "success",
       data: result
@@ -575,9 +689,14 @@ exports.getAcceptedArchitectRevisionsDrawing = catchAsync(async (req, res, next)
   // Download the file
   res.download(filePath, drawingFileName, (err) => {
     if (err) {
-      console.error('Download Error:', err);
-      return next(new AppError("Failed to download the file.", 400));
-    }
+  console.error('Download Error:', err);
+  return res.status(400).json({
+    status: "error",
+    statusCode: 400,
+    message: "Failed to download the file.",
+  });
+}
+
   });
   }
   // res.download(filePath, drawingFileName, (err) => {
@@ -592,15 +711,22 @@ exports.getAcceptedRORevisionsDrawing = catchAsync(async (req, res, next) => {
   const companyId = req.user.companyId;
   // Find the drawing by its ID
   const drawing = await ArchitectureToRoRegister.findById(id);
+if (!drawing) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No drawing found with that ID",
+  });
+}
 
-  if (!drawing) {
-    return next(new AppError("No drawing found with that ID", 404));
-  }
-
-  // Check if acceptedRORevisions exist and is an array
-  if (!drawing.acceptedRORevisions || !Array.isArray(drawing.acceptedRORevisions)) {
-    return next(new AppError("No revisions found for this drawing.", 404));
-  }
+// Check if acceptedRORevisions exist and is an array
+if (!drawing.acceptedRORevisions || !Array.isArray(drawing.acceptedRORevisions)) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "No revisions found for this drawing.",
+  });
+}
 
   // Find the revision object based on the provided revision parameter
   const revisionObj = drawing.acceptedRORevisions.find((el) => el.revision === revision);
@@ -608,8 +734,13 @@ exports.getAcceptedRORevisionsDrawing = catchAsync(async (req, res, next) => {
   const revisionIndex = drawing.acceptedRORevisions.findIndex(r => r.revision === revision);
 
   if (!revisionObj) {
-    return next(new AppError(`No drawing file found for the ${revision} revision.`, 404));
-  }
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: `No drawing file found for the ${revision} revision.`,
+  });
+}
+
 
   // Extract the drawing file name and construct the file path
   const drawingFileName = revisionObj.drawingFileName;
@@ -635,8 +766,13 @@ exports.getAcceptedRORevisionsDrawing = catchAsync(async (req, res, next) => {
   }
 
   if (!result) {
-    return next(new AppError("Failed to process the DWG file", 400));
-  }
+  return res.status(400).json({
+    status: "error",
+    statusCode: 400,
+    message: "Failed to process the DWG file",
+  });
+}
+
   res.status(200).json({
     status: "success",
     data: result

@@ -315,9 +315,13 @@ const signToken = (id) => {
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
-    return next(new AppError('Please provide email and password', 400));
-  }
+ if (!email || !password) {
+  return res.status(400).json({
+    status: "error",
+    message: "Please provide email and password",
+  });
+}
+
 
   const params = {
     AuthFlow: 'USER_PASSWORD_AUTH',
@@ -406,10 +410,14 @@ exports.login = catchAsync(async (req, res, next) => {
 
 exports.supportLogin = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
+if (!email || !password) {
+  return res.status(400).json({
+    status: "error",
+    statusCode: 400,
+    message: "Please provide email and password",
+  });
+}
 
-  if (!email || !password) {
-    return next(new AppError('Please provide email and password', 400));
-  }
 
   const params = {
     AuthFlow: 'USER_PASSWORD_AUTH',
@@ -538,9 +546,14 @@ exports.protect = catchAsync(async (req, res, next) => {
     token = req.headers.authorization.split(" ")[1];
   }
   console.log(token);
-  if (!token) {
-    return next(new AppError("you are not logged in! please login", 401));
-  }
+ if (!token) {
+  return res.status(401).json({
+    status: "error",
+    statusCode: 401,
+    message: "You are not logged in! Please login.",
+  });
+}
+
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_S);
   const currentUser = await User.findById(decoded.id);
   if (!currentUser) {
@@ -554,16 +567,26 @@ exports.protect = catchAsync(async (req, res, next) => {
 
 exports.updatePassword = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id).select("+password");
-  if (!user) {
-    return next(new AppError("There is no user with this email!!", 404));
-  }
+ if (!user) {
+  return res.status(404).json({
+    status: "error",
+    statusCode: 404,
+    message: "There is no user with this email!",
+  });
+}
+
   const givenPassword = await bcrypt.compare(
     req.body.currentPassword,
     user.password
   );
-  if (!givenPassword) {
-    return next(new AppError("your current password is wrong", 401));
-  }
+ if (!givenPassword) {
+  return res.status(401).json({
+    status: "error",
+    statusCode: 401,
+    message: "Your current password is wrong",
+  });
+}
+
   user.password = req.body.password;
   user.passwordConfirm = req.body.confirmPassword;
   await user.save();
@@ -783,11 +806,14 @@ const confirmPasswordReset = async (
 exports.verifyConfirmationCode = catchAsync(async (req, res, next) => {
   const { email, confirmationCode } = req.body;
 
-  if (!confirmationCode || !email) {
-    return next(
-      new AppError("Please provide email and confirmation code", 400)
-    );
-  }
+if (!confirmationCode || !email) {
+  return res.status(400).json({
+    status: "error",
+    statusCode: 400,
+    message: "Please provide email and confirmation code",
+  });
+}
+
 
   try {
     const username = await getCognitoUsernameByEmail(email);

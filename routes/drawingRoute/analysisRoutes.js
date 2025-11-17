@@ -25,4 +25,7 @@ router.get('/SiteHeadDrawingAnalysisCount/:siteId', authController.protect,analy
 router.get('/consultantHardCopyAnalysisCount/:siteId', authController.protect,analysisController.getHardCopyAnalysisCountForConsultant);
 router.get('/roHardCopyAnalysisCount/:siteId', authController.protect,analysisController.getHardCopyAnalysisCountForRo);
 
+
+router.get('/totalDrawingAnalysis', authController.protect,analysisController.getAllDrawingStatusCount);
+
 module.exports = router;

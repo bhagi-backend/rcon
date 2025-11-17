@@ -5,6 +5,7 @@ const ArchitectureToRoRequest = require("../../models/drawingModels/architecture
 const RoToSiteLevelRequest = require("../../models/drawingModels/roToSiteLevelRequestedModel");
 const SiteToSiteLevelRequest = require("../../models/drawingModels/siteToSiteLevelRequestedModel");
 const assignDesignConsultantsToDepartment = require("../../models/drawingModels/assignDesignConsultantsToDepartMentModel");
+const mongoose = require("mongoose");
 
 // const calculateDateRange = (selectTimePeriod, month, year) => {
 //   let startDate, endDate;
@@ -150,7 +151,7 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
       drawingStatus: "Approval",
     };
 
-    // ✅ Apply date filter ONLY if selectTimePeriod is provided
+    // Apply time period filter
     if (selectTimePeriod) {
       const { startDate, endDate } = calculateDateRange(
         selectTimePeriod,
@@ -160,7 +161,7 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
       baseQuery.creationDate = { $gte: startDate, $lt: endDate };
     }
 
-    // Optional folder filter
+    // Folder filter
     if (folderId) {
       baseQuery.folderId = folderId;
     }
@@ -171,21 +172,26 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
         match: { role: userRole },
         select: "role",
       })
-      .lean() // Faster for calculations
+      .lean()
       .exec();
 
     let approvalCount = 0;
     let pendingCount = 0;
     let drawingCount = 0;
 
+    // 🔥 NEW COUNTS (ADDED ONLY)
+    let noRevisionCount = 0;
+    let rfiRaisedCount = 0;
+
     data.forEach((record) => {
       const revisions = record.acceptedArchitectRevisions || [];
 
-      // Get latest revision (last item in array)
       const latestRevision =
         revisions.length > 0 ? revisions[revisions.length - 1] : null;
 
-      // 1. Pending drawings
+      // ---------------------------------------------
+      // EXISTING LOGIC → DO NOT CHANGE
+      // ---------------------------------------------
       if (
         revisions.length <= 0 ||
         (latestRevision && latestRevision.rfiStatus === "Raised")
@@ -193,13 +199,23 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
         pendingCount++;
       }
 
-      // 2. Drawings count
       if (
         revisions.length > 0 &&
         latestRevision &&
         latestRevision.rfiStatus === "Not Raised"
       ) {
         drawingCount++;
+      }
+
+      // ---------------------------------------------
+      // NEW SEPARATE COUNTS (added without touching logic)
+      // ---------------------------------------------
+      if (revisions.length <= 0) {
+        noRevisionCount++;
+      }
+
+      if (latestRevision && latestRevision.rfiStatus === "Raised") {
+        rfiRaisedCount++;
       }
     });
 
@@ -209,10 +225,17 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
         totalApprovalCount: data.length,
         totalPendingDrawings: pendingCount,
         totalDrawingCount: drawingCount,
+
+        // NEW SEPARATE BREAKDOWN
+        pendingBreakdown: {
+          noRevisionCount,
+          rfiRaisedCount,
+        },
       },
     });
   }
 );
+
 exports.getRfiAnalysisCountForConsultant = catchAsync(
   async (req, res, next) => {
     const { siteId } = req.params;
@@ -1253,4 +1276,131 @@ exports.getHardCopyAnalysisCountForRo = catchAsync(async (req, res, next) => {
     },
   });
 });
+exports.getAllDrawingStatusCount = catchAsync(async (req, res, next) => {
+  const { siteId, designDrawingConsultantId } = req.query;
 
+  if (!siteId) {
+    return res.status(200).json({
+      status: "fail",
+      message: "siteId is required",
+    });
+  }
+
+  // Base filter
+  const baseFilter = { siteId };
+
+  // Convert consultant ID safely (string → string, ObjectId → ObjectId)
+  const safeConsultantId =
+    mongoose.isValidObjectId(designDrawingConsultantId)
+      ? new mongoose.Types.ObjectId(designDrawingConsultantId)
+      : designDrawingConsultantId;
+
+  // If consultant is provided
+  if (designDrawingConsultantId) {
+    baseFilter.designDrawingConsultant = safeConsultantId;
+
+    const result = await ArchitectureToRoRegister.aggregate([
+      {
+        $match: {
+          siteId: new mongoose.Types.ObjectId(siteId),
+          designDrawingConsultant: safeConsultantId,
+        },
+      },
+      {
+        $group: {
+          _id: "$drawingStatus",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    let approvalCount = 0;
+    let notApprovalCount = 0;
+
+    result.forEach((r) => {
+      if (r._id === "Approval") approvalCount = r.count;
+      if (r._id === "Not Approval") notApprovalCount = r.count;
+    });
+
+    return res.status(200).json({
+      status: "success",
+      // filterType: "site + consultant",
+      // appliedFilters: {
+      //   siteId,
+      //   designDrawingConsultantId,
+      // },
+      data: {
+        consultantId: designDrawingConsultantId,
+        approvalCount,
+        notApprovalCount,
+        total: approvalCount + notApprovalCount,
+      },
+    });
+  }
+
+  // -------------------------------
+  // CASE 2: ONLY SITE ID
+  // -------------------------------
+  const groupedResult = await ArchitectureToRoRegister.aggregate([
+    { $match: { siteId: new mongoose.Types.ObjectId(siteId) } },
+
+    {
+      $group: {
+        _id: {
+          consultant: "$designDrawingConsultant",
+          drawingStatus: "$drawingStatus",
+        },
+        count: { $sum: 1 },
+      },
+    },
+
+    {
+      $group: {
+        _id: "$_id.consultant",
+        counts: {
+          $push: {
+            drawingStatus: "$_id.drawingStatus",
+            count: "$count",
+          },
+        },
+      },
+    },
+  ]);
+
+  const consultantIds = groupedResult.map((g) => g._id);
+
+  const consultants = await User.find({
+    _id: { $in: consultantIds },
+  })
+    .select("firstName lastName role")
+    .lean();
+
+  const finalData = groupedResult.map((g) => {
+    const user = consultants.find((c) => c._id.toString() === g._id.toString());
+
+    let approvalCount = 0;
+    let notApprovalCount = 0;
+
+    g.counts.forEach((c) => {
+      if (c.drawingStatus === "Approval") approvalCount = c.count;
+      if (c.drawingStatus === "Not Approval") notApprovalCount = c.count;
+    });
+
+    return {
+      consultantId: g._id,
+      consultantName: user
+        ? `${user.firstName} ${user.lastName}`
+        : "Unknown",
+      consultantRole: user ? user.role : "Unknown",
+      approvalCount,
+      notApprovalCount,
+      total: approvalCount + notApprovalCount,
+    };
+  });
+
+  return res.status(200).json({
+    status: "success",
+    // filterType: "site only",
+    data: finalData,
+  });
+});

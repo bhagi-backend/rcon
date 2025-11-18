@@ -81,30 +81,41 @@ let consultantRole = "N/A";
 
   // 2. Prepare site location list for metadata
   let siteLocationList = ["Select location","General Arrangement"];
-  if (site.ventureType === "Apartments" && site.apartmentsDetails) {
-    if (site.apartmentsDetails.towers && site.apartmentsDetails.towers.length > 0) {
-      siteLocationList = siteLocationList.concat(
-        site.apartmentsDetails.towers.map((tower) => tower.name || "Unnamed Tower")
-      );
-    }
-    if (site.apartmentsDetails.clubhouse && site.apartmentsDetails.clubhouse.length > 0) {
-      siteLocationList = siteLocationList.concat(
-        site.apartmentsDetails.clubhouse.map((clubhouse) => clubhouse.name || "Unnamed Clubhouse")
-      );
-    }
-  } else if (site.ventureType === "Highrise or Commercial" && site.buildingsDetails) {
-    if (site.buildingsDetails.towers && site.buildingsDetails.towers.length > 0) {
-      siteLocationList = siteLocationList.concat(
-        site.buildingsDetails.towers.map((tower) => tower.name || "Unnamed Tower")
-      );
-    }
-  } else if (site.ventureType === "Villas" && site.villasDetails) {
-    if (site.villasDetails.clubhouse && site.villasDetails.clubhouse.length > 0) {
-      siteLocationList = siteLocationList.concat(
-        site.villasDetails.clubhouse.map((clubhouse) => clubhouse.name || "Unnamed Clubhouse")
-      );
-    }
+ if (site.ventureType === "Apartments" && site.apartmentsDetails) {
+  
+  if (site.apartmentsDetails.towers && site.apartmentsDetails.towers.length > 0) {
+    siteLocationList = siteLocationList.concat(
+      site.apartmentsDetails.towers.map((tower) => tower.name || "Unnamed Tower")
+    );
   }
+
+  if (site.apartmentsDetails.clubhouse && site.apartmentsDetails.clubhouse.length > 0) {
+    siteLocationList = siteLocationList.concat(
+      site.apartmentsDetails.clubhouse.map((clubhouse, index) =>
+        clubhouse.name ? clubhouse.name : `Club House ${index + 1}`
+      )
+    );
+  }
+
+} else if (site.ventureType === "Highrise or Commercial" && site.buildingsDetails) {
+  
+  if (site.buildingsDetails.towers && site.buildingsDetails.towers.length > 0) {
+    siteLocationList = siteLocationList.concat(
+      site.buildingsDetails.towers.map((tower) => tower.name || "Unnamed Tower")
+    );
+  }
+
+} else if (site.ventureType === "Villas" && site.villasDetails) {
+  
+  if (site.villasDetails.clubhouse && site.villasDetails.clubhouse.length > 0) {
+    siteLocationList = siteLocationList.concat(
+      site.villasDetails.clubhouse.map((clubhouse, index) =>
+        clubhouse.name ? clubhouse.name : `Club House ${index + 1}`
+      )
+    );
+  }
+
+}
 
   siteLocationList = siteLocationList.length > 1 ? siteLocationList : ["General Arrangement"];
   const siteLocation = siteLocationList[0]; // Use the first option for metadata
@@ -580,5 +591,92 @@ exports.checkFileName = catchAsync(async (req, res) => {
     status: "Failed",
     exists: false,
     message: "File does not exist in user's excelFiles",
+  });
+});
+
+
+exports.getSiteLocations = catchAsync(async (req, res, next) => {
+  const { siteId } = req.params;
+
+  // 1. Fetch site with company keyword
+  const site = await Site.findById(siteId)
+    .populate({
+      path: "companyId",
+      select: "companyKeyWord",
+    })
+    .lean();
+
+  if (!site) {
+    return res.status(404).json({
+      status: "fail",
+      message: "Site not found",
+    });
+  }
+
+  // 2. Prepare site location list
+  let siteLocationList = ["General Arrangement"];
+
+  // ---------------- Apartments ----------------
+  if (site.ventureType === "Apartments" && site.apartmentsDetails) {
+    // Towers
+    if (site.apartmentsDetails.towers?.length > 0) {
+      siteLocationList = siteLocationList.concat(
+        site.apartmentsDetails.towers.map(
+          (tower) => tower.name || "Unnamed Tower"
+        )
+      );
+    }
+
+    // Clubhouse (Club House 1, Club House 2...)
+    if (site.apartmentsDetails.clubhouse?.length > 0) {
+      siteLocationList = siteLocationList.concat(
+        site.apartmentsDetails.clubhouse.map((club, index) =>
+          club.name ? club.name : `Club House ${index + 1}`
+        )
+      );
+    }
+  }
+
+  // ---------------- Highrise / Commercial ----------------
+  else if (site.ventureType === "Highrise or Commercial" && site.buildingsDetails) {
+    if (site.buildingsDetails.towers?.length > 0) {
+      siteLocationList = siteLocationList.concat(
+        site.buildingsDetails.towers.map((tower) => tower.name || "Unnamed Tower")
+      );
+    }
+  }
+
+  // ---------------- Villas ----------------
+  else if (site.ventureType === "Villas" && site.villasDetails) {
+    if (site.villasDetails.clubhouse?.length > 0) {
+      siteLocationList = siteLocationList.concat(
+        site.villasDetails.clubhouse.map((club, index) =>
+          club.name ? club.name : `Club House ${index + 1}`
+        )
+      );
+    }
+  }
+
+  // Fallback
+  if (siteLocationList.length <= 1) {
+    siteLocationList = ["General Arrangement"];
+  }
+
+  // 3. Extract drawingNo (array or single value)
+  let drawingNumbers = [];
+  if (Array.isArray(site.drawingNo)) {
+    drawingNumbers = site.drawingNo;
+  } else if (site.drawingNo) {
+    drawingNumbers = [site.drawingNo];
+  }
+
+  return res.status(200).json({
+    status: "success",
+    data: {
+      siteId,
+      companyKeyWord: site.companyId?.companyKeyWord || null,
+      siteLocations: siteLocationList,
+      drawingNumbers,
+    },
   });
 });

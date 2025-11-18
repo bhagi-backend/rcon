@@ -10,6 +10,7 @@ router.post('/create', authController.protect,ArchitectureToRoRegisterController
 
 router.put('/update/:id',authController.protect, ArchitectureToRoRegisterController.updateArchitectureToRoRegister);
 router.get('/getRegisterBySiteId',authController.protect, ArchitectureToRoRegisterController.getRegisterBySiteId);
+router.get('/allReg',authController.protect, ArchitectureToRoRegisterController.getRegistersBySiteAndConsultant );
 router.get('/', authController.protect,ArchitectureToRoRegisterController.getAllDrawing);
 router.delete("/registers", authController.protect,ArchitectureToRoRegisterController.deleteMultipleRegisters);
 router.delete('/:id',authController.protect, ArchitectureToRoRegisterController.deleteDrawing);

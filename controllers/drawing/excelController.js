@@ -10,6 +10,8 @@ const AssignDesignConsultantsToDepartment = require('../../models/drawingModels/
 exports.downloadExcel = catchAsync(async (req, res, next) => {
   const downloadedBy = req.user.email;
   const { siteId, companyId, type } = req.body;
+  const consultantId = req.query.consultantId;
+
 
   // Validate required parameters
   if (!siteId || !companyId) {
@@ -33,8 +35,18 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
       message: "Site not found",
     });
   }
+let consultantRole = "N/A";
 
-  console.log("req.user.id", req.user.id);
+  // Safely fetch consultant role if consultantId exists
+  if (consultantId && mongoose.Types.ObjectId.isValid(consultantId)) {
+    const consultant = await User.findById(consultantId)
+      .select("role")
+      .lean();
+
+    if (consultant && consultant.role) {
+      consultantRole = consultant.role;
+    }
+  } 
 
   let categoryList;
   if (type === "designConsultant") {
@@ -65,7 +77,7 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
       : "No Categories Available";
   }
 
-  console.log("categoryList", categoryList);
+  // console.log("categoryList", categoryList);
 
   // 2. Prepare site location list for metadata
   let siteLocationList = ["Select location","General Arrangement"];
@@ -130,7 +142,10 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
   worksheet.mergeCells("A5:B5");
   worksheet.getCell("C5").value = `Drawing No Format: ${site.drawingNo || "N/A"}`;
   worksheet.mergeCells("C5:D5");
-
+worksheet.getCell("A6").value = `Consultant Role: ${consultantRole}`;
+worksheet.mergeCells("A6:B6");
+worksheet.getCell("C6").value = "";
+worksheet.mergeCells("C6:D6");
   // Add site locations in row range (hidden) starting from row 208
   siteLocationList.forEach((location, index) => {
     worksheet.getCell(`B${208 + index}`).value = location.trim();
@@ -299,7 +314,7 @@ exports.downloadExcel = catchAsync(async (req, res, next) => {
     }
   }
 
-  console.log("Headers set in row 7:", worksheet.getRow(7).values);
+  // console.log("Headers set in row 7:", worksheet.getRow(7).values);
 
   // Generate unique filename
   const year = now.getFullYear().toString().slice(-2);

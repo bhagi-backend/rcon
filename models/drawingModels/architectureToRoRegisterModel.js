@@ -392,6 +392,23 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
   acceptedSiteHeadHardCopyRevisions: {
     type: [HardCopyRevisionSchema],
   },
+  history: [
+  {
+    updatedBy: {
+      type: mongoose.Schema.ObjectId,
+      ref: "User",
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedFields: {
+      type: Object,
+      required: true,
+    },
+  },
+],
+
 });
 
 const ArchitectureToRoRegister = mongoose.model(

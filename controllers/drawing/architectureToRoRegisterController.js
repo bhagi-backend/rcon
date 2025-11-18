@@ -2058,22 +2058,114 @@ exports.updateMultipleRegisters = catchAsync(async (req, res, next) => {
     return next(new AppError("Please provide an array of updates.", 400));
   }
 
+  const userId = req.user.id; // logged-in user ID
+
   const results = await Promise.all(
     updates.map(async ({ id, data }) => {
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return { id, status: "failed", message: "Invalid register ID" };
       }
 
-      const updated = await ArchitectureToRoRegister.findByIdAndUpdate(id, data, {
-        new: true,
-        runValidators: true,
+      // STEP 1: Find the register first
+      const register = await ArchitectureToRoRegister.findById(id);
+
+      if (!register) {
+        return { id, status: "failed", message: "Register not found" };
+      }
+
+      // STEP 2: Apply updates
+      Object.assign(register, data);
+
+      // STEP 3: Push history (latest first)
+      register.history = register.history || [];
+      register.history.unshift({
+        updatedBy: userId,
+        updatedAt: new Date(),
+        updatedFields: data,
       });
 
-      return updated
-        ? { id, status: "success", updatedFields: data }
-        : { id, status: "failed", message: "Register not found" };
+      // STEP 4: Save
+      await register.save({ validateBeforeSave: true });
+
+      return { id, status: "success", updatedFields: data };
     })
   );
 
   res.status(200).json({ status: "success", results });
+});
+
+exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
+  const { siteId, consultantId } = req.query;
+
+  // ---- Validate required siteId ----
+  if (!siteId) {
+    return next(new AppError("siteId is required.", 400));
+  }
+
+  // ---- Create dynamic filter ----
+  const filter = { siteId };
+
+  if (consultantId) {
+    filter.designDrawingConsultant = consultantId;
+  }
+
+  const registers = await ArchitectureToRoRegister.find(filter)
+    .populate({ path: "siteId", select: "siteName siteCode" })
+    .populate({ path: "companyId", select: "companyName companyKeyWord" })
+    .populate({ path: "folderId", select: "folderName" })
+    .populate({ path: "designDrawingConsultant", select: "firstName lastName email role" })
+    .populate({ path: "category", select: "categoryName" })
+
+    // ---- Revision Populations ----
+    .populate({
+      path: "acceptedArchitectRevisions.revisionCreatedBy",
+      select: "firstName lastName email role",
+    })
+    .populate({
+      path: "acceptedRORevisions.revisionCreatedBy",
+      select: "firstName lastName email role",
+    })
+    .populate({
+      path: "acceptedSiteHeadRevisions.revisionCreatedBy",
+      select: "firstName lastName email role",
+    })
+    .populate({
+      path: "acceptedSiteRevisions.revisionCreatedBy",
+      select: "firstName lastName email role",
+    })
+    .populate({
+      path: "acceptedROHardCopyRevisions.revisionCreatedBy",
+      select: "firstName lastName email role",
+    })
+    .populate({
+      path: "acceptedSiteHeadHardCopyRevisions.revisionCreatedBy",
+      select: "firstName lastName email role",
+    })
+
+    // ---- History ----
+    .populate({
+      path: "history.updatedBy",
+      select: "firstName lastName email role",
+    })
+    .lean();
+
+  if (!registers || registers.length === 0) {
+    return res.status(404).json({
+      status: "fail",
+      message: "No registers found for the given filters",
+    });
+  }
+
+  // Sort history latest → oldest
+  registers.forEach((reg) => {
+    reg.history = reg.history?.sort(
+      (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+    );
+  });
+
+  return res.status(200).json({
+    status: "success",
+    results: registers.length,
+    data: registers,
+  });
 });

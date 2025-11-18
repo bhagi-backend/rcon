@@ -1643,7 +1643,7 @@ exports.getRequestByDrawingId = catchAsync(async (req, res, next) => {
     .exec();
 
   if (!requests || requests.length === 0) {
-    return res.status(404).json({
+    return res.status(400).json({
       status: "failed",
       message: "No matching requests found",
     });
@@ -1769,7 +1769,7 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
       populate: [
         { path: "designDrawingConsultant", select: "role" },
         { path: "siteId", select: "siteName siteAddress" },
-        { path: "companyId", select: "companyDetails.companyName" },
+        { path: "companyId", select: "companyDetails.companyName uploadLogo" },
         { path: "category", select: "category" },
         { path: "folderId", select: "folderName" },
       ],
@@ -1822,10 +1822,24 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
   // const cssFileUrl = `file://${path
   //   .join(__dirname, "../../public/styles/pdfgenerator.css")
   //   .replace(/\\/g, "/")}`;
-  const logoPath = null;
+  let logoPath = null;
+const cdnBase = "https://rconfiles.b-cdn.net";
+
+if (first?.drawingId?.companyId?.uploadLogo) {
+  const logoFile = first.drawingId.companyId.uploadLogo;
+
+  // Already full URL?
+  if (logoFile.startsWith("http")) {
+    logoPath = logoFile;
+  } else {
+    logoPath = `${cdnBase}/${logoFile}`;
+  }
+}
+
+console.log("Logo Path:", logoPath);
 const cssFileUrl = null;
   const templatePath = path.join(__dirname, "../../templates/rfi-template.ejs");
-console.log("logoPath",logoPath)
+// console.log("logoPath",logoPath)
 console.log("cssFileUrl",cssFileUrl)
   const userInfo = {
     name: `${first?.createdBy?.firstName || ""} ${first?.createdBy?.lastName ||

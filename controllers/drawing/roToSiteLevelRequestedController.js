@@ -1265,7 +1265,7 @@ exports.getRequestByDrawingId = catchAsync(async (req, res, next) => {
     .exec();
 
   if (!requests || requests.length === 0) {
-    return res.status(404).json({
+    return res.status(400).json({
       status: "failed",
       message: "No matching requests found"
     });

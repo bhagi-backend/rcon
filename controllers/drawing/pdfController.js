@@ -598,36 +598,53 @@ exports.getAllRoReports = async (req, res) => {
   console.log("customizedView",customizedView);
   console.log("userId",userId);
 
-    // Fetch consultants assigned to the user's department for the specified site
-    const consultantsInDepartment = await assignDesignConsultantsToDepartment.findOne({
+     const consultantsInDepartment = await assignDesignConsultantsToDepartment.findOne({
       siteId: siteId,
-      department: userDepartment,
       module: "ro",
-    }).select('designConsultants').exec();
+      // make department matching stronger and case-insensitive
+      department: new RegExp(`^${userDepartment}$`, "i")
+    })
+      .select("designConsultants")
+      .lean();
 
-    console.log("Consultants in Department:", consultantsInDepartment);
+  let designConsultantIds = [];
+
+// If consultants are assigned → use them
+if (consultantsInDepartment && consultantsInDepartment.designConsultants.length > 0) {
+  designConsultantIds = consultantsInDepartment.designConsultants;
+  console.log("Consultant IDs:", designConsultantIds);
+} else {
+  // If NO consultants assigned → fetch based only on siteId
+  console.log("No consultants assigned. Fetching data only using siteId.");
+  designConsultantIds = null;   // mark as no restriction
+}
 
 
-    const designConsultantIds = consultantsInDepartment.designConsultants;
+    // const designConsultantIds = consultantsInDepartment.designConsultants;
 
     let query;
 
-    if (customizedView) {
-      // If customizedView is true, use the original query
-      query = {
-        $and: [
-          { siteId }, // Must match siteId
-          ...(folderId ? [{ folderId }] : []), // Must match folderId if it exists
-          {
-            $or: [
-              { designDrawingConsultant: { $in: designConsultantIds } }, // Should match design consultants if any exist
-              //{ designDrawingConsultant: { $exists: false } } // Optionally include documents without designDrawingConsultant
-            ]
-          }
-        ]
-      };
-      console.log("query1");
-    } else {
+  if (customizedView) {
+  if (designConsultantIds) {
+    // Consultants exist → restricted view
+    query = {
+      $and: [
+        { siteId },
+        ...(folderId ? [{ folderId }] : []),
+        { designDrawingConsultant: { $in: designConsultantIds } }
+      ]
+    };
+  } else {
+    // No consultants assigned → allow all from siteId
+    query = {
+      siteId,
+      ...(folderId ? { folderId } : {})
+    };
+  }
+
+  console.log("query1");
+}
+else {
       // If customizedView is false, fetch data based only on siteId
       query = {
         siteId, // Only match by siteId
@@ -979,31 +996,42 @@ console.log("userId",userId);
       module: "siteHead",
     }).select("designConsultants").exec();
 
-    // If no consultants are found, return an empty array
-    if (!consultantsInDepartment) {
-      return res.status(404).json({ message: "No consultants assigned for the specified criteria.", designConsultants: [] });
-    }
+    let designConsultantIds = [];
 
-    const designConsultantIds = consultantsInDepartment.designConsultants;
+// If consultants are assigned → use them
+if (consultantsInDepartment && consultantsInDepartment.designConsultants.length > 0) {
+  designConsultantIds = consultantsInDepartment.designConsultants;
+  console.log("Consultant IDs:", designConsultantIds);
+} else {
+  // If NO consultants assigned → fetch based only on siteId
+  console.log("No consultants assigned. Fetching data only using siteId.");
+  designConsultantIds = null;   // mark as no restriction
+}
+
 
     let query;
 
-    if (customizedView) {
-      // If customizedView is true, use the original query
-      query = {
-        $and: [
-          { siteId }, // Must match siteId
-          ...(folderId ? [{ folderId }] : []), // Must match folderId if it exists
-          {
-            $or: [
-              { designDrawingConsultant: { $in: designConsultantIds } }, // Should match design consultants if any exist
-             // { designDrawingConsultant: { $exists: false } } // Optionally include documents without designDrawingConsultant
-            ]
-          }
-        ]
-      };
-      console.log("query1");
-    } else {
+  if (customizedView) {
+  if (designConsultantIds) {
+    // Consultants exist → restricted view
+    query = {
+      $and: [
+        { siteId },
+        ...(folderId ? [{ folderId }] : []),
+        { designDrawingConsultant: { $in: designConsultantIds } }
+      ]
+    };
+  } else {
+    // No consultants assigned → allow all from siteId
+    query = {
+      siteId,
+      ...(folderId ? { folderId } : {})
+    };
+  }
+
+  console.log("query1");
+}
+ else {
       // If customizedView is false, fetch data based only on siteId
       query = {
         siteId, // Only match by siteId

@@ -664,8 +664,11 @@ exports.getSiteLocations = catchAsync(async (req, res, next) => {
 
   // 3. Extract drawingNo (array or single value)
   let drawingNumbers = [];
+  let siteKeyword=site.siteKeyWord || "N/A";
   if (Array.isArray(site.drawingNo)) {
     drawingNumbers = site.drawingNo;
+
+    
   } else if (site.drawingNo) {
     drawingNumbers = [site.drawingNo];
   }
@@ -677,6 +680,7 @@ exports.getSiteLocations = catchAsync(async (req, res, next) => {
       companyKeyWord: site.companyId?.companyKeyWord || null,
       siteLocations: siteLocationList,
       drawingNumbers,
+      siteKeyword,
     },
   });
 });

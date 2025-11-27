@@ -80,7 +80,7 @@ let consultantRole = "N/A";
   // console.log("categoryList", categoryList);
 
   // 2. Prepare site location list for metadata
-  let siteLocationList = ["Select location","General Arrangement"];
+  let siteLocationList = ["Select location"];
  if (site.ventureType === "Apartments" && site.apartmentsDetails) {
   
   if (site.apartmentsDetails.towers && site.apartmentsDetails.towers.length > 0) {
@@ -117,7 +117,7 @@ let consultantRole = "N/A";
 
 }
 
-  siteLocationList = siteLocationList.length > 1 ? siteLocationList : ["General Arrangement"];
+  siteLocationList = siteLocationList.length > 1 ? siteLocationList : [];
   const siteLocation = siteLocationList[0]; // Use the first option for metadata
 
   // 3. Create workbook
@@ -412,7 +412,7 @@ exports.downloadExcelForAll = catchAsync(async (req, res, next) => {
   }
 
   // --- Site location preparation ---
-  let siteLocationList = ["Select location", "General Arrangement"];
+  let siteLocationList = ["Select location"];
   if (site.ventureType === "Apartments" && site.apartmentsDetails) {
     if (site.apartmentsDetails.towers?.length)
       siteLocationList = siteLocationList.concat(
@@ -614,7 +614,7 @@ exports.getSiteLocations = catchAsync(async (req, res, next) => {
   }
 
   // 2. Prepare site location list
-  let siteLocationList = ["General Arrangement"];
+  let siteLocationList = [];
 
   // ---------------- Apartments ----------------
   if (site.ventureType === "Apartments" && site.apartmentsDetails) {
@@ -659,7 +659,8 @@ exports.getSiteLocations = catchAsync(async (req, res, next) => {
 
   // Fallback
   if (siteLocationList.length <= 1) {
-    siteLocationList = ["General Arrangement"];
+    // siteLocationList = ["General Arrangement"];
+    siteLocationList = [];
   }
 
   // 3. Extract drawingNo (array or single value)

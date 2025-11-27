@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const siteSoftrevisionSchema = new mongoose.Schema({
   typeOfDrawing: {
     type: String,
-    enum: ["General Arrangement", "Conceptual", "Schematic", "GFC"],
+    enum: ["Conceptual", "Schematic","Default Design", "GFC","As Built"],
   },
   revision: {
     type: String,
@@ -65,7 +65,7 @@ const siteSoftrevisionSchema = new mongoose.Schema({
 const SiteHeadSoftrevisionSchema = new mongoose.Schema({
   typeOfDrawing: {
     type: String,
-    enum: ["General Arrangement", "Conceptual", "Schematic", "GFC"],
+    enum: ["Conceptual", "Schematic","Default Design", "GFC","As Built"],
   },
   revision: {
     type: String,
@@ -132,7 +132,7 @@ const SiteHeadSoftrevisionSchema = new mongoose.Schema({
 const RoSoftrevisionSchema = new mongoose.Schema({
   typeOfDrawing: {
     type: String,
-    enum: ["General Arrangement", "Conceptual", "Schematic", "GFC"],
+    enum: ["Conceptual", "Schematic","Default Design", "GFC","As Built"],
   },
   revision: {
     type: String,
@@ -207,7 +207,7 @@ const RoSoftrevisionSchema = new mongoose.Schema({
 const architectSoftRevisionSchema = new mongoose.Schema({
   typeOfDrawing: {
     type: String,
-    enum: ["General Arrangement", "Conceptual", "Schematic", "GFC"],
+    enum: ["Conceptual", "Schematic","Default Design", "GFC","As Built"],
   },
   revision: {
     type: String,

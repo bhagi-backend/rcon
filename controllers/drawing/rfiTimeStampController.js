@@ -142,24 +142,52 @@ exports.createRfiTimeStamp = catchAsync(async (req, res, next) => {
 
 
 exports.getRfiTimeStampById = catchAsync(async (req, res, next) => {
-    const { companyId } = req.user; 
-    const { siteId } = req.query; 
-    const rfiTimeStamp = await RfiTimeStamp.findOne({ companyId,siteId });
-  
-    if (!rfiTimeStamp){
-      
-    res.status(404).json({
-      status: 'failed',
-      message: 'No RFI timestamp found for this company and site',
+  const { companyId, department } = req.user;
+  console.log(req.user.id)
+  const { siteId } = req.query;
+
+  const rfiTimeStamp = await RfiTimeStamp.findOne({ companyId, siteId });
+
+  if (!rfiTimeStamp) {
+    return res.status(404).json({
+      status: "failed",
+      message: "No RFI timestamp found for this company and site",
     });
-    }
-  
-    res.status(200).json({
-      status: 'success',
-      success: true,
-      data: rfiTimeStamp,
-    });
+  }
+
+  // ---------------------------------------------
+  // NEW LOGIC: Fetch users with drawingEditAccess
+  // ---------------------------------------------
+
+  let userFilter = {
+    companyId,
+    permittedSites: {
+      $elemMatch: {
+        siteId,
+        "enableModules.drawingDetails.drawingEditAccess": true,
+      },
+    },
+  };
+
+  // If login user is Design Consultant → fetch only Design Consultant
+  if (department === "Design Consultant") {
+    userFilter.department = "Design Consultant";
+  }
+
+  const usersWithDrawingEditAccess = await User.find(userFilter).select(
+    "firstName lastName email department empId profilePic"
+  );
+
+  // ---------------------------------------------
+
+  res.status(200).json({
+    status: "success",
+    success: true,
+    data: rfiTimeStamp,
+    usersWithDrawingEditAccess, // Added to output (no existing logic touched)
   });
+});
+
   
 
 // Update an RFI timestamp by ID

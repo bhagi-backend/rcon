@@ -175,62 +175,64 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
       .lean()
       .exec();
 
-    let approvalCount = 0;
-    let pendingCount = 0;
-    let drawingCount = 0;
+    // ---------------------------------------------------
+    // NEW COUNTERS (AS PER YOUR REQUIREMENT)
+    // ---------------------------------------------------
+    let PendingSoftCoyCount = 0; // pending (only empty revisions)
 
-    // 🔥 NEW COUNTS (ADDED ONLY)
-    let noRevisionCount = 0;
-    let rfiRaisedCount = 0;
+    let approvedDrawingCount = 0; // drawing → approved
+    let pendingDrawingCount = 0; // drawing → pending (with revisions)
 
+    // ---------------------------------------------------
+    // UPDATED COUNTING LOGIC
+    // ---------------------------------------------------
     data.forEach((record) => {
       const revisions = record.acceptedArchitectRevisions || [];
 
       const latestRevision =
         revisions.length > 0 ? revisions[revisions.length - 1] : null;
 
-      // ---------------------------------------------
-      // EXISTING LOGIC → DO NOT CHANGE
-      // ---------------------------------------------
-      if (
-        revisions.length <= 0 ||
-        (latestRevision && latestRevision.rfiStatus === "Raised")
-      ) {
-        pendingCount++;
+      // 1️⃣ Pending → Only Empty Revisions
+      if (revisions.length === 0) {
+        PendingSoftCoyCount++;
       }
 
+      // 2️⃣ Drawing → Approved Type (Forwarded + Not Raised)
       if (
-        revisions.length > 0 &&
         latestRevision &&
+        latestRevision.architectRevisionStatus === "Forwarded" &&
         latestRevision.rfiStatus === "Not Raised"
       ) {
-        drawingCount++;
+        approvedDrawingCount++;
       }
 
-      // ---------------------------------------------
-      // NEW SEPARATE COUNTS (added without touching logic)
-      // ---------------------------------------------
-      if (revisions.length <= 0) {
-        noRevisionCount++;
-      }
-
-      if (latestRevision && latestRevision.rfiStatus === "Raised") {
-        rfiRaisedCount++;
+      // // 3️⃣ Drawing → Pending Type (Not Forwarded + Raised)
+      // if (
+      //   latestRevision &&
+      //   latestRevision.architectRevisionStatus === "Not Forwarded" &&
+      //   latestRevision.rfiStatus === "Raised"
+      // )
+      else {
+        pendingDrawingCount++;
       }
     });
 
+    // ---------------------------------------------------
+    // FINAL RESPONSE
+    // ---------------------------------------------------
     return res.status(200).json({
       status: "success",
       data: {
         totalApprovalCount: data.length,
-        totalPendingDrawings: pendingCount,
-        totalDrawingCount: drawingCount,
-
-        // NEW SEPARATE BREAKDOWN
-        pendingBreakdown: {
-          noRevisionCount,
-          rfiRaisedCount,
+ 
+        drawing: {
+          approved: approvedDrawingCount,
+          pending: pendingDrawingCount,
         },
+        // Pending (empty revision only)
+        PendingSoftCoyCount: PendingSoftCoyCount,
+
+       
       },
     });
   }

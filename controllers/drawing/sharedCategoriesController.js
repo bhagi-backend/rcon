@@ -135,6 +135,35 @@ exports.deleteCategory = catchAsync(async (req, res, next) => {
 });
 
 
+// exports.getSharedCategoriesByConsultant = catchAsync(async (req, res, next) => {
+//   const { sharedConsultant, siteId } = req.query;
+
+//   if (!sharedConsultant) {
+//     return res.status(400).json({
+//       status: "fail",
+//       message: "sharedConsultant parameter is required.",
+//     });
+//   }
+
+//   const data = await SharedCategories.find({ siteId, sharedConsultant })
+//       .populate("siteId", "siteName") // populate only siteName
+//       .populate("sharedConsultant", "firstName email role") // populate shared consultant basic info
+//       .populate("sharedCategories.designDrawingConsultant", "firstName email role") // nested population
+//       .populate("sharedCategories.category", "category"); // nested population
+
+//   if (!data || data.length === 0) {
+//     return res.status(404).json({
+//       status: "fail",
+//       message: "No shared categories found for this consultant",
+//     });
+//   }
+
+//   res.status(200).json({
+//     status: "success",
+//     results: data.length,
+//     data,
+//   });
+// });
 exports.getSharedCategoriesByConsultant = catchAsync(async (req, res, next) => {
   const { sharedConsultant, siteId } = req.query;
 
@@ -146,10 +175,10 @@ exports.getSharedCategoriesByConsultant = catchAsync(async (req, res, next) => {
   }
 
   const data = await SharedCategories.find({ siteId, sharedConsultant })
-      .populate("siteId", "siteName") // populate only siteName
-      .populate("sharedConsultant", "firstName email role") // populate shared consultant basic info
-      .populate("sharedCategories.designDrawingConsultant", "firstName email role") // nested population
-      .populate("sharedCategories.category", "category"); // nested population
+    .populate("siteId", "siteName")
+    .populate("sharedConsultant", "firstName email role")
+    .populate("sharedCategories.designDrawingConsultant", "firstName email role")
+    .populate("sharedCategories.category", "category");
 
   if (!data || data.length === 0) {
     return res.status(404).json({
@@ -158,10 +187,34 @@ exports.getSharedCategoriesByConsultant = catchAsync(async (req, res, next) => {
     });
   }
 
+  // ⭐ NEW PART – DO NOT CHANGE ORIGINAL LOGIC
+  // Fetch sharedConsultant user
+  const user = await User.findById(sharedConsultant).select("permittedSites");
+
+  let drawingEditAccess = false;
+
+  if (user && user.permittedSites && user.permittedSites.length > 0) {
+    const site = user.permittedSites.find(
+      (s) => String(s.siteId) === String(siteId)
+    );
+
+    if (site) {
+      drawingEditAccess =
+        site.enableModules?.drawingDetails?.drawingEditAccess || false;
+    }
+  }
+
+  // ⭐ Append new field (not changing existing response)
+  const responseData = {
+    drawingEditAccess, // <-- added
+    records: data,      // <-- original data untouched
+  };
+
+  // ⭐ Final response (no changes in "status", "results")
   res.status(200).json({
     status: "success",
     results: data.length,
-    data,
+    data: responseData,
   });
 });
 

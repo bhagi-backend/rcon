@@ -367,7 +367,7 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
   drawingStatus: {
     type: String,
     enum: ["Approval", "Not Approval"],
-    default: "Not Approval",
+    default: "Approval",
   },
   acceptedArchitectRevisions: {
     type: [architectSoftRevisionSchema],

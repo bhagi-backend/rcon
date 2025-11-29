@@ -36,6 +36,7 @@ const RfiTimeStampSchema = new mongoose.Schema({
       drawingAddFolder: { type: Boolean,default: true  },
       customizedView: { type: Boolean,default: true  },
       rfiRaised: { type: Boolean,default: true  },
+      consultantDrawingEdit: { type: Boolean,default: true  },
       areYouReceivingHardCopiesFromAllConsultants: { type: Boolean,default: true                                     },
       whichConsultantsHaveNotSubmittedHardCopies: [{
         type: mongoose.Schema.ObjectId,

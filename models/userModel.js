@@ -12,6 +12,7 @@ const ArchitectureToRoModuleSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+
   pending: {
     type: Boolean,
     default: false
@@ -268,6 +269,10 @@ const DrawingModuleSchema = new mongoose.Schema({
   optionsDetails: {
     type: OptionsModuleSchema,
     default: {}
+  },
+  drawingEditAccess: {
+    type: Boolean,
+    default: false,
   },
 });
 const UserModuleSchema = new mongoose.Schema({

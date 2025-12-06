@@ -4,6 +4,11 @@ const drawingController = require("../controllers/drawingController");
 const authController = require("../controllers/authController");
 
 Router.post("/PostDrawing", drawingController.createOne);
+
+// Tab order routes (must be before /:id route to avoid route conflicts)
+Router.get("/tab-order", authController.protect, drawingController.getTabOrder);
+Router.post("/tab-order", authController.protect, drawingController.saveTabOrder);
+
 Router.put(
   "/:id",
   drawingController.uploadDrawingPhoto,

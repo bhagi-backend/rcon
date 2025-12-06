@@ -29,6 +29,10 @@ const ArchitectureToRoModuleSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  drawingEditAccess: {
+    type: Boolean,
+    default: true
+  },
 });
 
 const RoModuleSchema = new mongoose.Schema({
@@ -63,6 +67,10 @@ const RoModuleSchema = new mongoose.Schema({
   forwardAccess: {
     type: Boolean,
     default: false
+  },
+  drawingEditAccess: {
+    type: Boolean,
+    default: true
   },
 });
 
@@ -270,10 +278,10 @@ const DrawingModuleSchema = new mongoose.Schema({
     type: OptionsModuleSchema,
     default: {}
   },
-  drawingEditAccess: {
-    type: Boolean,
-    default: false,
-  },
+  // drawingEditAccess: {
+  //   type: Boolean,
+  //   default: false,
+  // },
 });
 const UserModuleSchema = new mongoose.Schema({
   employee: {
@@ -566,6 +574,11 @@ const userSchema = new mongoose.Schema({
    excelFiles:[ {
     type: String,
   },],
+
+  drawingTabOrder: {
+    type: [String],
+    default: ["Drawing", "RFI", "Pending", "Register", "Analysis", "Reports"]
+  },
   // assignnewPnmTasksForUser:[{
   //   type: assignNewPnmsSchema,
   //   default: {}

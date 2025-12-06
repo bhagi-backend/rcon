@@ -560,6 +560,19 @@ exports.getUserWithFilteredModules = catchAsync(async (req, res, next) => {
         // Additional logic for drawingDetails, userDetails, spaceDetails, and checklistDetails
         if (module === 'drawings' && filteredModules[module]) {
           filteredModules.drawingDetails = userModules.drawingDetails || {};
+          
+          // Ensure drawingEditAccess is included in nested details if they exist
+          // Only ArchitectureToRo and RO modules have drawingEditAccess in their schemas
+          if (filteredModules.drawingDetails.architectureToRoDetails) {
+            if (filteredModules.drawingDetails.architectureToRoDetails.drawingEditAccess === undefined) {
+              filteredModules.drawingDetails.architectureToRoDetails.drawingEditAccess = true; // default value from schema
+            }
+          }
+          if (filteredModules.drawingDetails.roDetails) {
+            if (filteredModules.drawingDetails.roDetails.drawingEditAccess === undefined) {
+              filteredModules.drawingDetails.roDetails.drawingEditAccess = true; // default value from schema
+            }
+          }
         }
         if (module === 'user' && filteredModules[module]) {
           filteredModules.userDetails = userModules.userDetails || {};

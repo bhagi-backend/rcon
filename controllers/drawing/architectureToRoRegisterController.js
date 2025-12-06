@@ -2111,22 +2111,41 @@ exports.updateArchitectureToRoRegister = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const update = req.body;
   const loginUser = req.user;
+  const userId = req.user.id;
 
   // -----------------------------------------
-  // 1️⃣ UPDATE DATA
+  // 1️⃣ FIND THE REGISTER FIRST
   // -----------------------------------------
-  const architectureToRoRegister = await ArchitectureToRoRegister.findByIdAndUpdate(
-    id,
-    update,
-    { new: true, runValidators: true }
-  );
+  const architectureToRoRegister = await ArchitectureToRoRegister.findById(id);
 
   if (!architectureToRoRegister) {
     return next(new AppError("No drawing found with that ID", 404));
   }
 
   // -----------------------------------------
-  // 2️⃣ GET CHANGED FIELDS
+  // 2️⃣ SAVE HISTORY BEFORE UPDATING
+  // -----------------------------------------
+  if (Object.keys(update).length > 0) {
+    architectureToRoRegister.history = architectureToRoRegister.history || [];
+    architectureToRoRegister.history.unshift({
+      updatedBy: userId,
+      updatedAt: new Date(),
+      updatedFields: update,
+    });
+  }
+
+  // -----------------------------------------
+  // 3️⃣ APPLY UPDATES
+  // -----------------------------------------
+  Object.assign(architectureToRoRegister, update);
+
+  // -----------------------------------------
+  // 4️⃣ SAVE THE DOCUMENT
+  // -----------------------------------------
+  await architectureToRoRegister.save({ validateBeforeSave: true });
+
+  // -----------------------------------------
+  // 5️⃣ GET CHANGED FIELDS (for notifications)
   // -----------------------------------------
   const changedFields = Object.keys(update)
     .map((key) => `${key}: ${update[key]}`)
@@ -2136,7 +2155,7 @@ exports.updateArchitectureToRoRegister = catchAsync(async (req, res, next) => {
     update.drawingNo || architectureToRoRegister.drawingNo || "";
 
   // -----------------------------------------
-  // 3️⃣ ONLY DESIGN CONSULTANT TRIGGERS RO NOTIFICATIONS
+  // 6️⃣ ONLY DESIGN CONSULTANT TRIGGERS RO NOTIFICATIONS
   // -----------------------------------------
   if (loginUser.department === "Design Consultant") {
     const siteId = architectureToRoRegister.siteId;
@@ -2153,7 +2172,7 @@ exports.updateArchitectureToRoRegister = catchAsync(async (req, res, next) => {
       console.log("Departments with RO access:", departments);
 
       // -----------------------------------------
-      // 4️⃣ GET USERS IN THESE DEPARTMENTS WITH RO ACCESS
+      // 7️⃣ GET USERS IN THESE DEPARTMENTS WITH RO ACCESS
       // -----------------------------------------
       const departmentUsers = await User.find({
         department: { $in: departments },
@@ -2168,7 +2187,7 @@ exports.updateArchitectureToRoRegister = catchAsync(async (req, res, next) => {
       const notifications = [];
 
       // -----------------------------------------
-      // 5️⃣ SEND APP NOTIFICATIONS
+      // 8️⃣ SEND APP NOTIFICATIONS
       // -----------------------------------------
       for (const user of departmentUsers) {
         const notification = await sendNotification(
@@ -2185,7 +2204,7 @@ exports.updateArchitectureToRoRegister = catchAsync(async (req, res, next) => {
       console.log("Notifications sent:", notifications);
 
       // -----------------------------------------
-      // 6️⃣ EMAIL NOTIFICATIONS (With safe error handling)
+      // 9️⃣ EMAIL NOTIFICATIONS (With safe error handling)
       // -----------------------------------------
       const emailSender = process.env.EMAIL_USER;
 
@@ -2222,7 +2241,7 @@ ${emailSender}
   }
 
   // -----------------------------------------
-  // 7️⃣ RESPONSE
+  // 🔟 RESPONSE
   // -----------------------------------------
   res.status(200).json({
     status: "success",
@@ -2515,18 +2534,23 @@ exports.updateMultipleRegisters = catchAsync(async (req, res, next) => {
         return { id, status: "failed", message: "Register not found" };
       }
 
-      // STEP 2: Apply updates
+      // STEP 2: Save history BEFORE applying updates (to capture what will change)
+      if (Object.keys(data).length > 0) {
+        register.history = register.history || [];
+        register.history.unshift({
+          updatedBy: userId,
+          updatedAt: new Date(),
+          updatedFields: data, // Store the fields that will be updated
+        });
+      }
+
+      // STEP 3: Apply updates
       Object.assign(register, data);
 
-      // STEP 3: Push history (latest first)
-      register.history = register.history || [];
-      register.history.unshift({
-        updatedBy: userId,
-        updatedAt: new Date(),
-        updatedFields: data,
-      });
+      // STEP 4: Mark history array as modified to ensure Mongoose saves it
+      register.markModified('history');
 
-      // STEP 4: Save
+      // STEP 5: Save
       await register.save({ validateBeforeSave: true });
 
       return { id, status: "success", updatedFields: data };
@@ -2547,9 +2571,13 @@ exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
   // ---- Create dynamic filter ----
   const filter = { siteId };
 
+  // If consultantId is provided, filter by consultant
+  // If consultantId is NOT provided, show all registers for the site
   if (consultantId) {
     filter.designDrawingConsultant = consultantId;
   }
+  // When consultantId is not provided, filter only contains { siteId }
+  // which means all registers for that site will be returned
 
   const registers = await ArchitectureToRoRegister.find(filter)
     .populate({ path: "siteId", select: "siteName siteCode" })
@@ -2606,6 +2634,41 @@ exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
     reg.history = reg.history?.sort(
       (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
     );
+
+    // Add previousFields and modifiedFields to each history entry
+    if (reg.history && reg.history.length > 0) {
+      reg.history = reg.history.map((historyEntry, index) => {
+        const modifiedFields = historyEntry.updatedFields || {};
+        const previousFields = {};
+
+        // For each field that was modified in this entry, find its previous value
+        Object.keys(modifiedFields).forEach((field) => {
+          let previousValue = null;
+
+          // Look in older history entries (indices > index) to find the last time this field was changed
+          // The value in the most recent older entry that changed this field is the previous value
+          for (let i = index + 1; i < reg.history.length; i++) {
+            const olderEntry = reg.history[i];
+            const olderUpdatedFields = olderEntry.updatedFields || {};
+            if (olderUpdatedFields.hasOwnProperty(field)) {
+              previousValue = olderUpdatedFields[field];
+              break; // Found the most recent older change to this field
+            }
+          }
+
+          // If field wasn't found in older history entries, it means this was the first time it was changed
+          // In this case, we can't determine the previous value from history alone
+          // We'll leave it as null/undefined to indicate the previous value is unknown
+          previousFields[field] = previousValue !== null ? previousValue : undefined;
+        });
+
+        return {
+          ...historyEntry,
+          previousFields,
+          modifiedFields,
+        };
+      });
+    }
   });
 
   return res.status(200).json({
@@ -2614,3 +2677,125 @@ exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
     data: registers,
   });
 });
+// exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
+//   const { siteId, consultantId } = req.query;
+//   const userId = req.user.id;
+//   const userRole = req.user.role;
+
+//   // ---- Validate required siteId ----
+//   if (!siteId) {
+//     return next(new AppError("siteId is required.", 400));
+//   }
+
+//   // ---- Create dynamic filter ----
+//   const filter = { siteId };
+
+//   // ---- Role-based filtering ----
+//   // If logged-in user is Design Consultant, show only their drawings
+//   // Otherwise, show all drawings (ignore consultantId filter)
+//   if (userRole === "Design Consultant") {
+//     // Design Consultant can only see their own drawings
+//     filter.designDrawingConsultant = userId;
+//   } else {
+//     // For other roles, show all drawings (don't filter by consultantId)
+//     // consultantId query parameter is ignored for non-Design Consultant roles
+//   }
+
+//   const registers = await ArchitectureToRoRegister.find(filter)
+//     .populate({ path: "siteId", select: "siteName siteCode" })
+//     .populate({ path: "companyId", select: "companyName companyKeyWord" })
+//     .populate({ path: "folderId", select: "folderName" })
+//     .populate({
+//       path: "designDrawingConsultant",
+//       select: "firstName lastName email role",
+//     })
+//     .populate({ path: "category", select: "categoryName" })
+
+//     // ---- Revision Populations ----
+//     .populate({
+//       path: "acceptedArchitectRevisions.revisionCreatedBy",
+//       select: "firstName lastName email role",
+//     })
+//     .populate({
+//       path: "acceptedRORevisions.revisionCreatedBy",
+//       select: "firstName lastName email role",
+//     })
+//     .populate({
+//       path: "acceptedSiteHeadRevisions.revisionCreatedBy",
+//       select: "firstName lastName email role",
+//     })
+//     .populate({
+//       path: "acceptedSiteRevisions.revisionCreatedBy",
+//       select: "firstName lastName email role",
+//     })
+//     .populate({
+//       path: "acceptedROHardCopyRevisions.revisionCreatedBy",
+//       select: "firstName lastName email role",
+//     })
+//     .populate({
+//       path: "acceptedSiteHeadHardCopyRevisions.revisionCreatedBy",
+//       select: "firstName lastName email role",
+//     })
+
+//     // ---- History ----
+//     .populate({
+//       path: "history.updatedBy",
+//       select: "firstName lastName email role",
+//     })
+//     .lean();
+
+//   if (!registers || registers.length === 0) {
+//     return res.status(404).json({
+//       status: "fail",
+//       message: "No registers found for the given filters",
+//     });
+//   }
+
+//   // Sort history latest → oldest
+//   registers.forEach((reg) => {
+//     reg.history = reg.history?.sort(
+//       (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+//     );
+
+//     // Add previousFields and modifiedFields to each history entry
+//     if (reg.history && reg.history.length > 0) {
+//       reg.history = reg.history.map((historyEntry, index) => {
+//         const modifiedFields = historyEntry.updatedFields || {};
+//         const previousFields = {};
+
+//         // For each field that was modified in this entry, find its previous value
+//         Object.keys(modifiedFields).forEach((field) => {
+//           let previousValue = null;
+
+//           // Look in older history entries (indices > index) to find the last time this field was changed
+//           // The value in the most recent older entry that changed this field is the previous value
+//           for (let i = index + 1; i < reg.history.length; i++) {
+//             const olderEntry = reg.history[i];
+//             const olderUpdatedFields = olderEntry.updatedFields || {};
+//             if (olderUpdatedFields.hasOwnProperty(field)) {
+//               previousValue = olderUpdatedFields[field];
+//               break; // Found the most recent older change to this field
+//             }
+//           }
+
+//           // If field wasn't found in older history entries, it means this was the first time it was changed
+//           // In this case, we can't determine the previous value from history alone
+//           // We'll leave it as null/undefined to indicate the previous value is unknown
+//           previousFields[field] = previousValue !== null ? previousValue : undefined;
+//         });
+
+//         return {
+//           ...historyEntry,
+//           previousFields,
+//           modifiedFields,
+//         };
+//       });
+//     }
+//   });
+
+//   return res.status(200).json({
+//     status: "success",
+//     results: registers.length,
+//     data: registers,
+//   });
+// });

@@ -88,3 +88,57 @@ exports.getAllDrawing = catchAsync(async (req, res, next) => {
     data: allDrawings,
   });
 });
+
+// Get tab order for the current user
+exports.getTabOrder = catchAsync(async (req, res, next) => {
+  const userId = req.user.id;
+  
+  const user = await User.findById(userId).select("drawingTabOrder");
+  
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  // Return default order if user doesn't have a saved order
+  const tabOrder = user.drawingTabOrder && user.drawingTabOrder.length > 0
+    ? user.drawingTabOrder
+    : ["Drawing", "RFI", "Pending", "Register", "Analysis", "Reports"];
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      tabOrder: tabOrder,
+    },
+  });
+});
+
+// Save tab order for the current user
+exports.saveTabOrder = catchAsync(async (req, res, next) => {
+  const userId = req.user.id;
+  const { tabOrder } = req.body;
+
+  if (!tabOrder || !Array.isArray(tabOrder)) {
+    return next(new AppError("Tab order must be an array", 400));
+  }
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { drawingTabOrder: tabOrder },
+    {
+      new: true,
+      runValidators: true,
+    }
+  ).select("drawingTabOrder");
+
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Tab order saved successfully",
+    data: {
+      tabOrder: user.drawingTabOrder,
+    },
+  });
+});

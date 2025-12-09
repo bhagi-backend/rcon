@@ -1,4 +1,5 @@
 const Drawing = require("../models/drawingModel");
+const User = require("../models/userModel");
 const { catchAsync } = require("../utils/catchAsync");
 const multer = require("multer");
 const fs = require("fs");

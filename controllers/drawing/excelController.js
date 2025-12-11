@@ -6,6 +6,7 @@ const { catchAsync } = require("../../utils/catchAsync");
 const AssignCategoriesToDesignDrawingConsultant = require("../../models/drawingModels/assignCategoriesToDesignConsultantModel");
 const mongoose = require("mongoose");
 const AssignDesignConsultantsToDepartment = require('../../models/drawingModels/assignDesignConsultantsToDepartMentModel'); 
+const SiteKeyword = require("../../models/siteKeyWordsModel");
 
 exports.downloadExcel = catchAsync(async (req, res, next) => {
   const downloadedBy = req.user.email;
@@ -594,7 +595,6 @@ exports.checkFileName = catchAsync(async (req, res) => {
   });
 });
 
-
 exports.getSiteLocations = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
 
@@ -627,7 +627,7 @@ exports.getSiteLocations = catchAsync(async (req, res, next) => {
       );
     }
 
-    // Clubhouse (Club House 1, Club House 2...)
+    // Clubhouse
     if (site.apartmentsDetails.clubhouse?.length > 0) {
       siteLocationList = siteLocationList.concat(
         site.apartmentsDetails.clubhouse.map((club, index) =>
@@ -659,21 +659,34 @@ exports.getSiteLocations = catchAsync(async (req, res, next) => {
 
   // Fallback
   if (siteLocationList.length <= 1) {
-    // siteLocationList = ["General Arrangement"];
     siteLocationList = [];
   }
 
-  // 3. Extract drawingNo (array or single value)
+  // 3. Extract drawingNo
   let drawingNumbers = [];
-  let siteKeyword=site.siteKeyWord || "N/A";
+  let siteKeyword = site.siteKeyWord || "N/A";
+
   if (Array.isArray(site.drawingNo)) {
     drawingNumbers = site.drawingNo;
-
-    
   } else if (site.drawingNo) {
     drawingNumbers = [site.drawingNo];
   }
 
+  // ---------------- ADDING TOWERS FROM siteKeyword MODEL ----------------
+  const keywordDoc = await SiteKeyword
+    .findOne({ siteId })
+    .lean();
+
+  let towerKeywordList = [];
+
+  if (keywordDoc && keywordDoc.towers?.length > 0) {
+    towerKeywordList = keywordDoc.towers.map((t) => ({
+      towerName: t.towerName || "",
+      keyWord: t.keyWord || [],
+    }));
+  }
+
+  // ---------------- RETURN RESPONSE (UNCHANGED + towers ADDED) ----------------
   return res.status(200).json({
     status: "success",
     data: {
@@ -682,6 +695,7 @@ exports.getSiteLocations = catchAsync(async (req, res, next) => {
       siteLocations: siteLocationList,
       drawingNumbers,
       siteKeyword,
+      keywords: towerKeywordList, // ⭐ added here
     },
   });
 });

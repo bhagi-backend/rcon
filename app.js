@@ -54,6 +54,7 @@ const mobileDashBoardRouter = require("./routes/mobileRoutes/dashBoardRoutes");
 const webDashBoardRouter = require("./routes/dashBoardRoutes");
 const excelRouter = require("./routes/drawingRoute/excelRoutes");
 const sharedCategoriesRouter = require("./routes/drawingRoute/sharedCategoriesRoutes");
+const siteKeywordRouter = require("./routes/siteKeywordRoutes");
 
 
 
@@ -179,5 +180,6 @@ app.use("/api/dashBoard", mobileDashBoardRouter);
 app.use("/api/webDashBoard", webDashBoardRouter);
 app.use("/api/excel", excelRouter);
 app.use("/api/sharedCategories", sharedCategoriesRouter);
+app.use("/api/siteKeyword", siteKeywordRouter);
 
 module.exports = app;

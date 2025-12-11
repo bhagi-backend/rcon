@@ -238,48 +238,142 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
   }
 );
 
+// exports.getRfiAnalysisCountForConsultant = catchAsync(
+//   async (req, res, next) => {
+//     const { siteId } = req.params;
+//     const { selectTimePeriod, month, year, folderId } = req.query;
+
+//     const userId = req.user.id;
+// console.log("userId",userId)
+//     const user = await User.findById(userId)
+//       .select("role")
+//       .exec();
+//     if (!user) {
+//       return next(new Error("User not found."));
+//     }
+
+//     // Base query
+//     const baseQuery = {
+//       siteId,
+//       designDrawingConsultant: userId,
+//     };
+
+//     // Only add creationDate filter if selectTimePeriod is provided
+//     if (selectTimePeriod) {
+//       const { startDate, endDate } = calculateDateRange(
+//         selectTimePeriod,
+//         parseInt(month),
+//         parseInt(year)
+//       );
+//       baseQuery.creationDate = { $gte: startDate, $lt: endDate };
+//     }
+
+//     if (folderId) {
+//       baseQuery.folderId = folderId;
+//     }
+
+//     const data = await ArchitectureToRoRequest.find(baseQuery).lean();
+
+//     // Separate records based on rfiRaisedBy
+//     const roData = data.filter((record) => record.rfiRaisedBy === "RO");
+//     const siteHeadData = data.filter(
+//       (record) => record.rfiRaisedBy === "SITE HEAD"
+//     );
+
+//     const initialActionCounts = {
+//       Completed: 0,
+//       "Not Completed": 0,
+//       Rejected: 0,
+//       Reopened: 0,
+//       Requested: 0,
+//       Accepted: 0,
+//     };
+
+//     const roActionCounts = { ...initialActionCounts };
+//     const siteHeadActionCounts = { ...initialActionCounts };
+
+//     // ---- Count actions for RO ----
+//     roData.forEach((record) => {
+//       if (Array.isArray(record.natureOfRequestedInformationReasons)) {
+//         record.natureOfRequestedInformationReasons.forEach((reason) => {
+//           if (reason.action && roActionCounts.hasOwnProperty(reason.action)) {
+//             roActionCounts[reason.action] += 1;
+//           }
+//         });
+//       }
+//     });
+
+//     // ---- Count actions for SITE HEAD ----
+//     siteHeadData.forEach((record) => {
+//       if (Array.isArray(record.natureOfRequestedInformationReasons)) {
+//         record.natureOfRequestedInformationReasons.forEach((reason) => {
+//           if (
+//             reason.action &&
+//             siteHeadActionCounts.hasOwnProperty(reason.action)
+//           ) {
+//             siteHeadActionCounts[reason.action] += 1;
+//           }
+//         });
+//       }
+//     });
+
+//     // ---- Response ----
+//     res.status(200).json({
+//       status: "success",
+//       data: {
+//         totalCount: data.length,
+//         ro: {
+//           totalROCount: roData.length,
+//           actionCounts: roActionCounts,
+//         },
+//         siteHead: {
+//           totalSiteHeadCount: siteHeadData.length,
+//           actionCounts: siteHeadActionCounts,
+//         },
+//       },
+//     });
+//   }
+// );
 exports.getRfiAnalysisCountForConsultant = catchAsync(
   async (req, res, next) => {
     const { siteId } = req.params;
     const { selectTimePeriod, month, year, folderId } = req.query;
 
     const userId = req.user.id;
-console.log("userId",userId)
-    const user = await User.findById(userId)
-      .select("role")
-      .exec();
-    if (!user) {
-      return next(new Error("User not found."));
-    }
 
-    // Base query
+    const user = await User.findById(userId).select("role").exec();
+    if (!user) return next(new Error("User not found."));
+
+    // ---- Base Query ---- //
     const baseQuery = {
-      siteId,
+      siteId: siteId,
       designDrawingConsultant: userId,
     };
 
-    // Only add creationDate filter if selectTimePeriod is provided
+    // ---- Date Filter ---- //
     if (selectTimePeriod) {
       const { startDate, endDate } = calculateDateRange(
         selectTimePeriod,
         parseInt(month),
         parseInt(year)
       );
+
       baseQuery.creationDate = { $gte: startDate, $lt: endDate };
     }
 
-    if (folderId) {
-      baseQuery.folderId = folderId;
-    }
+    // ---- Folder Filter ---- //
+    if (folderId) baseQuery.folderId = folderId;
 
+    // ---- Fetch Data ---- //
     const data = await ArchitectureToRoRequest.find(baseQuery).lean();
 
-    // Separate records based on rfiRaisedBy
+    // ---- Split RO vs SITE HEAD ---- //
     const roData = data.filter((record) => record.rfiRaisedBy === "RO");
     const siteHeadData = data.filter(
       (record) => record.rfiRaisedBy === "SITE HEAD"
     );
 
+    // ---- Initial counts ---- //
     const initialActionCounts = {
       Completed: 0,
       "Not Completed": 0,
@@ -287,45 +381,69 @@ console.log("userId",userId)
       Reopened: 0,
       Requested: 0,
       Accepted: 0,
+      Pending: 0, // <-- Added
     };
 
     const roActionCounts = { ...initialActionCounts };
     const siteHeadActionCounts = { ...initialActionCounts };
 
-    // ---- Count actions for RO ----
+    // ---- Count RO Actions ---- //
     roData.forEach((record) => {
-      if (Array.isArray(record.natureOfRequestedInformationReasons)) {
-        record.natureOfRequestedInformationReasons.forEach((reason) => {
-          if (reason.action && roActionCounts.hasOwnProperty(reason.action)) {
-            roActionCounts[reason.action] += 1;
-          }
-        });
+      const reasons = record.natureOfRequestedInformationReasons;
+
+      if (!Array.isArray(reasons) || reasons.length === 0) {
+        roActionCounts.Pending += 1;
+        return;
       }
+
+      let hasValidAction = false;
+
+      reasons.forEach((reason) => {
+        const action = reason.action;
+        if (action && roActionCounts[action] !== undefined) {
+          roActionCounts[action] += 1;
+          hasValidAction = true;
+        }
+      });
+
+      if (!hasValidAction) roActionCounts.Pending += 1;
     });
 
-    // ---- Count actions for SITE HEAD ----
+    // ---- Count SITE HEAD Actions ---- //
     siteHeadData.forEach((record) => {
-      if (Array.isArray(record.natureOfRequestedInformationReasons)) {
-        record.natureOfRequestedInformationReasons.forEach((reason) => {
-          if (
-            reason.action &&
-            siteHeadActionCounts.hasOwnProperty(reason.action)
-          ) {
-            siteHeadActionCounts[reason.action] += 1;
-          }
-        });
+      const reasons = record.natureOfRequestedInformationReasons;
+
+      if (!Array.isArray(reasons) || reasons.length === 0) {
+        siteHeadActionCounts.Pending += 1;
+        return;
       }
+
+      let hasValidAction = false;
+
+      reasons.forEach((reason) => {
+        const action = reason.action;
+        if (action && siteHeadActionCounts[action] !== undefined) {
+          siteHeadActionCounts[action] += 1;
+          hasValidAction = true;
+        }
+      });
+
+      if (!hasValidAction) siteHeadActionCounts.Pending += 1;
     });
 
-    // ---- Response ----
+    // ---- Response ---- //
     res.status(200).json({
+      statusCode: 200,
       status: "success",
+      message: "RFI Analysis Count Fetched Successfully",
       data: {
         totalCount: data.length,
+
         ro: {
           totalROCount: roData.length,
           actionCounts: roActionCounts,
         },
+
         siteHead: {
           totalSiteHeadCount: siteHeadData.length,
           actionCounts: siteHeadActionCounts,
@@ -334,7 +452,6 @@ console.log("userId",userId)
     });
   }
 );
-
 
 exports.getAcceptedRoRevisions = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
@@ -912,16 +1029,193 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
 });
 
 
+// exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) => {
+//   const { siteId } = req.params;
+//   const { selectTimePeriod, month, year, folderId } = req.query;
+//   const userId = req.user.id;
+//   console.log("userId",userId)
+//   const dep = req.user.department;
+
+//   console.log("dep", dep);
+
+//   // Step 1: Validate user permissions for this site
+//   const user = await User.findOne({
+//     _id: userId,
+//     "permittedSites.siteId": siteId,
+//   }).select("permittedSites department");
+
+//   if (!user) {
+//     return res.status(403).json({
+//       status: "error",
+//       message: "User does not have access to this site.",
+//     });
+//   }
+
+//   // Extract permissions and roles
+//   const sitePermissions = user.permittedSites.find(
+//     (site) => site.siteId.toString() === siteId
+//   );
+
+//   const customizedView =
+//     sitePermissions?.enableModules?.customizedView || false;
+//   const isSiteHead =
+//     sitePermissions?.enableModules?.drawingDetails?.siteHead || false;
+//   const isRo =
+//     sitePermissions?.enableModules?.drawingDetails?.ro || false;
+
+//   // Step 2: Calculate date range only if selectTimePeriod is provided
+//   let startDate, endDate;
+//   if (selectTimePeriod) {
+//     ({ startDate, endDate } = calculateDateRange(
+//       selectTimePeriod,
+//       parseInt(month),
+//       parseInt(year)
+//     ));
+//   }
+
+//   // Step 3: Base query
+//   let query = { siteId };
+
+//   if (selectTimePeriod) {
+//     query.creationDate = { $gte: startDate, $lt: endDate };
+//   }
+
+//   if (folderId) {
+//     query.folderId = folderId;
+//   }
+
+//   // Step 4: Fetch design consultant IDs based on role
+//   let designConsultantIds = [];
+
+//   if (isSiteHead) {
+//     const consultants = await assignDesignConsultantsToDepartment
+//       .findOne({
+//         siteId: siteId,
+//         department: user.department,
+//         module: "siteHead",
+//       })
+//       .select("designConsultants")
+//       .lean();
+
+//     console.log("isSiteHead",consultants);
+//     designConsultantIds = consultants ? consultants.designConsultants : [];
+//   } else if (isRo) {
+//     const consultants = await assignDesignConsultantsToDepartment
+//       .findOne({
+//         siteId: siteId,
+//         department: user.department,
+//         module: "ro",
+//       })
+//       .select("designConsultants")
+//       .lean();
+
+//     console.log("isRo",consultants);
+//     designConsultantIds = consultants ? consultants.designConsultants : [];
+//   }
+
+//   // Step 5: Apply customizedView filter
+//   if (customizedView) {
+//     query = {
+//       ...query,
+//       $and: [
+//         ...(folderId ? [{ folderId }] : []),
+//         {
+//           $or: [{ designDrawingConsultant: { $in: designConsultantIds } }],
+//         },
+//       ],
+//     };
+//   }
+
+//   // Step 6: Fetch main data
+//   const data = await RoToSiteLevelRequest.find(query);
+
+//   // -----------------------------------------------------
+//   // ⭐⭐ NEW: FETCH ALL THREE REQUEST TYPES SEPARATELY
+//   // -----------------------------------------------------
+//   const roToSiteData = await RoToSiteLevelRequest.find(query).lean();
+//   const siteToSiteData = await SiteToSiteLevelRequest.find(query).lean();
+//   const archToRoData = await ArchitectureToRoRequest.find(query).lean();
+
+//   // Helper to count actions
+//   function countActions(records) {
+//     const actionCounts = {
+//       Completed: 0,
+//       "Not Completed": 0,
+//       Rejected: 0,
+//       Reopened: 0,
+//       Requested: 0,
+//       Accepted: 0,
+//     };
+
+//     records.forEach((record) => {
+//       if (Array.isArray(record.natureOfRequestedInformationReasons)) {
+//         record.natureOfRequestedInformationReasons.forEach((reason) => {
+//           if (reason.action && actionCounts.hasOwnProperty(reason.action)) {
+//             actionCounts[reason.action] += 1;
+//           }
+//         });
+//       }
+//     });
+
+//     return actionCounts;
+//   }
+
+//   const roActions = countActions(roToSiteData);
+//   const siteHeadActions = countActions(siteToSiteData);
+//   const architectureToRoActions = countActions(archToRoData);
+
+//   // -----------------------------------------------------
+
+//   // Step 7: Additional counts based on roles
+//   let counts = {};
+
+//   if (isRo) {
+//     const archToRoCount = archToRoData.length;
+//     const roToSiteLevelCount = roToSiteData.length;
+
+//     counts = {
+//       architectureToRoRequested: archToRoCount,
+//       roToSiteLevelRequest: roToSiteLevelCount,
+
+//       // New action breakdown
+//       roActions,
+//       siteHeadActions,
+//       architectureToRoActions,
+//     };
+//   }
+
+//   if (isSiteHead) {
+//     const roToSiteLevelCount = roToSiteData.length;
+//     const siteToSiteLevelCount = siteToSiteData.length;
+
+//     const archToRoCount = archToRoData.filter(
+//       (r) => r.rfiRaisedBy === "SITE HEAD"
+//     ).length;
+
+//     counts = {
+//       roToSiteLevelRequest: roToSiteLevelCount,
+//       siteToSiteLevelRequest: siteToSiteLevelCount,
+//       architectureToRoRequested: archToRoCount,
+
+//       // New action breakdown
+//       roActions,
+//       siteHeadActions,
+//       architectureToRoActions,
+//     };
+//   }
+
+//   // Step 8: Final response
+//   res.status(200).json({
+//     status: "success",
+//     data,
+//     counts,
+//   });
+// });
 exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
   const { selectTimePeriod, month, year, folderId } = req.query;
   const userId = req.user.id;
-  console.log("userId",userId)
-  const dep = req.user.department;
 
-  console.log("dep", dep);
-
-  // Step 1: Validate user permissions for this site
   const user = await User.findOne({
     _id: userId,
     "permittedSites.siteId": siteId,
@@ -934,7 +1228,6 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     });
   }
 
-  // Extract permissions and roles
   const sitePermissions = user.permittedSites.find(
     (site) => site.siteId.toString() === siteId
   );
@@ -946,7 +1239,7 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
   const isRo =
     sitePermissions?.enableModules?.drawingDetails?.ro || false;
 
-  // Step 2: Calculate date range only if selectTimePeriod is provided
+  // Date Range
   let startDate, endDate;
   if (selectTimePeriod) {
     ({ startDate, endDate } = calculateDateRange(
@@ -956,7 +1249,7 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     ));
   }
 
-  // Step 3: Base query
+  // Base query
   let query = { siteId };
 
   if (selectTimePeriod) {
@@ -967,7 +1260,7 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     query.folderId = folderId;
   }
 
-  // Step 4: Fetch design consultant IDs based on role
+  // Consultant logic
   let designConsultantIds = [];
 
   if (isSiteHead) {
@@ -980,7 +1273,6 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
       .select("designConsultants")
       .lean();
 
-    console.log("isSiteHead",consultants);
     designConsultantIds = consultants ? consultants.designConsultants : [];
   } else if (isRo) {
     const consultants = await assignDesignConsultantsToDepartment
@@ -992,11 +1284,10 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
       .select("designConsultants")
       .lean();
 
-    console.log("isRo",consultants);
     designConsultantIds = consultants ? consultants.designConsultants : [];
   }
 
-  // Step 5: Apply customizedView filter
+  // Customized View Filter
   if (customizedView) {
     query = {
       ...query,
@@ -1009,17 +1300,15 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     };
   }
 
-  // Step 6: Fetch main data
+  // Fetch main data
   const data = await RoToSiteLevelRequest.find(query);
 
-  // -----------------------------------------------------
-  // ⭐⭐ NEW: FETCH ALL THREE REQUEST TYPES SEPARATELY
-  // -----------------------------------------------------
+  // Three request types
   const roToSiteData = await RoToSiteLevelRequest.find(query).lean();
   const siteToSiteData = await SiteToSiteLevelRequest.find(query).lean();
   const archToRoData = await ArchitectureToRoRequest.find(query).lean();
 
-  // Helper to count actions
+  // Count actions helper
   function countActions(records) {
     const actionCounts = {
       Completed: 0,
@@ -1043,24 +1332,61 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     return actionCounts;
   }
 
+  // Existing logic (remain same)
   const roActions = countActions(roToSiteData);
   const siteHeadActions = countActions(siteToSiteData);
-  const architectureToRoActions = countActions(archToRoData);
 
-  // -----------------------------------------------------
+  // ============================================================
+  // ⭐⭐ UPDATED: architectureToRoActions — GROUP BY CONSULTANT
+  // ============================================================
+  const consultantIds = [
+    ...new Set(archToRoData.map((r) => r.designDrawingConsultant)),
+  ].filter(Boolean);
 
-  // Step 7: Additional counts based on roles
+  const consultantDetails = await User.find({
+    _id: { $in: consultantIds },
+  }).select("_id firstName");
+
+  const architectureToRoActions = {};
+
+  consultantDetails.forEach((c) => {
+    architectureToRoActions[c._id] = {
+      consultantName: c.firstName,
+      Completed: 0,
+      "Not Completed": 0,
+      Rejected: 0,
+      Reopened: 0,
+      Requested: 0,
+      Accepted: 0,
+    };
+  });
+
+  archToRoData.forEach((record) => {
+    const consultantId = record.designDrawingConsultant;
+    if (!consultantId) return;
+
+    const actionsForConsultant = architectureToRoActions[consultantId];
+    if (!actionsForConsultant) return;
+
+    if (Array.isArray(record.natureOfRequestedInformationReasons)) {
+      record.natureOfRequestedInformationReasons.forEach((reason) => {
+        if (
+          reason.action &&
+          actionsForConsultant.hasOwnProperty(reason.action)
+        ) {
+          actionsForConsultant[reason.action] += 1;
+        }
+      });
+    }
+  });
+
+  // Final counts
   let counts = {};
 
   if (isRo) {
-    const archToRoCount = archToRoData.length;
-    const roToSiteLevelCount = roToSiteData.length;
-
     counts = {
-      architectureToRoRequested: archToRoCount,
-      roToSiteLevelRequest: roToSiteLevelCount,
-
-      // New action breakdown
+      architectureToRoRequested: archToRoData.length,
+      roToSiteLevelRequest: roToSiteData.length,
       roActions,
       siteHeadActions,
       architectureToRoActions,
@@ -1068,26 +1394,19 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
   }
 
   if (isSiteHead) {
-    const roToSiteLevelCount = roToSiteData.length;
-    const siteToSiteLevelCount = siteToSiteData.length;
-
-    const archToRoCount = archToRoData.filter(
-      (r) => r.rfiRaisedBy === "SITE HEAD"
-    ).length;
-
     counts = {
-      roToSiteLevelRequest: roToSiteLevelCount,
-      siteToSiteLevelRequest: siteToSiteLevelCount,
-      architectureToRoRequested: archToRoCount,
-
-      // New action breakdown
+      roToSiteLevelRequest: roToSiteData.length,
+      siteToSiteLevelRequest: siteToSiteData.length,
+      architectureToRoRequested: archToRoData.filter(
+        (r) => r.rfiRaisedBy === "SITE HEAD"
+      ).length,
       roActions,
       siteHeadActions,
       architectureToRoActions,
     };
   }
 
-  // Step 8: Final response
+  // Response
   res.status(200).json({
     status: "success",
     data,

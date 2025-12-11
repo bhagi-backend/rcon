@@ -1136,15 +1136,46 @@ exports.uploadFiles = upload.fields([
   { name: "drawingFileName", maxCount: 1 },
   { name: "pdfDrawingFileName", maxCount: 1 },
 ]);
-// const getNextRevisionNumber = (revisions) => {
-//   const revisionNumbers = revisions.map(r => parseInt(r.revision.slice(1), 10));
-//   const maxRevisionNumber = revisionNumbers.length > 0 ? Math.max(...revisionNumbers) : -1;
-//   return `R${maxRevisionNumber + 1}`;
+
+// const getNextRevisionNumber = (revisions, typeOfDrawing) => {
+//   // Map typeOfDrawing to prefix
+//   const prefixMap = {
+//     // "General Arrangement": "GA",
+//     Conceptual: "C",
+//     Schematic: "S",
+//     "Default Design": "D",
+//     "As Built": "A",
+//     GFC: "",
+//   };
+
+//   const currentPrefix = prefixMap[typeOfDrawing] || "";
+
+//   if (!revisions.length) {
+//     // If no revisions exist, always start from R0
+//     return currentPrefix ? `${currentPrefix}-R0` : `R0`;
+//   }
+
+//   const latestRevision = revisions[revisions.length - 1].revision;
+
+//   // Extract prefix and number
+//   const [latestPrefix, latestNumberPart] = latestRevision.includes("-")
+//     ? latestRevision.split("-")
+//     : ["", latestRevision];
+
+//   // If the typeOfDrawing matches the latest revision's prefix → increment
+//   if (
+//     currentPrefix === latestPrefix ||
+//     (currentPrefix === "" && latestPrefix === "") // For GFC case
+//   ) {
+//     const nextNumber = parseInt(latestNumberPart.slice(1), 10) + 1;
+//     return currentPrefix ? `${currentPrefix}-R${nextNumber}` : `R${nextNumber}`;
+//   }
+
+//   // If typeOfDrawing changed → start fresh from R0
+//   return currentPrefix ? `${currentPrefix}-R0` : `R0`;
 // };
 const getNextRevisionNumber = (revisions, typeOfDrawing) => {
-  // Map typeOfDrawing to prefix
   const prefixMap = {
-    // "General Arrangement": "GA",
     Conceptual: "C",
     Schematic: "S",
     "Default Design": "D",
@@ -1152,31 +1183,34 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
     GFC: "",
   };
 
-  const currentPrefix = prefixMap[typeOfDrawing] || "";
+  const prefix = prefixMap[typeOfDrawing] || "";
 
+  // If no revisions exist → start with R0
   if (!revisions.length) {
-    // If no revisions exist, always start from R0
-    return currentPrefix ? `${currentPrefix}-R0` : `R0`;
+    return prefix ? `${prefix}-R0` : `R0`;
   }
 
-  const latestRevision = revisions[revisions.length - 1].revision;
+  // Extract the highest revision number (global)
+  let maxNumber = -1;
 
-  // Extract prefix and number
-  const [latestPrefix, latestNumberPart] = latestRevision.includes("-")
-    ? latestRevision.split("-")
-    : ["", latestRevision];
+  revisions.forEach((rev) => {
+    let revision = rev.revision; // example: C-R0, S-R2, R1
 
-  // If the typeOfDrawing matches the latest revision's prefix → increment
-  if (
-    currentPrefix === latestPrefix ||
-    (currentPrefix === "" && latestPrefix === "") // For GFC case
-  ) {
-    const nextNumber = parseInt(latestNumberPart.slice(1), 10) + 1;
-    return currentPrefix ? `${currentPrefix}-R${nextNumber}` : `R${nextNumber}`;
-  }
+    // Remove prefix if exists → get R<number>
+    if (revision.includes("-")) {
+      revision = revision.split("-")[1]; // R0, R2
+    }
 
-  // If typeOfDrawing changed → start fresh from R0
-  return currentPrefix ? `${currentPrefix}-R0` : `R0`;
+    const num = parseInt(revision.replace("R", ""), 10);
+    if (!isNaN(num) && num > maxNumber) {
+      maxNumber = num;
+    }
+  });
+
+  // Next revision number globally
+  const nextNumber = maxNumber + 1;
+
+  return prefix ? `${prefix}-R${nextNumber}` : `R${nextNumber}`;
 };
 
 exports.updateRevisions = catchAsync(async (req, res, next) => {

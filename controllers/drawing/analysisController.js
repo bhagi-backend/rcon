@@ -1239,7 +1239,9 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
   const isRo =
     sitePermissions?.enableModules?.drawingDetails?.ro || false;
 
+  // ---------------------------------------
   // Date Range
+  // ---------------------------------------
   let startDate, endDate;
   if (selectTimePeriod) {
     ({ startDate, endDate } = calculateDateRange(
@@ -1249,7 +1251,9 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     ));
   }
 
+  // ---------------------------------------
   // Base query
+  // ---------------------------------------
   let query = { siteId };
 
   if (selectTimePeriod) {
@@ -1260,7 +1264,9 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     query.folderId = folderId;
   }
 
+  // ---------------------------------------
   // Consultant logic
+  // ---------------------------------------
   let designConsultantIds = [];
 
   if (isSiteHead) {
@@ -1287,7 +1293,9 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     designConsultantIds = consultants ? consultants.designConsultants : [];
   }
 
+  // ---------------------------------------
   // Customized View Filter
+  // ---------------------------------------
   if (customizedView) {
     query = {
       ...query,
@@ -1300,7 +1308,9 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     };
   }
 
+  // ---------------------------------------
   // Fetch main data
+  // ---------------------------------------
   const data = await RoToSiteLevelRequest.find(query);
 
   // Three request types
@@ -1308,7 +1318,9 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
   const siteToSiteData = await SiteToSiteLevelRequest.find(query).lean();
   const archToRoData = await ArchitectureToRoRequest.find(query).lean();
 
-  // Count actions helper
+  // ---------------------------------------
+  // Count Actions Helper
+  // ---------------------------------------
   function countActions(records) {
     const actionCounts = {
       Completed: 0,
@@ -1332,41 +1344,49 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     return actionCounts;
   }
 
-  // Existing logic (remain same)
+  // Existing logic (unchanged)
   const roActions = countActions(roToSiteData);
   const siteHeadActions = countActions(siteToSiteData);
 
-  // ============================================================
+  // ===========================================================
   // ⭐⭐ UPDATED: architectureToRoActions — GROUP BY CONSULTANT
-  // ============================================================
+  // ===========================================================
+
   const consultantIds = [
     ...new Set(archToRoData.map((r) => r.designDrawingConsultant)),
   ].filter(Boolean);
 
   const consultantDetails = await User.find({
     _id: { $in: consultantIds },
-  }).select("_id firstName");
+  }).select("_id firstName role");
 
-  const architectureToRoActions = {};
+  // Create array format
+  const architectureToRoActions = consultantDetails.map((c) => ({
+    consultantName: c.firstName,
+    consultantRole: c.role,
+    Completed: 0,
+    "Not Completed": 0,
+    Rejected: 0,
+    Reopened: 0,
+    Requested: 0,
+    Accepted: 0,
+  }));
 
-  consultantDetails.forEach((c) => {
-    architectureToRoActions[c._id] = {
-      consultantName: c.firstName,
-      Completed: 0,
-      "Not Completed": 0,
-      Rejected: 0,
-      Reopened: 0,
-      Requested: 0,
-      Accepted: 0,
-    };
+  // Map consultantId → index
+  const consultantIndexMap = {};
+  consultantDetails.forEach((c, index) => {
+    consultantIndexMap[c._id] = index;
   });
 
+  // Count actions for each consultant
   archToRoData.forEach((record) => {
     const consultantId = record.designDrawingConsultant;
     if (!consultantId) return;
 
-    const actionsForConsultant = architectureToRoActions[consultantId];
-    if (!actionsForConsultant) return;
+    const idx = consultantIndexMap[consultantId];
+    if (idx === undefined) return;
+
+    const actionsForConsultant = architectureToRoActions[idx];
 
     if (Array.isArray(record.natureOfRequestedInformationReasons)) {
       record.natureOfRequestedInformationReasons.forEach((reason) => {
@@ -1380,7 +1400,9 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     }
   });
 
-  // Final counts
+  // ---------------------------------------
+  // Final Count Values
+  // ---------------------------------------
   let counts = {};
 
   if (isRo) {
@@ -1406,15 +1428,15 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     };
   }
 
+  // ---------------------------------------
   // Response
+  // ---------------------------------------
   res.status(200).json({
     status: "success",
     data,
     counts,
   });
 });
-
-
 
 
 

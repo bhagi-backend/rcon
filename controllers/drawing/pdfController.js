@@ -106,7 +106,7 @@ exports.getArchitectReports = async (req, res) => {
     const query = {
       siteId: siteId,
       designDrawingConsultant: designDrawingConsultantId,
-      drawingStatus: "Approval",
+      // drawingStatus: "Approval",
     };
     if (folderId) {
       query.folderId = folderId;
@@ -133,7 +133,7 @@ exports.getArchitectReports = async (req, res) => {
         const pendingQuery = {
           designDrawingConsultant: designDrawingConsultantId,
           siteId: siteId,
-          drawingStatus: "Approval",
+          // drawingStatus: "Approval",
           $or: [
             { acceptedArchitectRevisions: { $size: 0 } },
            // { acceptedROHardCopyRevisions: { $size: 0 } },
@@ -163,6 +163,8 @@ exports.getArchitectReports = async (req, res) => {
 
         const filteredRfiData = rfiData.filter(item => item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId);
         data = filteredRfiData;
+        // console.log("RFI count:", rfiData.length);
+
         break;
 
       default:
@@ -351,7 +353,7 @@ exports.getRoReports = async (req, res) => {
     const query = {
       siteId: siteId,
       designDrawingConsultant: designDrawingConsultantId,
-       drawingStatus: "Approval",
+      //  drawingStatus: "Approval",
     };
     if (folderId) {
       query.folderId = folderId; // Include folderId if provided
@@ -436,7 +438,7 @@ exports.getRoReports = async (req, res) => {
         const pendingQuery = {
           designDrawingConsultant: designDrawingConsultantId,
           siteId: siteId,
-          drawingStatus: "Approval",
+          // drawingStatus: "Approval",
           $or: [
             { acceptedArchitectRevisions: { $size: 0 } },
             { acceptedRORevisions: { $size: 0 } },
@@ -467,7 +469,7 @@ exports.getRoReports = async (req, res) => {
           ],
         })
         .exec();
-      console.log("Fetched Architecture RFI Data:", architectureRfiData);
+      // console.log("Fetched Architecture RFI Data:", architectureRfiData);
       
       // Fetch Site Level RFI Data
       const siteLevelRfiData = await RoToSiteLevelRoRequest.find(query)
@@ -482,7 +484,7 @@ exports.getRoReports = async (req, res) => {
         })
         .exec();
       
-      console.log("Fetched Site Level RFI Data:", siteLevelRfiData);
+      // console.log("Fetched Site Level RFI Data:", siteLevelRfiData);
 
         // Filter RFI data based on criteria
         const filteredArchitectureRfiData = architectureRfiData.filter(item => {
@@ -517,8 +519,8 @@ exports.getRoReports = async (req, res) => {
           siteEndDate
 
         };
-        console.log("Filtered Architecture RFI Data:", filteredArchitectureRfiData);
-        console.log("Filtered Site Level RFI Data:", filteredSiteLevelRfiData);
+        // console.log("Filtered Architecture RFI Data:", filteredArchitectureRfiData);
+        // console.log("Filtered Site Level RFI Data:", filteredSiteLevelRfiData);
         break;
 
       default:
@@ -855,7 +857,7 @@ exports.getsiteHeadReports = async (req, res) => {
     const query = {
       siteId: siteId,
       designDrawingConsultant: designDrawingConsultantId,
-       drawingStatus: "Approval",
+      //  drawingStatus: "Approval",
     };
     if (folderId) {
       query.folderId = folderId; // Include folderId if provided

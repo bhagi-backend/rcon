@@ -934,13 +934,22 @@ const formatGroupName = (companyName) => {
 // });
 exports.createCompany = catchAsync(async (req, res, next) => {
   let companyId, username;
-  const newCompany = new Company(req.body);
-  await newCompany.save();
-  companyId = newCompany._id;
-  const { companyName } = newCompany.companyDetails;
-  const formattedGroupName = formatGroupName(companyName);
+  let formattedGroupName;
 
   try {
+    // -----------------------------
+    // Create Company
+    // -----------------------------
+    const newCompany = new Company(req.body);
+    await newCompany.save();
+    companyId = newCompany._id;
+
+    const { companyName } = newCompany.companyDetails;
+    formattedGroupName = formatGroupName(companyName);
+
+    // -----------------------------
+    // Create Cognito Group
+    // -----------------------------
     const createGroupParams = {
       GroupName: formattedGroupName,
       UserPoolId: process.env.COGNITO_USER_POOL_ID,
@@ -949,11 +958,13 @@ exports.createCompany = catchAsync(async (req, res, next) => {
 
     await cognitoClient.send(new CreateGroupCommand(createGroupParams));
 
+    // -----------------------------
+    // Create Cognito User
+    // -----------------------------
     const { email, firstName } = req.body.userDetails;
     const password = generateDefaultPassword(firstName);
     const username1 = `user_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-    // Create user in Cognito
     const createUserParams = {
       UserPoolId: process.env.COGNITO_USER_POOL_ID,
       Username: username1,
@@ -963,67 +974,134 @@ exports.createCompany = catchAsync(async (req, res, next) => {
         { Name: 'email_verified', Value: 'true' },
       ],
       TemporaryPassword: password,
-      // MessageAction: 'SUPPRESS', // Suppress the sending of the welcome email
     };
 
     const cognitoResponse = await cognitoClient.send(
       new AdminCreateUserCommand(createUserParams)
     );
+
     username = cognitoResponse.User.Username;
 
-    // Add user to the Cognito group
+    // -----------------------------
+    // Add User to Group
+    // -----------------------------
     await addUserToGroup(username, formattedGroupName);
 
-    // Create the user in MongoDB
+    // -----------------------------
+    // Create User in MongoDB
+    // -----------------------------
     const newUser = new User({
       ...req.body.userDetails,
       companyId,
       createdBy: req.user.id,
     });
+
     await newUser.save();
 
-    res.status(201).json({
+    // -----------------------------
+    // Success Response
+    // -----------------------------
+    return res.status(201).json({
       status: 'success',
+      message: 'Company and user created successfully',
       data: {
         company: newCompany,
         user: newUser,
       },
-      msg: 'Company and user created successfully, and user added to the Cognito group.',
     });
-  } catch (error) {
-    console.error('Error during company creation:', error.message);
 
-    // Rollback logic
+  } catch (error) {
+    console.error('❌ Error during company creation:', error);
+
+    // =================================================
+    // Rollback Logic (UNCHANGED)
+    // =================================================
     if (username) {
-      await deleteCognitoUser(username).catch(deleteError =>
-        console.error('Failed to delete Cognito user during rollback:', deleteError.message)
+      await deleteCognitoUser(username).catch(err =>
+        console.error('Rollback failed (delete Cognito user):', err.message)
       );
     }
+
     if (formattedGroupName) {
       const deleteGroupParams = {
         GroupName: formattedGroupName,
         UserPoolId: process.env.COGNITO_USER_POOL_ID,
       };
+
       await cognitoClient
         .send(new DeleteGroupCommand(deleteGroupParams))
-        .catch(groupDeleteError =>
-          console.error('Failed to delete Cognito group during rollback:', groupDeleteError.message)
+        .catch(err =>
+          console.error('Rollback failed (delete Cognito group):', err.message)
         );
     }
+
     if (companyId) {
-      await Company.findByIdAndDelete(companyId).catch(companyDeleteError =>
-        console.error('Failed to delete company during rollback:', companyDeleteError.message)
+      await Company.findByIdAndDelete(companyId).catch(err =>
+        console.error('Rollback failed (delete company):', err.message)
       );
     }
 
-    // Return JSON error response instead of using next(AppError)
-    return res.status(400).json({
+    // =================================================
+    // Proper Error Mapping
+    // =================================================
+    let statusCode = 400;
+    let message = 'Failed to create company and user';
+    let errorCode = 'COMPANY_CREATION_FAILED';
+
+    // MongoDB Validation Error
+    if (error.name === 'ValidationError') {
+      message = 'Invalid company or user data provided';
+      errorCode = 'VALIDATION_ERROR';
+    }
+
+    // MongoDB Duplicate Key Error
+    else if (error.code === 11000) {
+      statusCode = 409;
+      const duplicateField =
+        Object.keys(error.keyPattern || {})[0] || 'companyName';
+
+      message = 'Company name already exists';
+      errorCode = 'DUPLICATE_COMPANY';
+
+      return res.status(statusCode).json({
+        status: 'error',
+        message,
+        errorCode,
+        field: duplicateField,
+      });
+    }
+
+    // Cognito Errors
+    else if (error.name === 'UsernameExistsException') {
+      statusCode = 409;
+      message = 'User already exists in Cognito';
+      errorCode = 'COGNITO_USER_EXISTS';
+    }
+
+    else if (error.name === 'GroupExistsException') {
+      statusCode = 409;
+      message = 'Company group already exists in Cognito';
+      errorCode = 'COGNITO_GROUP_EXISTS';
+    }
+
+    else if (error.$metadata?.httpStatusCode) {
+      statusCode = 502;
+      message = 'AWS Cognito service error';
+      errorCode = 'COGNITO_ERROR';
+    }
+
+    // =================================================
+    // Final Error Response
+    // =================================================
+    return res.status(statusCode).json({
       status: 'error',
-      message: 'Error creating company and user',
-      error: error.message,
+      message,
+      errorCode,
+      details: error.message,
     });
   }
 });
+
 
 exports.resetOldPassword = catchAsync(async (req, res, next) => {
   const { oldPassword, newPassword, reEnterNewPassword } = req.body;

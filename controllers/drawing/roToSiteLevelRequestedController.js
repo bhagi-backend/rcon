@@ -273,69 +273,115 @@ exports.getRequest = catchAsync(async (req, res, next) => {
     });
   });
 
+// exports.getRequestBeforeUpdateRevision = catchAsync(async (req, res, next) => {
+//   // Find the ArchitectureToRoRequest by ID
+//   const request = await ArchitectureToRoRequest.findById(req.params.id).populate('drawingId');
+//   if (!request) {
+//     return next(new AppError("No request found with that ID", 404));
+//   }
+
+//   if (!request.drawingFileName) {
+//     return next(new AppError("No drawing file found for this request.", 404));
+//   }
+
+//   const drawingId = request.drawingId._id;
+//   const architectureToRoRegister = await ArchitectureToRoRegister.findById(drawingId);
+//   if (!architectureToRoRegister) {
+//     return next(new AppError("No drawing found with that ID in ArchitectureToRoRegister", 404));
+//   }
+//   const siteId = architectureToRoRegister.siteId;
+//   if (!siteId) {
+//     return next(new AppError("No siteId found for the drawing", 404));
+//   }
+
+  
+//   const drawingFileName = request.drawingFileName;
+  
+//   const companyId =req.user.companyId;
+//   const filePath = path.join(__dirname, `../../uploads/${companyId}/${siteId}/drawings`, drawingFileName);
+//   if (drawingFileName.endsWith('.dwg')) {
+  
+//     let result = await getDWGFileToken();
+  
+//     if(request.urn && request.urnExpiration > new Date()){
+//       result.urn = request.urn;
+//     } else {
+//       const imgRes = await processDWGFile(filePath);
+//       result.urn = imgRes.urn
+//       const currentDateTime = new Date();
+//       const expirationDate = new Date(currentDateTime.getTime() + 28 * 24 * 60 * 60 * 1000);
+//       result.urnExpiration = expirationDate
+  
+//       //TODO: NEED TO TEST THIS SCENARIO
+//       request.urn = result.urn;
+//       request.urnExpiration = expirationDate;
+//       await request.save();
+//     }
+  
+//     if (!result) {
+//       return next(new AppError("Failed to process the DWG file", 400));
+//     }
+//     res.status(200).json({
+//       status: "success",
+//       data: result
+//     });
+//   }
+//   else{
+//   // Download the file
+//   res.download(filePath, drawingFileName, (err) => {
+//     if (err) {
+//       console.error('Download Error:', err);
+//       return next(new AppError("Failed to download the file.", 400));
+//     }
+//   });
+//   }
+//   });
+
 exports.getRequestBeforeUpdateRevision = catchAsync(async (req, res, next) => {
   // Find the ArchitectureToRoRequest by ID
-  const request = await ArchitectureToRoRequest.findById(req.params.id).populate('drawingId');
+  const request = await ArchitectureToRoRequest.findById(
+    req.params.id
+  ).populate({
+        path: "drawingId",
+        select: "drawingTitle designDrawingConsultant category",
+        populate: [
+          { path: "designDrawingConsultant", select: "role" },
+          { path: "category", select: "category" },
+          { path: "folderId", select: "folderName" },
+        ],
+      })
+      .exec();
   if (!request) {
     return next(new AppError("No request found with that ID", 404));
   }
 
-  if (!request.drawingFileName) {
-    return next(new AppError("No drawing file found for this request.", 404));
-  }
+  // if (!request.drawingFileName) {
+  //   return next(new AppError("No drawing file found for this request.", 404));
+  // }
 
   const drawingId = request.drawingId._id;
-  const architectureToRoRegister = await ArchitectureToRoRegister.findById(drawingId);
+  const architectureToRoRegister = await ArchitectureToRoRegister.findById(
+    drawingId
+  );
   if (!architectureToRoRegister) {
-    return next(new AppError("No drawing found with that ID in ArchitectureToRoRegister", 404));
+    return next(
+      new AppError(
+        "No drawing found with that ID in ArchitectureToRoRegister",
+        404
+      )
+    );
   }
   const siteId = architectureToRoRegister.siteId;
   if (!siteId) {
     return next(new AppError("No siteId found for the drawing", 404));
   }
 
-  
-  const drawingFileName = request.drawingFileName;
-  
-  const companyId =req.user.companyId;
-  const filePath = path.join(__dirname, `../../uploads/${companyId}/${siteId}/drawings`, drawingFileName);
-  if (drawingFileName.endsWith('.dwg')) {
-  
-    let result = await getDWGFileToken();
-  
-    if(request.urn && request.urnExpiration > new Date()){
-      result.urn = request.urn;
-    } else {
-      const imgRes = await processDWGFile(filePath);
-      result.urn = imgRes.urn
-      const currentDateTime = new Date();
-      const expirationDate = new Date(currentDateTime.getTime() + 28 * 24 * 60 * 60 * 1000);
-      result.urnExpiration = expirationDate
-  
-      //TODO: NEED TO TEST THIS SCENARIO
-      request.urn = result.urn;
-      request.urnExpiration = expirationDate;
-      await request.save();
-    }
-  
-    if (!result) {
-      return next(new AppError("Failed to process the DWG file", 400));
-    }
     res.status(200).json({
       status: "success",
-      data: result
+      data: request,
     });
-  }
-  else{
-  // Download the file
-  res.download(filePath, drawingFileName, (err) => {
-    if (err) {
-      console.error('Download Error:', err);
-      return next(new AppError("Failed to download the file.", 400));
-    }
-  });
-  }
-  });
+ 
+});
 
 
 exports.getAllRequests = catchAsync(async (req, res, next) => {

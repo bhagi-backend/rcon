@@ -68,10 +68,6 @@ const RoModuleSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  drawingEditAccess: {
-    type: Boolean,
-    default: true
-  },
 });
 
 const SiteHeadModuleSchema = new mongoose.Schema({
@@ -106,6 +102,11 @@ const SiteHeadModuleSchema = new mongoose.Schema({
   forwardAccess: {
     type: Boolean,
     default: false
+  },
+  hardcopyUploadAccess:
+  {
+    type: Boolean,
+    default: true
   },
 });
 

@@ -65,7 +65,7 @@ exports.getUsersDepartmentsforSiteLevel= catchAsync(async (req, res, next) => {
             },
         },
       //  department: 'SiteManagement', 
-    }).select('firstName department role empId ');
+    }).select('firstName department role empId permittedSites.siteId permittedSites.enableModules.drawingDetails.siteToSiteDetails.rfiRaisedAccess permittedSites.enableModules.drawingDetails.siteToSiteDetails.forwardAccess');
 
     res.status(200).json({
         status: 'success',

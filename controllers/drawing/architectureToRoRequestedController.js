@@ -23,118 +23,6 @@ exports.uploadDrawingFile = upload.single("drawingFileName");
 exports.uploadRejectDrawingFile = upload.single("rejectDwgFile");
 
 // Create a new request
-// exports.createRequest = catchAsync(async (req, res, next) => {
-//   const { drawingId, drawingNo, revision, roRfiId, rfiType, siteId } = req.body;
-//   const userId = req.user.id;
-//   req.body.createdBy = userId;
-//   // try {
-//   const registerData = await ArchitectureToRoRegister.findOne({
-//     _id: drawingId,
-//   });
-//   req.body.designDrawingConsultant = registerData.designDrawingConsultant;
-//   req.body.folderId = registerData.folderId;
-//   if (drawingNo && revision) {
-//     const existingRequest = await ArchitectureToRoRequest.findOne({
-//       drawingNo: drawingNo,
-//       revision: revision,
-//     });
-//     if (existingRequest) {
-//       return res.status(200).json({
-//         status: "error",
-//         message: `Revision ${revision} already requested from drawing No ${drawingNo}`,
-//       });
-//     }
-//   }
-//   if (drawingNo) {
-//     const parts = drawingNo.split("-"); // Split by dashes
-//     const lastPart = parts[parts.length - 1]; // Get last segment
-//     const number = lastPart.replace(/\D/g, "");
-//     if (number) {
-//       req.body.architectRfiNo = number.padStart(3, "0"); // Always 3 digits
-//     } else {
-//       req.body.architectRfiNo = "000";
-//     }
-//   }
-//   const newRequest = await ArchitectureToRoRequest.create(req.body);
-//   const populatedRequest = await ArchitectureToRoRequest.findById(
-//     newRequest._id
-//   ).populate("drawingId", "designDrawingConsultant");
-
-//   const { designDrawingConsultant } = populatedRequest.drawingId;
-//   const notificationMessage = `A new architecture to Ro RFI has been raised for drawing number ${drawingNo} with revision ${revision}.`;
-//   const notification = await sendNotification(
-//     "Drawing",
-//     notificationMessage,
-//     "New Request Created",
-//     "Requested",
-//     designDrawingConsultant
-//   );
-//   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-//     { drawingNo, siteId: req.body.siteId }, // Find by drawing number
-//     { $set: { "acceptedArchitectRevisions.$[elem].rfiStatus": "Raised" } },
-//     {
-//       new: true,
-//       arrayFilters: [{ "elem.revision": revision }],
-//     }
-//   );
-//   const siteHeadIds = await User.find({
-//     "permittedSites.siteId": siteId,
-//   }).select("permittedSites _id");
-//   //console.log("siteHeadIds",siteHeadIds);
-//   if (siteHeadIds.length > 0) {
-//     for (let user of siteHeadIds) {
-//       const site = user
-//         ? user.permittedSites.find((site) => site.siteId.toString() === siteId)
-//             .enableModules.drawingDetails.siteHeadDetails.rfiRaisedAccess
-//         : false;
-//       if (site) {
-//         console.log("siteHeadIds", siteHeadIds);
-
-//         if (rfiType) {
-//           const notificationMessage1 = `A RFI has been forwarded for drawing number ${drawingNo} with architect revision ${revision}.`;
-
-//           try {
-//             const notificationToSiteHead = await sendNotification(
-//               "Drawing",
-//               notificationMessage1,
-//               "Request forwarded",
-//               "Forwarded",
-//               user._id
-//             );
-//             console.log("notificationToSiteHead", notificationToSiteHead);
-//           } catch (error) {
-//             console.error(
-//               "Error sending notification to SiteHeadId ",
-//               user._id,
-//               ": ",
-//               error
-//             );
-//           }
-//         }
-//       }
-//     }
-//   }
-//   if (roRfiId) {
-//     const rf = await RoToSiteLevelRequest.findByIdAndUpdate(
-//       roRfiId,
-//       {
-//         $set: {
-//           architectRfiId: newRequest._id,
-//           rfiState: "Forwarded",
-//           status: "Forwarded",
-//         },
-//       },
-//       { new: true }
-//     );
-//     console.log("rfdata:", rf.rfiState);
-//   }
-//   res.status(200).json({
-//     status: "success",
-//     data: newRequest,
-//     notification,
-//     updatedRegister,
-//   });
-// });
 exports.createRequest = catchAsync(async (req, res, next) => {
   const { drawingId, drawingNo, revision, roRfiId, rfiType, siteId } = req.body;
   const userId = req.user.id;
@@ -147,31 +35,12 @@ exports.createRequest = catchAsync(async (req, res, next) => {
 
   req.body.designDrawingConsultant = registerData.designDrawingConsultant;
   req.body.folderId = registerData.folderId;
-
-  // ********************************************
-  // ✅ NEW CHECK → Check latest accepted RO revision in register
-  // ********************************************
-  if (registerData && registerData.acceptedArchitectRevisions?.length > 0) {
-    const latestAccepted =
-      registerData.acceptedArchitectRevisions[
-        registerData.acceptedArchitectRevisions.length - 1
-      ];
-
-    if (latestAccepted.revision === revision) {
-      return res.status(200).json({
-        status: "error",
-        message: `Revision ${revision} already exists in latest accepted architect revisions.`,
-      });
-    }
-  }
-  // ********************************************
-
-  // Existing logic (unchanged)
   if (drawingNo && revision) {
     const existingRequest = await ArchitectureToRoRequest.findOne({
       drawingNo: drawingNo,
       revision: revision,
     });
+    console.log("existingRequest",existingRequest)
     if (existingRequest) {
       return res.status(200).json({
         status: "error",
@@ -567,14 +436,23 @@ exports.getRequestBeforeUpdateRevision = catchAsync(async (req, res, next) => {
   // Find the ArchitectureToRoRequest by ID
   const request = await ArchitectureToRoRequest.findById(
     req.params.id
-  ).populate("drawingId");
+  ).populate({
+        path: "drawingId",
+        select: "drawingTitle designDrawingConsultant category",
+        populate: [
+          { path: "designDrawingConsultant", select: "role" },
+          { path: "category", select: "category" },
+          { path: "folderId", select: "folderName" },
+        ],
+      })
+      .exec();
   if (!request) {
     return next(new AppError("No request found with that ID", 404));
   }
 
-  if (!request.drawingFileName) {
-    return next(new AppError("No drawing file found for this request.", 404));
-  }
+  // if (!request.drawingFileName) {
+  //   return next(new AppError("No drawing file found for this request.", 404));
+  // }
 
   const drawingId = request.drawingId._id;
   const architectureToRoRegister = await ArchitectureToRoRegister.findById(
@@ -593,51 +471,51 @@ exports.getRequestBeforeUpdateRevision = catchAsync(async (req, res, next) => {
     return next(new AppError("No siteId found for the drawing", 404));
   }
 
-  const drawingFileName = request.drawingFileName;
+  // const drawingFileName = request.drawingFileName;
 
-  const companyId = req.user.companyId;
-  const filePath = path.join(
-    __dirname,
-    `../../uploads/${companyId}/${siteId}/drawings`,
-    drawingFileName
-  );
+  // const companyId = req.user.companyId;
+  // const filePath = path.join(
+  //   __dirname,
+  //   `../../uploads/${companyId}/${siteId}/drawings`,
+  //   drawingFileName
+  // );
 
-  if (drawingFileName.endsWith(".dwg")) {
-    let result = await getDWGFileToken();
+  // if (drawingFileName.endsWith(".dwg")) {
+  //   let result = await getDWGFileToken();
 
-    if (request.urn && request.urnExpiration > new Date()) {
-      result.urn = request.urn;
-    } else {
-      const imgRes = await processDWGFile(filePath);
-      result.urn = imgRes.urn;
-      const currentDateTime = new Date();
-      const expirationDate = new Date(
-        currentDateTime.getTime() + 28 * 24 * 60 * 60 * 1000
-      );
-      result.urnExpiration = expirationDate;
+  //   if (request.urn && request.urnExpiration > new Date()) {
+  //     result.urn = request.urn;
+  //   } else {
+  //     const imgRes = await processDWGFile(filePath);
+  //     result.urn = imgRes.urn;
+  //     const currentDateTime = new Date();
+  //     const expirationDate = new Date(
+  //       currentDateTime.getTime() + 28 * 24 * 60 * 60 * 1000
+  //     );
+  //     result.urnExpiration = expirationDate;
 
-      //TODO: NEED TO TEST THIS SCENARIO
-      request.urn = result.urn;
-      request.urnExpiration = expirationDate;
-      await request.save();
-    }
+  //     //TODO: NEED TO TEST THIS SCENARIO
+  //     request.urn = result.urn;
+  //     request.urnExpiration = expirationDate;
+  //     await request.save();
+  //   }
 
-    if (!result) {
-      return next(new AppError("Failed to process the DWG file", 400));
-    }
+  //   if (!result) {
+  //     return next(new AppError("Failed to process the DWG file", 400));
+  //   }
     res.status(200).json({
       status: "success",
-      data: result,
+      data: request,
     });
-  } else {
-    // Download the file
-    res.download(filePath, drawingFileName, (err) => {
-      if (err) {
-        console.error("Download Error:", err);
-        return next(new AppError("Failed to download the file.", 400));
-      }
-    });
-  }
+  // } else {
+  //   // Download the file
+  //   res.download(filePath, drawingFileName, (err) => {
+  //     if (err) {
+  //       console.error("Download Error:", err);
+  //       return next(new AppError("Failed to download the file.", 400));
+  //     }
+  //   });
+  // }
 });
 
 exports.getAllRequests = catchAsync(async (req, res, next) => {

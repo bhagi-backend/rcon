@@ -658,7 +658,9 @@ exports.updateDrawingFileNameInLatestRevision = catchAsync(async (req, res, next
     const { drawingNo,siteId, revision } = updatedRequest;
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
     { drawingNo, siteId }, 
-      { $set: { "acceptedRORevisions.$[elem].rfiStatus": "Not Raised" } }, 
+      { $set: { "acceptedRORevisions.$[elem].rfiStatus": "Not Raised" ,
+        "acceptedRORevisions.$[elem].rfiRejectStatus": "Rejected"
+      } }, 
       {
         new: true,  
         arrayFilters: [{ "elem.revision": revision }]  

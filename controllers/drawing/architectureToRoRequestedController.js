@@ -706,16 +706,20 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
 
   if (rfiType === "Created") {
     // Handle case where rfiType is "Created"
-    const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-      { drawingNo, siteId },
-      {
-        $set: { "acceptedArchitectRevisions.$[elem].rfiStatus": "Not Raised" },
-      },
-      {
-        new: true,
-        arrayFilters: [{ "elem.revision": revision }],
-      }
-    );
+   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+  { drawingNo, siteId },
+  {
+    $set: {
+      "acceptedArchitectRevisions.$[elem].rfiStatus": "Not Raised",
+      "acceptedArchitectRevisions.$[elem].rfiRejectStatus": "Rejected"
+    },
+  },
+  {
+    new: true,
+    arrayFilters: [{ "elem.revision": revision }],
+  }
+);
+
 
     if (!updatedRegister) {
       return next(

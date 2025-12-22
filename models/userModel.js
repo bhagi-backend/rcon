@@ -55,6 +55,18 @@ const RoModuleSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+<<<<<<< Updated upstream
+=======
+  drawingEditAccess: {
+    type: Boolean,
+    default: true
+  },
+  hardcopyUploadAccess:
+  {
+    type: Boolean,
+    default: true
+  },
+>>>>>>> Stashed changes
 });
 
 const SiteHeadModuleSchema = new mongoose.Schema({
@@ -85,6 +97,11 @@ const SiteHeadModuleSchema = new mongoose.Schema({
   forwardAccess: {
     type: Boolean,
     default: false
+  },
+  hardcopyUploadAccess:
+  {
+    type: Boolean,
+    default: true
   },
 });
 

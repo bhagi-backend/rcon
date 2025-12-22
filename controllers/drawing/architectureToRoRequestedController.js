@@ -22,7 +22,11 @@ const puppeteer = require("puppeteer");
 exports.uploadDrawingFile = upload.single("drawingFileName");
 exports.uploadRejectDrawingFile = upload.single("rejectDwgFile");
 
+<<<<<<< Updated upstream
 // Create a new request
+=======
+
+>>>>>>> Stashed changes
 exports.createRequest = catchAsync(async (req, res, next) => {
   const { drawingId, drawingNo, revision, roRfiId, rfiType, siteId } = req.body;
   const userId = req.user.id;
@@ -33,11 +37,35 @@ exports.createRequest = catchAsync(async (req, res, next) => {
   });
   req.body.designDrawingConsultant = registerData.designDrawingConsultant;
   req.body.folderId = registerData.folderId;
+<<<<<<< Updated upstream
+=======
+
+  // ********************************************
+  // ✅ NEW CHECK → Check latest accepted RO revision in register
+  // ********************************************
+  // if (registerData && registerData.acceptedArchitectRevisions?.length > 0) {
+  //   const latestAccepted =
+  //     registerData.acceptedArchitectRevisions[
+  //       registerData.acceptedArchitectRevisions.length - 1
+  //     ];
+
+  //   if (latestAccepted.revision === revision) {
+  //     return res.status(200).json({
+  //       status: "error",
+  //       message: `Revision ${revision} already exists in latest accepted architect revisions.`,
+  //     });
+  //   }
+  // }
+  // ********************************************
+
+  // Existing logic (unchanged)
+>>>>>>> Stashed changes
   if (drawingNo && revision) {
     const existingRequest = await ArchitectureToRoRequest.findOne({
       drawingNo: drawingNo,
       revision: revision,
     });
+    console.log("existingRequest",existingRequest)
     if (existingRequest) {
       return res.status(200).json({
         status: "error",
@@ -428,14 +456,23 @@ exports.getRequestBeforeUpdateRevision = catchAsync(async (req, res, next) => {
   // Find the ArchitectureToRoRequest by ID
   const request = await ArchitectureToRoRequest.findById(
     req.params.id
-  ).populate("drawingId");
+  ).populate({
+        path: "drawingId",
+        select: "drawingTitle designDrawingConsultant category",
+        populate: [
+          { path: "designDrawingConsultant", select: "role" },
+          { path: "category", select: "category" },
+          { path: "folderId", select: "folderName" },
+        ],
+      })
+      .exec();
   if (!request) {
     return next(new AppError("No request found with that ID", 404));
   }
 
-  if (!request.drawingFileName) {
-    return next(new AppError("No drawing file found for this request.", 404));
-  }
+  // if (!request.drawingFileName) {
+  //   return next(new AppError("No drawing file found for this request.", 404));
+  // }
 
   const drawingId = request.drawingId._id;
   const architectureToRoRegister = await ArchitectureToRoRegister.findById(
@@ -454,51 +491,51 @@ exports.getRequestBeforeUpdateRevision = catchAsync(async (req, res, next) => {
     return next(new AppError("No siteId found for the drawing", 404));
   }
 
-  const drawingFileName = request.drawingFileName;
+  // const drawingFileName = request.drawingFileName;
 
-  const companyId = req.user.companyId;
-  const filePath = path.join(
-    __dirname,
-    `../../uploads/${companyId}/${siteId}/drawings`,
-    drawingFileName
-  );
+  // const companyId = req.user.companyId;
+  // const filePath = path.join(
+  //   __dirname,
+  //   `../../uploads/${companyId}/${siteId}/drawings`,
+  //   drawingFileName
+  // );
 
-  if (drawingFileName.endsWith(".dwg")) {
-    let result = await getDWGFileToken();
+  // if (drawingFileName.endsWith(".dwg")) {
+  //   let result = await getDWGFileToken();
 
-    if (request.urn && request.urnExpiration > new Date()) {
-      result.urn = request.urn;
-    } else {
-      const imgRes = await processDWGFile(filePath);
-      result.urn = imgRes.urn;
-      const currentDateTime = new Date();
-      const expirationDate = new Date(
-        currentDateTime.getTime() + 28 * 24 * 60 * 60 * 1000
-      );
-      result.urnExpiration = expirationDate;
+  //   if (request.urn && request.urnExpiration > new Date()) {
+  //     result.urn = request.urn;
+  //   } else {
+  //     const imgRes = await processDWGFile(filePath);
+  //     result.urn = imgRes.urn;
+  //     const currentDateTime = new Date();
+  //     const expirationDate = new Date(
+  //       currentDateTime.getTime() + 28 * 24 * 60 * 60 * 1000
+  //     );
+  //     result.urnExpiration = expirationDate;
 
-      //TODO: NEED TO TEST THIS SCENARIO
-      request.urn = result.urn;
-      request.urnExpiration = expirationDate;
-      await request.save();
-    }
+  //     //TODO: NEED TO TEST THIS SCENARIO
+  //     request.urn = result.urn;
+  //     request.urnExpiration = expirationDate;
+  //     await request.save();
+  //   }
 
-    if (!result) {
-      return next(new AppError("Failed to process the DWG file", 400));
-    }
+  //   if (!result) {
+  //     return next(new AppError("Failed to process the DWG file", 400));
+  //   }
     res.status(200).json({
       status: "success",
-      data: result,
+      data: request,
     });
-  } else {
-    // Download the file
-    res.download(filePath, drawingFileName, (err) => {
-      if (err) {
-        console.error("Download Error:", err);
-        return next(new AppError("Failed to download the file.", 400));
-      }
-    });
-  }
+  // } else {
+  //   // Download the file
+  //   res.download(filePath, drawingFileName, (err) => {
+  //     if (err) {
+  //       console.error("Download Error:", err);
+  //       return next(new AppError("Failed to download the file.", 400));
+  //     }
+  //   });
+  // }
 });
 
 exports.getAllRequests = catchAsync(async (req, res, next) => {

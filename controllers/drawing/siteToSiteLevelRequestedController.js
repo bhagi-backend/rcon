@@ -1,5 +1,5 @@
 const ArchitectureToRoRegister = require("../../models/drawingModels/architectureToRoRegisterModel");
-const ArchitectureToRoRequest = require("../../models/drawingModels/roToSiteLevelRequestedModel");
+const ArchitectureToRoRequest = require("../../models/drawingModels/siteToSiteLevelRequestedModel");
 const Architecture = require("../../models/drawingModels/architectureToRoRequestedModel");
 const { catchAsync } = require("../../utils/catchAsync");
 const multer = require("multer");
@@ -24,11 +24,23 @@ exports.uploadRejectDrawingFile = upload.single("rejectDwgFile");
 
 // Create a new request
 exports.createRequest = catchAsync(async (req, res, next) => {
+    console.log("Function called");
+    console.log("bhagi")
   const {drawingId, drawingNo, revision } = req.body;
+    
   const userId = req.user.id;
   req.body.createdBy =userId;
+
+
   try {
     const registerData1 = await ArchitectureToRoRegister.findOne({ _id: drawingId });
+    if (!registerData1) {
+        // Return a response with status code 200 if the revision already exists
+        return res.status(200).json({
+          status: "error",
+          message: `Revision Not found`,
+        });
+      }
     req.body.designDrawingConsultant =registerData1.designDrawingConsultant;
     req.body.folderId =registerData1.folderId;
     if (drawingNo && revision) {
@@ -66,7 +78,7 @@ exports.createRequest = catchAsync(async (req, res, next) => {
       { drawingNo,siteId: req.body.siteId  },  // Find the register by drawingNo
       { 
         $set: {
-          "acceptedRORevisions.$[elem].rfiStatus": "Raised"  
+          "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised"  
         }
       },
       {
@@ -74,6 +86,13 @@ exports.createRequest = catchAsync(async (req, res, next) => {
         arrayFilters: [{ "elem.revision": revision }]  
       }
     );
+     if (!updatedRegister) {
+        // Return a response with status code 200 if the revision already exists
+        return res.status(200).json({
+          status: "error",
+          message: `Revision Not found`,
+        });
+      }
     const registerData = await ArchitectureToRoRegister.findOne({ _id: req.body.drawingId }).lean();
 
     if (!registerData ) {
@@ -86,15 +105,15 @@ exports.createRequest = catchAsync(async (req, res, next) => {
     const latestRevision = registerData.acceptedArchitectRevisions.slice(-1)[0].revision;
 
     // Check the roToSitelevelRequestModel for this drawingId and latest revision
-    const roToSiteLevelRequest = await Architecture.findOne({
-      drawingId: req.body.drawingId,
-      revision: latestRevision,
-    });
-    if (roToSiteLevelRequest) {
-      newRequest.architectRfiId = roToSiteLevelRequest._id;
+    // const roToSiteLevelRequest = await Architecture.findOne({
+    //   drawingId: req.body.drawingId,
+    //   revision: latestRevision,
+    // });
+    // if (roToSiteLevelRequest) {
+    //   newRequest.architectRfiId = roToSiteLevelRequest._id;
     
-      await newRequest.save();
-    }
+    //   await newRequest.save();
+    // }
 
     const siteHeadIds = await User.find({
       "permittedSites.siteId": req.body.siteId  
@@ -102,7 +121,7 @@ exports.createRequest = catchAsync(async (req, res, next) => {
     //console.log("siteHeadIds",siteHeadIds);
     if (siteHeadIds.length > 0) {
       for (let user of siteHeadIds) {
-        const site = user ? user.permittedSites.find(site => site.siteId.toString() === req.body.siteId  ).enableModules.drawingDetails.roDetails.rfiRaisedAccess : false;
+        const site = user ? user.permittedSites.find(site => site.siteId.toString() === req.body.siteId  ).enableModules.drawingDetails.siteHeadDetails.rfiRaisedAccess : false;
         if (site) {
           console.log("siteHeadIds", siteHeadIds);
     
@@ -126,13 +145,13 @@ exports.createRequest = catchAsync(async (req, res, next) => {
     } 
 console.log("latestRevision",latestRevision)
     // Determine the note based on the existence of data
-    const note = roToSiteLevelRequest
-      ? "Architect RFI created"
-      : "Architect RFI not created";
+    // const note = roToSiteLevelRequest
+    //   ? "Architect RFI created"
+    //   : "Architect RFI not created";
     res.status(200).json({
       status: "success",
       data: newRequest,
-      note,
+    //   note,
       //notification
     });
   } catch (error) {
@@ -241,13 +260,13 @@ exports.getRequest = catchAsync(async (req, res, next) => {
       return next(new AppError("No request found with that ID", 404));
     }
   
-    // Ensure acceptedRORevisions exist and is an array
-    if (!request.acceptedRORevisions || !Array.isArray(request.acceptedRORevisions)) {
+    // Ensure acceptedSiteHeadRevisions exist and is an array
+    if (!request.acceptedSiteHeadRevisions || !Array.isArray(request.acceptedSiteHeadRevisions)) {
       return next(new AppError("No revisions found for this request.", 404));
     }
   
-    // Find the specific revision in acceptedRORevisions
-    const revisionObj = request.acceptedRORevisions.find(el => el.revision === revision);
+    // Find the specific revision in acceptedSiteHeadRevisions
+    const revisionObj = request.acceptedSiteHeadRevisions.find(el => el.revision === revision);
   
     // If the revision is not found, return error
     if (!revisionObj) {
@@ -464,7 +483,7 @@ console.log("userDepartment",userDepartment);
   const consultantsInDepartment = await assignDesignConsultantsToDepartment.findOne({
     department: userDepartment,
     siteId: siteId,
-    module: "siteHead" // Add siteId filter if needed
+    module: "siteLevel" // Add siteId filter if needed
   }).select('designConsultants').exec();
   
   const designConsultantIds = consultantsInDepartment ? consultantsInDepartment.designConsultants : [];
@@ -545,15 +564,15 @@ exports.updateArchitectureToRoRegisterAndUpdateRequest = catchAsync(async (req, 
   
     // Create a new revision object
     const newRevision = {
-      revision: `R${architectureToRoRegister.acceptedRORevisions.length}`, 
+      revision: `R${architectureToRoRegister.acceptedSiteHeadRevisions.length}`, 
       submittedDate: req.body.submittedDate,
       issuedSoftCopy: req.body.issuedSoftCopy,
       receivedHardCopy: req.body.receivedHardCopy,
       drawingFileName: req.body.drawingFileName // Added drawingFileName to new revision
     };
   
-    // Add the new revision to the acceptedRORevisions array
-    architectureToRoRegister.acceptedRORevisions.push(newRevision);
+    // Add the new revision to the acceptedSiteHeadRevisions array
+    architectureToRoRegister.acceptedSiteHeadRevisions.push(newRevision);
   
     // Save the updated ArchitectureToRoRegister
     const updatedArchitectureToRoRegister = await architectureToRoRegister.save();
@@ -584,7 +603,7 @@ exports.updateArchitectureToRoRegisterAndUpdateRequest = catchAsync(async (req, 
       }
     });
   });
-// Controller function to update only the drawingFileName in the latest revision of acceptedRORevisions
+// Controller function to update only the drawingFileName in the latest revision of acceptedSiteHeadRevisions
 exports.updateDrawingFileNameInLatestRevision = catchAsync(async (req, res, next) => {
     if (!req.file) {
       return next(new AppError("No file uploaded", 400));
@@ -604,11 +623,11 @@ exports.updateDrawingFileNameInLatestRevision = catchAsync(async (req, res, next
       return next(new AppError("No architectureToRoRegister found with that ID", 404));
     }
   
-    // Find the last revision index in acceptedRORevisions
-    const lastRevisionIndex = architectureToRoRegister.acceptedRORevisions.length - 1;
+    // Find the last revision index in acceptedSiteHeadRevisions
+    const lastRevisionIndex = architectureToRoRegister.acceptedSiteHeadRevisions.length - 1;
     if (lastRevisionIndex >= 0) {
       // Update the drawingFileName of the latest revision
-      architectureToRoRegister.acceptedRORevisions[lastRevisionIndex].drawingFileName = newDrawingFileName;
+      architectureToRoRegister.acceptedSiteHeadRevisions[lastRevisionIndex].drawingFileName = newDrawingFileName;
     } else {
       return next(new AppError("No revisions found to update drawing file name", 400));
     }
@@ -658,7 +677,7 @@ exports.updateDrawingFileNameInLatestRevision = catchAsync(async (req, res, next
     const { drawingNo,siteId, revision } = updatedRequest;
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
     { drawingNo, siteId }, 
-      { $set: { "acceptedRORevisions.$[elem].rfiStatus": "Not Raised" } }, 
+      { $set: { "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Not Raised" } }, 
       {
         new: true,  
         arrayFilters: [{ "elem.revision": revision }]  
@@ -865,7 +884,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     }
 
     // Find the revision and update issuesInRevision
-    const revisionIndex = architectureToRoRegister.acceptedRORevisions.findIndex(
+    const revisionIndex = architectureToRoRegister.acceptedSiteHeadRevisions.findIndex(
       (rev) => rev.revision === revisionToUpdate
     );
 
@@ -876,7 +895,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
       });
     }
 
-    architectureToRoRegister.acceptedRORevisions[revisionIndex].issuesInRevision = architectureToRoRequest.remarks;
+    architectureToRoRegister.acceptedSiteHeadRevisions[revisionIndex].issuesInRevision = architectureToRoRequest.remarks;
 
     await architectureToRoRegister.save();
 
@@ -969,7 +988,7 @@ exports.closeRequest = catchAsync(async (req, res, next) => {
   const { drawingNo,siteId, revision } = updatedRequest;
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
     { drawingNo, siteId },   // Find by drawing number
-    { $set: { "acceptedRORevisions.$[elem].rfiStatus": "Raised" ,
+    { $set: { "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised" ,
       regState: "Drawing"
     } }, 
     {
@@ -1058,7 +1077,7 @@ exports.reopenRequest = catchAsync(async (req, res, next) => {
   const { drawingNo,siteId, revision } = updatedRequest;
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
     { drawingNo, siteId },
-    { $set: { "acceptedRORevisions.$[elem].rfiStatus": "Raised" } }, 
+    { $set: { "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised" } }, 
     {
       new: true,  
       arrayFilters: [{ "elem.revision": revision }]  
@@ -1453,10 +1472,6 @@ console.log("cssFileUrl",cssFileUrl)
 exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
-  // Log raw request data for debugging
-  console.log("Raw Request Body:", req.body);
-  console.log("Raw Request Files:", req.files);
-
   // 1) Load request + drawing (for siteId used in S3 path)
   const request = await ArchitectureToRoRequest.findById(id).populate("drawingId", "siteId");
   if (!request || !request.drawingId) {
@@ -1477,6 +1492,9 @@ exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
   if (req.body.natureOfRequest) newReason.natureOfRequest = req.body.natureOfRequest || null;
   if (req.body.reason) newReason.reason = req.body.reason || null;
   if (req.body.action) newReason.action = req.body.action || null;
+
+  // **Add createdBy field from logged-in user**
+  newReason.createdBy = req.user.id;
 
   // File processing (handle single file)
   const file = req.files && req.files.length > 0 ? req.files[0] : null;
@@ -1500,16 +1518,29 @@ exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
   }
 
   // Validate that at least one field is provided
-  if (!newReason.natureOfRequest && !newReason.reason && !newReason.action && !newReason.reasonFile) {
-    return next(new AppError("At least one field (natureOfRequest, reason, action, or reasonFile) is required", 400));
+  if (
+    !newReason.natureOfRequest &&
+    !newReason.reason &&
+    !newReason.action &&
+    !newReason.reasonFile
+  ) {
+    return next(
+      new AppError(
+        "At least one field (natureOfRequest, reason, action, or reasonFile) is required",
+        400
+      )
+    );
   }
 
-  // Update reasons array (replace or append the single entry)
-  const updatedReasons = [newReason, ...existingReasons.filter(r => 
-    r.natureOfRequest || r.reason || r.action || r.reasonFile
-  )];
+  // Update reasons array (prepend the new entry)
+  const updatedReasons = [
+    newReason,
+    ...existingReasons.filter(
+      (r) => r.natureOfRequest || r.reason || r.action || r.reasonFile
+    ),
+  ];
 
-  // Save
+  // Save updated reasons back to the document
   const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
     id,
     { $set: { natureOfRequestedInformationReasons: updatedReasons } },
@@ -1523,5 +1554,50 @@ exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     data: updatedRequest,
+  });
+});
+
+
+
+// PUT: /api/site-requests/updateAction?rfiId=...&reasonId=...
+exports.updateAction = catchAsync(async (req, res, next) => {
+  const { rfiId, reasonId } = req.query;
+  const { action } = req.body;
+
+  // Validate ObjectIds
+  if (!mongoose.Types.ObjectId.isValid(rfiId)) {
+    return next(new AppError("Invalid rfiId format", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(reasonId)) {
+    return next(new AppError("Invalid reasonId format", 400));
+  }
+
+  // Validate action field
+  if (!action) {
+    return next(new AppError("Action field is required", 400));
+  }
+
+  // Update nested array element
+const updatedRequest = await ArchitectureToRoRequest.findOneAndUpdate(
+  {
+    _id: rfiId, // Parent document
+    "natureOfRequestedInformationReasons._id": reasonId // Nested array match
+  },
+  {
+    $set: { "natureOfRequestedInformationReasons.$.action": action } // ✅ Correct usage
+  },
+  { new: true }
+);
+
+
+  if (!updatedRequest) {
+    return next(new AppError("Request or reason not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Action updated successfully",
+    data: updatedRequest
   });
 });

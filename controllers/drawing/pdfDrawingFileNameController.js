@@ -9,6 +9,7 @@ const  getUploadPath  = require("../../utils/pathFun");
 const ArchitectureToRoRequest = require("../../models/drawingModels/architectureToRoRequestedModel");
 
 const roToSiteRequest = require("../../models/drawingModels/roToSiteLevelRequestedModel");
+const siteToSiteRequest = require("../../models/drawingModels/siteToSiteLevelRequestedModel");
 
 const upload = multerWrapper();
 
@@ -173,6 +174,36 @@ exports.updatePdfInLatestRevisionsforRoRfi = catchAsync(async (req, res, next) =
 
   // Fetch the specific ArchitectureToRoRequest document by ID
   const Request = await roToSiteRequest.findById(id);
+  if (!Request) {
+    return next(new AppError("No drawing found with that ID", 404));
+  }
+
+  
+
+  Request.pdfDrawingFileName = req.file.filename;
+
+  // Save the updated ArchitectureToRoRequest document
+  await Request.save();
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      Request,
+    },
+  });
+});
+
+// Function to update the PDF in the latest revision of ArchitectureToRoRequest
+exports.updatePdfInLatestRevisionsforSiteRfi = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const { revisionType } = req.query; // Specify revision type through query
+
+  if (!req.file) {
+    return next(new AppError("No file uploaded", 400));
+  }
+
+  // Fetch the specific ArchitectureToRoRequest document by ID
+  const Request = await siteToSiteRequest.findById(id);
   if (!Request) {
     return next(new AppError("No drawing found with that ID", 404));
   }

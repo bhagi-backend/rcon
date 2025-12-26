@@ -2,6 +2,9 @@ const ArchitectureToRoRegister = require("../../models/drawingModels/architectur
 const { catchAsync } = require("../../utils/catchAsync");
 const User = require('../../models/userModel'); 
 const assignDesignConsultantsToDepartment = require("../../models/drawingModels/assignDesignConsultantsToDepartMentModel");
+const RoToSiteLevelRequest = require("../../models/drawingModels/roToSiteLevelRequestedModel");
+const ArchitectureToRoRequest = require("../../models/drawingModels/architectureToRoRequestedModel");
+const SiteToSiteLevelRequest = require("../../models/drawingModels/siteToSiteLevelRequestedModel");
 exports.getAllSiteLevelforDrawingtab = catchAsync(async (req, res, next) => {
     const { siteId } = req.params;
     const { filterType, folderId } = req.query; 
@@ -614,3 +617,165 @@ results: enrichedRegisters.length,
 registers: enrichedRegisters ,
 });
   });
+
+
+  
+  
+  exports.getAllRequestsBySiteIdForSiteLevel = catchAsync(async (req, res, next) => {
+        const { siteId, folderId } = req.query;
+      
+        // Validate siteId
+        if (!siteId) {
+          return res.status(400).json({
+            status: "fail",
+            message: 'siteId query parameter is required',
+          });
+        }
+        const userId = req.user.id;
+       const userDepartment =req.user.department;
+      console.log("department",userDepartment)
+      const user = await User.findOne({
+        _id: userId,
+        "permittedSites.siteId": siteId
+      }).select('permittedSites');
+      
+      const customizedView = user ? user.permittedSites.find(site => site.siteId.toString() === siteId).enableModules.customizedView : false;
+      console.log("customizedView",customizedView);
+      console.log("userId",userId);
+        const consultantsInDepartment = await assignDesignConsultantsToDepartment.findOne({
+            department: userDepartment,
+            siteId: siteId,
+            module:"siteLevel" 
+        }).select('designConsultants').exec();
+        
+        const designConsultantIds = consultantsInDepartment ? consultantsInDepartment.designConsultants : [];
+      
+        
+        let query;
+      
+        if (customizedView) {
+          // If customizedView is true, use the original query
+          query = {
+            $and: [
+              { siteId }, // Must match siteId
+              ...(folderId ? [{ folderId }] : []), // Must match folderId if it exists
+              {
+                $or: [
+                  { designDrawingConsultant: { $in: designConsultantIds } }, // Should match design consultants if any exist
+                  //{ designDrawingConsultant: { $exists: false } } // Optionally include documents without designDrawingConsultant
+                ]
+              }
+            ]
+          };
+          console.log("query1");
+        } else {
+          // If customizedView is false, fetch data based only on siteId
+          query = {
+            siteId, // Only match by siteId
+            ...(folderId ? { folderId } : []) // Include folderId filter if it exists
+          };
+          console.log("query2");
+        }
+        // Fetch ArchitectureToRoRequest data for the provided siteId
+        const requests = await RoToSiteLevelRequest.find(query)
+          .populate({
+            path: 'drawingId',
+            select: 'drawingTitle designDrawingConsultant category',
+            populate: [
+              { path: 'designDrawingConsultant', select: 'role' },
+              { path: 'category', select: 'category' },
+              { path: 'folderId', select: 'folderName' },
+            ],
+          })
+          .exec();
+      
+        // const architectureRfiData = await ArchitectureToRoRequest.find(query)
+        //   .populate({
+        //     path: 'drawingId',
+        //     select: 'drawingTitle designDrawingConsultant category',
+        //     populate: [
+        //       { path: 'designDrawingConsultant', select: 'role' },
+        //       { path: 'category', select: 'category' },
+        //       { path: 'folderId', select: 'folderName' },
+        //     ],
+        //   })
+        //   .exec();
+        //   const updatedArchitectureRfiData = architectureRfiData.map((item) => ({
+        //     ...item.toObject(), 
+        //     for: "architect",
+        //   }));
+        
+          // const roRfiData = await RoToSiteLevelRequest.find(query)
+          // .populate({
+          //   path: "drawingId",
+          //   select: "drawingTitle designDrawingConsultant category",
+          //   populate: [
+          //     { path: "designDrawingConsultant", select: "role" },
+          //     { path: "category", select: "category" },
+          //     { path: "folderId", select: "folderName" },
+          //   ],
+          // })
+          // .exec();
+      
+          // const updatedRoRfiData = await Promise.all(
+          //   roRfiData.map(async (item) => {
+          //     // Check if drawingId exists
+          //     if (!item.drawingId || !item.drawingId._id) {
+          //       return {
+          //         ...item.toObject(),
+          //         for: "ro",
+          //         note: "Drawing ID is missing or invalid",
+          //       };
+          //     }
+          
+          //     const registerData = await ArchitectureToRoRegister.findOne({
+          //       _id: item.drawingId._id,
+          //     }).lean();
+          
+          //     let note = "No acceptedArchitectRevisions found for the provided drawingId.";
+          //     if (registerData && registerData.acceptedArchitectRevisions.length > 0) {
+          //       const latestRevision = registerData.acceptedArchitectRevisions.slice(-1)[0].revision;
+          
+          //       const roToSiteLevelRequest = await ArchitectureToRoRequest.findOne({
+          //         drawingId: item.drawingId._id,
+          //         revision: latestRevision,
+          //       });
+          
+          //       note = roToSiteLevelRequest
+          //         ? "Architect RFI created"
+          //         : "Architect RFI not created";
+          //     }
+          
+          //     return {
+          //       ...item.toObject(),
+          //       for: "ro",
+          //       note,
+          //     };
+          //   })
+          // );
+          const siteToSiteRfiData = await SiteToSiteLevelRequest.find(query)
+    .populate({
+      path: "drawingId",
+      select: "drawingTitle designDrawingConsultant category",
+      populate: [
+        { path: "designDrawingConsultant", select: "role" },
+        { path: "category", select: "category" },
+        { path: "folderId", select: "folderName" },
+      ],
+    })
+    .exec();
+  
+  const updatedSiteToSiteRfiData = siteToSiteRfiData.map((item) => ({
+    ...item.toObject(),
+    for: "site",
+  }));
+        res.status(200).json({
+          status: "success",
+          data: {
+            // architectureRfiData: updatedArchitectureRfiData,
+            // roRfiData: updatedRoRfiData,
+            siteToSiteRfiData: updatedSiteToSiteRfiData,
+          },
+        });
+      });
+      

@@ -71,6 +71,9 @@ const ArchitectureToRoRequestSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  typeOfDrawing: {
+    type: String,
+  },
   roRfiId: {
     type: String,
   },

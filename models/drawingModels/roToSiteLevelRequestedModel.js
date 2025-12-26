@@ -71,6 +71,9 @@ const RoToSitelevelRequestSchema = new mongoose.Schema({
     type: String,
     
   },
+  typeOfDrawing: {
+    type: String,
+  },
   architectRevision: {
     type: String,
     

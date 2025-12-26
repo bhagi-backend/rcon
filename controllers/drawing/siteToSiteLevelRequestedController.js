@@ -24,8 +24,7 @@ exports.uploadRejectDrawingFile = upload.single("rejectDwgFile");
 
 // Create a new request
 exports.createRequest = catchAsync(async (req, res, next) => {
-    console.log("Function called");
-    console.log("bhagi")
+   
   const {drawingId, drawingNo, revision } = req.body;
     
   const userId = req.user.id;

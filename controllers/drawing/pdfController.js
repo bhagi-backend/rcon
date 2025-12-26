@@ -569,8 +569,6 @@ exports.getRoReports = async (req, res) => {
    
 
 exports.getAllRoReports = async (req, res) => {
- 
-
   try {
     const {
       reportType,
@@ -583,227 +581,239 @@ exports.getAllRoReports = async (req, res) => {
       folderId
     } = req.query;
 
-    // Validate required parameters
     if (!siteId) {
       return res.status(400).json({ message: 'Site ID is required' });
     }
+
     const userId = req.user.id;
     const userDepartment = req.user.department;
-  
+
     console.log("User Department:", userDepartment);
+
     const user = await User.findOne({
       _id: userId,
       "permittedSites.siteId": siteId
     }).select('permittedSites');
-    
-    const customizedView = user ? user.permittedSites.find(site => site.siteId.toString() === siteId).enableModules.customizedView : false;
-  console.log("customizedView",customizedView);
-  console.log("userId",userId);
 
-     const consultantsInDepartment = await assignDesignConsultantsToDepartment.findOne({
-      siteId: siteId,
-      module: "ro",
-      // make department matching stronger and case-insensitive
-      department: new RegExp(`^${userDepartment}$`, "i")
-    })
-      .select("designConsultants")
-      .lean();
+    const customizedView = user
+      ? user.permittedSites.find(site => site.siteId.toString() === siteId)
+          ?.enableModules?.customizedView
+      : false;
 
-  let designConsultantIds = [];
+    console.log("customizedView", customizedView);
+    console.log("userId", userId);
 
-// If consultants are assigned → use them
-if (consultantsInDepartment && consultantsInDepartment.designConsultants.length > 0) {
-  designConsultantIds = consultantsInDepartment.designConsultants;
-  console.log("Consultant IDs:", designConsultantIds);
-} else {
-  // If NO consultants assigned → fetch based only on siteId
-  console.log("No consultants assigned. Fetching data only using siteId.");
-  designConsultantIds = null;   // mark as no restriction
-}
+    const consultantsInDepartment =
+      await assignDesignConsultantsToDepartment.findOne({
+        siteId: siteId,
+        module: "ro",
+        department: new RegExp(`^${userDepartment}$`, "i")
+      })
+        .select("designConsultants")
+        .lean();
 
+    let designConsultantIds = [];
 
-    // const designConsultantIds = consultantsInDepartment.designConsultants;
+    if (
+      consultantsInDepartment &&
+      consultantsInDepartment.designConsultants.length > 0
+    ) {
+      designConsultantIds = consultantsInDepartment.designConsultants;
+      console.log("Consultant IDs:", designConsultantIds);
+    } else {
+      console.log("No consultants assigned. Fetching data only using siteId.");
+      designConsultantIds = null; // keep your existing logic
+    }
 
     let query;
 
-  if (customizedView) {
-  if (designConsultantIds) {
-    // Consultants exist → restricted view
-    query = {
-      $and: [
-        { siteId },
-        ...(folderId ? [{ folderId }] : []),
-        { designDrawingConsultant: { $in: designConsultantIds } }
-      ]
-    };
-  } else {
-    // No consultants assigned → allow all from siteId
-    query = {
-      siteId,
-      ...(folderId ? { folderId } : {})
-    };
-  }
-
-  console.log("query1");
-}
-else {
-      // If customizedView is false, fetch data based only on siteId
+    if (customizedView) {
+      if (designConsultantIds) {
+        query = {
+          $and: [
+            { siteId },
+            ...(folderId ? [{ folderId }] : []),
+            { designDrawingConsultant: { $in: designConsultantIds } }
+          ]
+        };
+      } else {
+        query = {
+          siteId,
+          ...(folderId ? { folderId } : {})
+        };
+      }
+      console.log("query1");
+    } else {
       query = {
-        siteId, // Only match by siteId
-        ...(folderId ? { folderId } : []) // Include folderId filter if it exists
+        siteId,
+        ...(folderId ? { folderId } : {})
       };
       console.log("query2");
     }
-    
-   
 
-    // Populate fields
     const dataPopulateFields = [
       { path: 'designDrawingConsultant', select: 'firstName role' },
       { path: 'category', select: 'category' },
-      { path: 'folderId', select: 'folderName' },
+      { path: 'folderId', select: 'folderName' }
     ];
 
     let data;
+    let rfiData;
 
     switch (reportType) {
       case 'drawing':
-        query['regState'] = 'Drawing';
-        query['$or'] = [
+        query.regState = 'Drawing';
+        query.$or = [
           { 'acceptedArchitectRevisions.0': { $exists: true } },
           { 'acceptedRORevisions.0': { $exists: true } },
           { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
-          { 'acceptedROHardCopyRevisions.0': { $exists: true } },
+          { 'acceptedROHardCopyRevisions.0': { $exists: true } }
         ];
-      
 
-        data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
+        data = await ArchitectureToRoRegister
+          .find(query)
+          .populate(dataPopulateFields)
+          .exec();
         break;
 
       case 'pending':
-        query['$or']= [
-            { acceptedArchitectRevisions: { $size: 0 } },
-            { acceptedRORevisions: { $size: 0 } },
-            { acceptedSiteHeadHardCopyRevisions: { $size: 0 } },
-            { acceptedROHardCopyRevisions: { $size: 0 } },
-            { regState :'Pending'}
-          ];
+        query.$or = [
+          { acceptedArchitectRevisions: { $size: 0 } },
+          { acceptedRORevisions: { $size: 0 } },
+          { acceptedSiteHeadHardCopyRevisions: { $size: 0 } },
+          { acceptedROHardCopyRevisions: { $size: 0 } },
+          { regState: 'Pending' }
+        ];
 
-        data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).lean();
+        data = await ArchitectureToRoRegister
+          .find(query)
+          .populate(dataPopulateFields)
+          .lean();
         break;
 
       case 'register':
-        data = await ArchitectureToRoRegister.find({siteId}).populate(dataPopulateFields).lean();
+        data = await ArchitectureToRoRegister
+          .find({ siteId })
+          .populate(dataPopulateFields)
+          .lean();
         break;
 
-        case 'RFI':
-          // Fetch data from both RFI models in parallel
-          const architectureRfiData = await ArchitectureToRoRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' },
-           
-            ],
-          })
-          .exec();
-       // console.log("Fetched Architecture RFI Data:", architectureRfiData);
-        
-        // Fetch Site Level RFI Data
-        const siteLevelRfiData = await RoToSiteLevelRoRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' },
-            ],
-          })
-          .exec();
-        
-        //console.log("Fetched Site Level RFI Data:", siteLevelRfiData);
-  
-          // Filter RFI data based on criteria
-          const filteredArchitectureRfiData = architectureRfiData.filter(item => designConsultantIds.includes(item.drawingId?.designDrawingConsultant?._id.toString()));
-  
-          const filteredSiteLevelRfiData = siteLevelRfiData.filter(item => designConsultantIds.includes(item.drawingId?.designDrawingConsultant?._id.toString()));
-          const architectCreationDates = filteredArchitectureRfiData.map(item => new Date(item.toObject ? item.toObject().creationDate : item.creationDate));
+      case 'RFI':
+        const architectureRfiData =
+          await ArchitectureToRoRequest.find(query)
+            .populate({
+              path: 'drawingId',
+              select: 'drawingTitle designDrawingConsultant category',
+              populate: [
+                { path: 'designDrawingConsultant', select: 'role' },
+                { path: 'category', select: 'category' },
+                { path: 'folderId', select: 'folderName' }
+              ]
+            })
+            .exec();
 
-          // Set startDate as the earliest creationDate
-          const architectStartDate = new Date(Math.min(...architectCreationDates));
-        
-          // Set endDate as the latest creationDate
-          const architectEndDate = new Date(Math.max(...architectCreationDates));
-  
-          const siteLevelCreationDates = filteredSiteLevelRfiData.map(item => new Date(item.toObject ? item.toObject().creationDate : item.creationDate));
-  
-          // Set startDate as the earliest creationDate
-          const siteStartDate = new Date(Math.min(...siteLevelCreationDates));
-        
-          // Set endDate as the latest creationDate
-          const siteEndDate = new Date(Math.max(...siteLevelCreationDates));
-          // Assign filtered data to rfiData instead of data
-          rfiData = {
-            architectureRequests: filteredArchitectureRfiData,
-            siteLevelRequests: filteredSiteLevelRfiData,
-            architectStartDate,
-            architectEndDate,
-            siteStartDate,
-            siteEndDate
+        const siteLevelRfiData =
+          await RoToSiteLevelRoRequest.find(query)
+            .populate({
+              path: 'drawingId',
+              select: 'drawingTitle designDrawingConsultant category',
+              populate: [
+                { path: 'designDrawingConsultant', select: 'role' },
+                { path: 'category', select: 'category' },
+                { path: 'folderId', select: 'folderName' }
+              ]
+            })
+            .exec();
 
+        // ✅ FIX: allow all data if no consultants assigned
+        const filteredArchitectureRfiData = designConsultantIds
+          ? architectureRfiData.filter(item =>
+              designConsultantIds.includes(
+                item.drawingId?.designDrawingConsultant?._id?.toString()
+              )
+            )
+          : architectureRfiData;
 
-          };
-          // console.log("Filtered Architecture RFI Data:", filteredArchitectureRfiData);
-          // console.log("Filtered Site Level RFI Data:", filteredSiteLevelRfiData);
-          break;
-  
-        default:
-          return res.status(400).json({ message: 'Invalid report type' });
-      }
+        const filteredSiteLevelRfiData = designConsultantIds
+          ? siteLevelRfiData.filter(item =>
+              designConsultantIds.includes(
+                item.drawingId?.designDrawingConsultant?._id?.toString()
+              )
+            )
+          : siteLevelRfiData;
 
-    // Apply time period filter
-    if (reportType !== 'RFI') {
-      data = applyTimePeriodFilter(data, selectTimePeriod, fromDate, toDate, month, year);
-    } else {
-      rfiData.architectureRequests = applyTimePeriodFilter(rfiData.architectureRequests, selectTimePeriod, fromDate, toDate, month, year);
-      rfiData.siteLevelRequests = applyTimePeriodFilter(rfiData.siteLevelRequests, selectTimePeriod, fromDate, toDate, month, year);
+        const architectDates = filteredArchitectureRfiData.map(
+          i => new Date(i.creationDate)
+        );
+        const siteDates = filteredSiteLevelRfiData.map(
+          i => new Date(i.creationDate)
+        );
+
+        rfiData = {
+          architectureRequests: filteredArchitectureRfiData,
+          siteLevelRequests: filteredSiteLevelRfiData,
+          architectStartDate: architectDates.length ? new Date(Math.min(...architectDates)) : null,
+          architectEndDate: architectDates.length ? new Date(Math.max(...architectDates)) : null,
+          siteStartDate: siteDates.length ? new Date(Math.min(...siteDates)) : null,
+          siteEndDate: siteDates.length ? new Date(Math.max(...siteDates)) : null
+        };
+        break;
+
+      default:
+        return res.status(400).json({ message: 'Invalid report type' });
     }
 
-
-    // Clean `data` if it's not RFI; `rfiData` doesn't need this part
     if (reportType !== 'RFI') {
-      const creationDates = data.map(item => new Date(item.toObject ? item.toObject().creationDate : item.creationDate));
+      data = applyTimePeriodFilter(
+        data,
+        selectTimePeriod,
+        fromDate,
+        toDate,
+        month,
+        year
+      );
 
-      // Set startDate as the earliest creationDate
-      const startDate = new Date(Math.min(...creationDates));
-    
-      // Set endDate as the latest creationDate
-      const endDate = new Date(Math.max(...creationDates));
+      const dates = data.map(i => new Date(i.creationDate));
       const cleanedData = data.map(item => {
-        const itemData = item.toObject ? item.toObject() : item;
-        delete itemData.acceptedSiteHeadRevisions;
-        delete itemData.acceptedSiteRevisions;
-        return itemData;
+        const obj = item.toObject ? item.toObject() : item;
+        delete obj.acceptedSiteHeadRevisions;
+        delete obj.acceptedSiteRevisions;
+        return obj;
       });
-  
-        return res.status(200).json({
-      cleanedData,
-      startDate,
-      endDate,
-    });
-    } else {
-      return res.status(200).json(rfiData); // Return RFI data separately
-    }
 
+      return res.status(200).json({
+        cleanedData,
+        startDate: dates.length ? new Date(Math.min(...dates)) : null,
+        endDate: dates.length ? new Date(Math.max(...dates)) : null
+      });
+    } else {
+      rfiData.architectureRequests = applyTimePeriodFilter(
+        rfiData.architectureRequests,
+        selectTimePeriod,
+        fromDate,
+        toDate,
+        month,
+        year
+      );
+      rfiData.siteLevelRequests = applyTimePeriodFilter(
+        rfiData.siteLevelRequests,
+        selectTimePeriod,
+        fromDate,
+        toDate,
+        month,
+        year
+      );
+      return res.status(200).json(rfiData);
+    }
   } catch (error) {
     console.error('Error fetching RO reports:', error);
-    return res.status(400).json({ message: 'Server error', error: error.message });
+    return res.status(400).json({
+      message: 'Server error',
+      error: error.message
+    });
   }
 };
+
 
 
 

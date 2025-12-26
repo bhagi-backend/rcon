@@ -21,9 +21,11 @@ router.get('/rfiRo',authController.protect, RoController.getAllRequestsBySiteId)
 router.get('/drawingSiteHead/:siteId',authController.protect, SiteHeadController.getAllSiteHeadforDrawingtab);
 router.get('/pendingSiteHead/:siteId',authController.protect, SiteHeadController.getAllSiteHeadForPendingTab);
 router.get('/registerSiteHead/:siteId',authController.protect, SiteHeadController.getAllSiteHeadForRegisterTab);
+router.get('/rfiSiteHead',authController.protect, SiteHeadController.getAllRequestsBySiteIdForSiteHead);
 
 
 router.get('/drawingSiteLevel/:siteId',authController.protect, SiteLevelController.getAllSiteLevelforDrawingtab);
 router.get('/pendingSiteLevel/:siteId',authController.protect, SiteLevelController.getAllSiteLevelForPendingTab);
 router.get('/registerSiteLevel/:siteId',authController.protect, SiteLevelController.getAllForSiteLevelRegisterTab);
+router.get('/rfiSiteLevel',authController.protect, SiteLevelController.getAllRequestsBySiteIdForSiteLevel);
 module.exports = router;

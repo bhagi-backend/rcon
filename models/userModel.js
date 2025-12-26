@@ -111,7 +111,39 @@ const SiteHeadModuleSchema = new mongoose.Schema({
 });
 
 const SiteToSiteModuleSchema = new mongoose.Schema({
+  // drawing: {
+  //   type: Boolean,
+  //   default: false
+  // },
+  // pending: {
+  //   type: Boolean,
+  //   default: false
+  // },
+  // register: {
+  //   type: Boolean,
+  //   default: false
+  // },
+  // analysis: {
+  //   type: Boolean,
+  //   default: false
+  // },
+  // reports: {
+  //   type: Boolean,
+  //   default: false
+  // },
+  // rfiRaisedAccess: {
+  //   type: Boolean,
+  //   default: false
+  // },
+  // forwardAccess: {
+  //   type: Boolean,
+  //   default: false
+  // },
   drawing: {
+    type: Boolean,
+    default: false
+  },
+  rfi: {
     type: Boolean,
     default: false
   },
@@ -138,6 +170,11 @@ const SiteToSiteModuleSchema = new mongoose.Schema({
   forwardAccess: {
     type: Boolean,
     default: false
+  },
+  hardcopyUploadAccess:
+  {
+    type: Boolean,
+    default: true
   },
 });
 const workFlowModuleSchema = new mongoose.Schema({

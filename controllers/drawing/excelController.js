@@ -643,6 +643,7 @@ exports.getSiteLocations = catchAsync(async (req, res, next) => {
       siteLocationList = siteLocationList.concat(
         site.buildingsDetails.towers.map((tower) => tower.name || "Unnamed Tower")
       );
+      console.log("siteLocationList",siteLocationList)
     }
   }
 
@@ -658,9 +659,10 @@ exports.getSiteLocations = catchAsync(async (req, res, next) => {
   }
 
   // Fallback
-  if (siteLocationList.length <= 1) {
-    siteLocationList = [];
-  }
+  if (siteLocationList.length === 0) {
+  siteLocationList = [];
+}
+
 
   // 3. Extract drawingNo
   let drawingNumbers = [];
@@ -685,7 +687,7 @@ exports.getSiteLocations = catchAsync(async (req, res, next) => {
       keyWord: t.keyWord || [],
     }));
   }
-
+console.log("siteLocationList",siteLocationList)
   // ---------------- RETURN RESPONSE (UNCHANGED + towers ADDED) ----------------
   return res.status(200).json({
     status: "success",

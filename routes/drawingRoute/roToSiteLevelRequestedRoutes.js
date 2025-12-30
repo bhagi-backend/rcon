@@ -20,6 +20,11 @@ router.put(
   RoToSiteLevelRequestedController.updateAction 
 );
 router.put(
+  "/viewDateForRfi",
+  authController.protect,
+  RoToSiteLevelRequestedController.updateViewDates
+);
+router.put(
   "/:id",
   authController.protect,
   RoToSiteLevelRequestedController.uploadDrawingFile,

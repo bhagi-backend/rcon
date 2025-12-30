@@ -182,6 +182,9 @@ const ArchitectureToRoRequestSchema = new mongoose.Schema({
   impactImages: [{
     type: String
   },],
+  viewDates: {
+    type: [Date],
+  },
 });
 
 const ArchitectureToRoRequest = mongoose.model("ArchitectureToRoRequest", ArchitectureToRoRequestSchema);

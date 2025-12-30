@@ -17,7 +17,11 @@ router.put(
   authController.protect,
   RoToSiteLevelRequestedController.updateAction 
 );
-
+router.put(
+  "/viewDateForRfi",
+  authController.protect,
+  RoToSiteLevelRequestedController.updateViewDates
+);
 router.put(
   "/:id",
   authController.protect,

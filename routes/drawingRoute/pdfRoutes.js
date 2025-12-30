@@ -13,4 +13,6 @@ router.get('/SiteHeadReport',authController.protect, pdfController.getsiteHeadRe
 router.get('/SiteHeadReportsOfAllConsultants',authController.protect,  authController.protect,pdfController.getAllSiteHeadReports);
 router.get('/RoReportsOfAllConsultants', authController.protect,pdfController.getAllRoReports);
 
+router.get('/SiteLevelReport',authController.protect, pdfController.getsiteLevelReports);
+
 module.exports = router;

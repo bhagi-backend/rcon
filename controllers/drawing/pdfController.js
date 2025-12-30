@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const { catchAsync } = require("../../utils/catchAsync");
 const User = require("../../models/userModel");
 const assignDesignConsultantsToDepartment = require("../../models/drawingModels/assignDesignConsultantsToDepartMentModel");
+const SiteToSiteLevelRequest = require("../../models/drawingModels/siteToSiteLevelRequestedModel");
 
 // Helper function to apply time period filtering
 const applyTimePeriodFilter = (data, selectTimePeriod, fromDate, toDate, month, year) => {
@@ -1113,6 +1114,156 @@ if (consultantsInDepartment && consultantsInDepartment.designConsultants.length 
         });
         data = filteredRfiData;
         break;
+
+      default:
+        return res.status(400).json({ message: 'Invalid report type' });
+    }
+
+    // Apply time period filter
+    data = applyTimePeriodFilter(data, selectTimePeriod, fromDate, toDate, month, year);
+    const creationDates = data.map(item => new Date(item.toObject ? item.toObject().creationDate : item.creationDate));
+
+    // Set startDate as the earliest creationDate
+    const startDate = new Date(Math.min(...creationDates));
+  
+    // Set endDate as the latest creationDate
+    const endDate = new Date(Math.max(...creationDates));
+    // Remove unwanted fields from the data only if they exist
+    const cleanedData = data.map(item => {
+      const itemData = item.toObject ? item.toObject() : item; // Convert Mongoose document to a plain object if needed
+
+      delete itemData.acceptedArchitectRevisions; // Remove this field
+      delete itemData.acceptedSiteRevisions; // Remove this field
+      delete itemData.acceptedROHardCopyRevisions; 
+      return itemData; // Return the modified item
+    });
+
+      return res.status(200).json({
+      cleanedData,
+      startDate,
+      endDate,
+    });
+
+  } catch (error) {
+    console.error('Error fetching Site Head reports:', error);
+    return res.status(400).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
+exports.getsiteLevelReports = async (req, res) => {
+  try {
+    const {
+      reportType,
+      designDrawingConsultantId,
+      selectTimePeriod,
+      fromDate,
+      toDate,
+      month,
+      year,
+      siteId,
+      folderId,
+    } = req.query;
+    const userId = req.user._id;
+    const user = await User.findOne({
+      _id: userId,
+      permittedSites: {
+        $elemMatch: {
+          siteId: siteId,
+          'enableModules.drawingDetails.siteToSite': true,
+        },
+      },
+    });
+  //console.log("user:",user.firstName);
+    const isSiteHead = !!user;
+    // Validate required parameters
+    if (!designDrawingConsultantId) {
+      return res.status(400).json({ message: 'DesignDrawingConsultant ID is required' });
+    }
+    if (!mongoose.isValidObjectId(designDrawingConsultantId)) {
+      return res.status(400).json({ message: 'Invalid DesignDrawingConsultant ID format' });
+    }
+
+    // Check if consultant exists
+    const consultantExists = await User.findById(designDrawingConsultantId).exec();
+    if (!consultantExists) {
+      return res.status(404).json({ message: 'DesignDrawingConsultant not found' });
+    }
+
+    // Check if data exists in ArchitectureToRoRegister
+    const dataExists = await ArchitectureToRoRegister.exists({ designDrawingConsultant: designDrawingConsultantId }).exec();
+    if (!dataExists) {
+      return res.status(404).json({ message: 'DesignDrawingConsultant ID not found in ArchitectureToRoRegister' });
+    }
+
+    const query = {
+      siteId: siteId,
+      designDrawingConsultant: designDrawingConsultantId,
+      //  drawingStatus: "Approval",
+    };
+    if (folderId) {
+      query.folderId = folderId; // Include folderId if provided
+    }
+    // Populate fields
+    const dataPopulateFields = [
+      { path: 'designDrawingConsultant', select: 'firstName role' },
+      { path: 'category', select: 'category' },
+      { path: 'folderId', select: 'folderName' },
+    ];
+
+    let data;
+    switch (reportType) {
+      case 'drawing':
+        query['regState'] = 'Drawing';
+        query['$or'] = [
+          // { 'acceptedRORevisions.0': { $exists: true } },
+          { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
+          { 'acceptedSiteHeadRevisions.0': { $exists: true } },
+        ];
+        data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
+        break;
+
+      case 'pending':
+        query['$or'] = [
+            { acceptedSiteHeadRevisions: { $size: 0 } },
+            // { acceptedRORevisions: { $size: 0 } },
+            { acceptedSiteHeadHardCopyRevisions: { $size: 0 } },
+            { regState :'Pending'}
+          ],
+        
+        data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).lean();
+        break;
+
+      case 'register':
+        data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).lean();
+        break;
+        case 'RFI':
+          const rfiData = await SiteToSiteLevelRequest.find(query)
+            .populate({
+              path: 'drawingId',
+              select: 'drawingTitle designDrawingConsultant category',
+              populate: [
+                { path: 'designDrawingConsultant', select: 'role' },
+                { path: 'category', select: 'category' },
+                { path: 'folderId', select: 'folderName' },
+              ],
+            })
+            .exec();
+  
+          const filteredRfiData1 = rfiData.filter(item => item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId);
+          const filteredRfiData = filteredRfiData1.map((request) => {
+           
+              // Apply logic for siteHead enabled
+              if (request.rfiState === "Forwarded" && request.status === "Requested") {
+                request.status = "Forwarded";
+              }
+            
+            return request;
+          });
+          data = filteredRfiData;
+          break;
+  
 
       default:
         return res.status(400).json({ message: 'Invalid report type' });

@@ -185,6 +185,9 @@ const RoToSitelevelRequestSchema = new mongoose.Schema({
   impactImages: [{
     type: String
   },],
+  viewDates: {
+    type: [Date],
+  },
 });
 
 const RoToSiteLevelRequest = mongoose.model("RoToSiteLevelRequest", RoToSitelevelRequestSchema);

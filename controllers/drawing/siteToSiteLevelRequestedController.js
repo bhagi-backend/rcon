@@ -1602,3 +1602,53 @@ const updatedRequest = await ArchitectureToRoRequest.findOneAndUpdate(
     data: updatedRequest
   });
 });
+
+
+
+exports.updateViewDates = catchAsync(async (req, res, next) => {
+  const { _id, newViewDate } = req.body;
+
+  if (!_id || !newViewDate) {
+    return res.status(400).json({
+      status: "fail",
+      message: "_id and newViewDate are required",
+    });
+  }
+
+  // Convert to Date safely
+  const parsedDate = new Date(newViewDate);
+  if (isNaN(parsedDate.getTime())) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Invalid newViewDate format",
+    });
+  }
+
+  // Check document exists
+  const rfi = await ArchitectureToRoRequest.findById(_id);
+  if (!rfi) {
+    return res.status(404).json({
+      status: "fail",
+      message: "No matching document found",
+    });
+  }
+
+  // Update (avoid duplicates)
+  const updatedRfi = await ArchitectureToRoRequest.findOneAndUpdate(
+    { _id },
+    {
+      $addToSet: {
+        viewDates: parsedDate, // prevents duplicate dates
+      },
+    },
+    { new: true }
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      rfi: updatedRfi,
+    },
+  });
+});
+

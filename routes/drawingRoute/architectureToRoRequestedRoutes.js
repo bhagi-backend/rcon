@@ -25,6 +25,11 @@ router.put(
   ArchitectureToRoRequestedController.updateAction
 );
 router.put(
+  "/viewDateForRfi",
+  authController.protect,
+  ArchitectureToRoRequestedController.updateViewDates
+);
+router.put(
   "/:id",
   authController.protect,
   ArchitectureToRoRequestedController.uploadDrawingFile,

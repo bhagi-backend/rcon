@@ -834,7 +834,10 @@ exports.getAllRequestsBySiteIdForSiteHead = catchAsync(async (req, res, next) =>
         })
         .exec();
     
-      const architectureRfiData = await ArchitectureToRoRequest.find(query)
+      const architectureRfiData = await ArchitectureToRoRequest.find({
+  ...query,
+  rfiRaisedBy: "SITE HEAD",
+})
         .populate({
           path: 'drawingId',
           select: 'drawingTitle designDrawingConsultant category',

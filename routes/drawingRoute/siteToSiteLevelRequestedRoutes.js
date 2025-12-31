@@ -23,6 +23,13 @@ router.put(
   RoToSiteLevelRequestedController.updateViewDates
 );
 router.put(
+  "/drawingPdf/:id",
+  authController.protect,
+  pdfController.uploadDrawingPhoto,
+  pdfController.resizeDrawingPhotoforRoRfi,
+  pdfController.updatePdfInLatestRevisionsforSiteRfi
+);
+router.put(
   "/:id",
   authController.protect,
   RoToSiteLevelRequestedController.uploadDrawingFile,
@@ -30,13 +37,7 @@ router.put(
   RoToSiteLevelRequestedController.updateRequest
 );
 
-router.put(
-  "/drawingPdf/:id",
-  authController.protect,
-  pdfController.uploadDrawingPhoto,
-  pdfController.resizeDrawingPhotoforRoRfi,
-  pdfController.updatePdfInLatestRevisionsforRoRfi
-);
+
 router.put(
   "/rejectDwgFile/:id",
   authController.protect,

@@ -77,12 +77,15 @@ exports.createRequest = catchAsync(async (req, res, next) => {
       { drawingNo,siteId: req.body.siteId  },  // Find the register by drawingNo
       { 
         $set: {
-          "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised"  
+          "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised",
+          "acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "Raised"
         }
       },
       {
         new: true,  
-        arrayFilters: [{ "elem.revision": revision }]  
+        arrayFilters: [{ "elem.revision": revision },
+           { "arch.revision": revision }
+        ]  
       }
     );
      if (!updatedRegister) {
@@ -677,11 +680,14 @@ exports.updateDrawingFileNameInLatestRevision = catchAsync(async (req, res, next
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
     { drawingNo, siteId }, 
       { $set: { "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Not Raised",
-        "acceptedSiteHeadRevisions.$[elem].rfiRejectStatus": "Rejected"
+        "acceptedSiteHeadRevisions.$[elem].rfiRejectStatus": "Rejected",
+        "acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "Not Raised"
        } }, 
       {
         new: true,  
-        arrayFilters: [{ "elem.revision": revision }]  
+        arrayFilters: [{ "elem.revision": revision },
+           { "arch.revision": revision }
+        ]  
       }
     );
     const siteHeadIds = await User.find({
@@ -1078,10 +1084,12 @@ exports.reopenRequest = catchAsync(async (req, res, next) => {
   const { drawingNo,siteId, revision } = updatedRequest;
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
     { drawingNo, siteId },
-    { $set: { "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised" } }, 
+    { $set: { "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised","acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "Raised" } }, 
     {
       new: true,  
-      arrayFilters: [{ "elem.revision": revision }]  
+      arrayFilters: [{ "elem.revision": revision },
+         { "arch.revision": revision }
+      ]  
     }
   );
   const siteHeadIds = await User.find({

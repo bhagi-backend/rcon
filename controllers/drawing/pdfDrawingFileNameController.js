@@ -197,7 +197,7 @@ exports.updatePdfInLatestRevisionsforRoRfi = catchAsync(async (req, res, next) =
 exports.updatePdfInLatestRevisionsforSiteRfi = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const { revisionType } = req.query; // Specify revision type through query
-
+console.log(id)
   if (!req.file) {
     return next(new AppError("No file uploaded", 400));
   }

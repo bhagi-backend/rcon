@@ -14,5 +14,5 @@ router.get('/SiteHeadReportsOfAllConsultants',authController.protect,  authContr
 router.get('/RoReportsOfAllConsultants', authController.protect,pdfController.getAllRoReports);
 
 router.get('/SiteLevelReport',authController.protect, pdfController.getsiteLevelReports);
-
+router.get('/SiteLevelReportsOfAllConsultants',authController.protect,  authController.protect,pdfController.getAllSiteToSiteReports);
 module.exports = router;

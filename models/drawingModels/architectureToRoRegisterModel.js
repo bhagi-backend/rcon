@@ -213,6 +213,11 @@ const RoSoftrevisionSchema = new mongoose.Schema({
   viewDates: {
     type: [Date],
   },
+   siteLevelRfiStatus: {
+    type: String,
+    enum: ["Raised", "Not Raised"],
+    default: "Not Raised",
+  },
 });
 const architectSoftRevisionSchema = new mongoose.Schema({
   typeOfDrawing: {
@@ -265,6 +270,11 @@ const architectSoftRevisionSchema = new mongoose.Schema({
     enum: ["Not Forwarded", "Forwarded"],
     default: "Not Forwarded",
   },
+  roRevisionStatus: {
+    type: String,
+    enum: ["Not Forwarded", "Forwarded"],
+    default: "Not Forwarded",
+  },
   rfiStatus: {
     type: String,
     enum: ["Raised", "Not Raised"],
@@ -281,9 +291,23 @@ const architectSoftRevisionSchema = new mongoose.Schema({
   viewDates: {
     type: [Date],
   },
+   siteHeadRfiStatus: {
+    type: String,
+    enum: ["Raised", "Not Raised"],
+    default: "Not Raised",
+  },
+   siteLevelRfiStatus: {
+    type: String,
+    enum: ["Raised", "Not Raised"],
+    default: "Not Raised",
+  },
 });
 
 const HardCopyRevisionSchema = new mongoose.Schema({
+   typeOfDrawing: {
+    type: String,
+    enum: ["Conceptual", "Schematic","Default Design", "GFC","As Built"],
+  },
   revision: {
     type: String,
   },

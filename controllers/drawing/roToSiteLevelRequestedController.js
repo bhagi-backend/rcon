@@ -62,18 +62,26 @@ exports.createRequest = catchAsync(async (req, res, next) => {
     // const notificationMessage = `A new Ro to site level RFI has been raised for drawing number ${drawingNo} with revision ${revision}.`;
 
     // const notification = await sendNotification('Drawing', notificationMessage, 'New Request Created', 'Requested', designDrawingConsultant);
-    const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-      { drawingNo,siteId: req.body.siteId  },  // Find the register by drawingNo
-      { 
-        $set: {
-          "acceptedRORevisions.$[elem].rfiStatus": "Raised"  
-        }
-      },
-      {
-        new: true,  
-        arrayFilters: [{ "elem.revision": revision }]  
-      }
-    );
+   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+  {
+    drawingNo,
+    siteId: req.body.siteId
+  },
+  {
+    $set: {
+      "acceptedRORevisions.$[ro].rfiStatus": "Raised",
+      "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Raised"
+    }
+  },
+  {
+    new: true,
+    arrayFilters: [
+      { "ro.revision": revision },
+      { "arch.revision": revision }
+    ]
+  }
+);
+
     const registerData = await ArchitectureToRoRegister.findOne({ _id: req.body.drawingId }).lean();
 
     if (!registerData ) {
@@ -659,11 +667,14 @@ exports.updateDrawingFileNameInLatestRevision = catchAsync(async (req, res, next
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
     { drawingNo, siteId }, 
       { $set: { "acceptedRORevisions.$[elem].rfiStatus": "Not Raised" ,
-        "acceptedRORevisions.$[elem].rfiRejectStatus": "Rejected"
+        "acceptedRORevisions.$[elem].rfiRejectStatus": "Rejected",
+        "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Not Raised"
       } }, 
       {
         new: true,  
-        arrayFilters: [{ "elem.revision": revision }]  
+        arrayFilters: [{ "elem.revision": revision },
+           { "arch.revision": revision }
+        ]  
       }
     );
     const siteHeadIds = await User.find({
@@ -1060,10 +1071,12 @@ exports.reopenRequest = catchAsync(async (req, res, next) => {
   const { drawingNo,siteId, revision } = updatedRequest;
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
     { drawingNo, siteId },
-    { $set: { "acceptedRORevisions.$[elem].rfiStatus": "Raised" } }, 
+    { $set: { "acceptedRORevisions.$[elem].rfiStatus": "Raised" ,"acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Raised"} }, 
     {
       new: true,  
-      arrayFilters: [{ "elem.revision": revision }]  
+      arrayFilters: [{ "elem.revision": revision },
+         { "arch.revision": revision }
+      ]  
     }
   );
   const siteHeadIds = await User.find({

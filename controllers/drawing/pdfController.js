@@ -1299,3 +1299,190 @@ exports.getsiteLevelReports = async (req, res) => {
     return res.status(400).json({ message: 'Server error', error: error.message });
   }
 };
+
+
+
+
+exports.getAllSiteToSiteReports = async (req, res) => {
+ 
+  const {
+    reportType,
+    selectTimePeriod,
+    fromDate,
+    toDate,
+    month,
+    year,
+    folderId
+  } = req.query;
+  // const userId = req.user._id;
+  // const user = await User.findOne({
+  //   _id: userId,
+  //   permittedSites: {
+  //     $elemMatch: {
+  //       siteId: siteId,
+  //       'enableModules.drawingDetails.siteHead': true,
+  //     },
+  //   },
+  // });
+  const userDepartment = req.user.department;
+  const siteId = req.query.siteId;
+  const userId = req.user.id;
+
+// Step 1: Find the user's customizedView value based on siteId
+const user = await User.findOne({
+  _id: userId,
+  "permittedSites.siteId": siteId
+}).select('permittedSites');
+
+const customizedView = user ? user.permittedSites.find(site => site.siteId.toString() === siteId).enableModules.customizedView : false;
+console.log("customizedView",customizedView);
+console.log("userId",userId);
+  try {
+    // Fetch consultants in the department
+    const consultantsInDepartment = await assignDesignConsultantsToDepartment.findOne({
+      department: userDepartment,
+      siteId: siteId,
+      module: "siteLevel",
+    }).select("designConsultants").exec();
+
+    let designConsultantIds = [];
+
+// If consultants are assigned → use them
+if (consultantsInDepartment && consultantsInDepartment.designConsultants.length > 0) {
+  designConsultantIds = consultantsInDepartment.designConsultants;
+  console.log("Consultant IDs:", designConsultantIds);
+} else {
+  // If NO consultants assigned → fetch based only on siteId
+  console.log("No consultants assigned. Fetching data only using siteId.");
+  designConsultantIds = null;   // mark as no restriction
+}
+
+
+    let query;
+
+  if (customizedView) {
+  if (designConsultantIds) {
+    // Consultants exist → restricted view
+    query = {
+      $and: [
+        { siteId },
+        ...(folderId ? [{ folderId }] : []),
+        { designDrawingConsultant: { $in: designConsultantIds } }
+      ]
+    };
+  } else {
+    // No consultants assigned → allow all from siteId
+    query = {
+      siteId,
+      ...(folderId ? { folderId } : {})
+    };
+  }
+
+  console.log("query1");
+}
+ else {
+      // If customizedView is false, fetch data based only on siteId
+      query = {
+        siteId, // Only match by siteId
+        ...(folderId ? { folderId } : []) // Include folderId filter if it exists
+      };
+      console.log("query2");
+    }
+    
+    const dataPopulateFields = [
+      { path: 'designDrawingConsultant', select: 'firstName role' },
+      { path: 'category', select: 'category' },
+      { path: 'folderId', select: 'folderName' },
+    ];
+
+    let data;
+
+    // Determine data query based on report type
+    switch (reportType) {
+      case 'drawing':
+        query['regState'] = 'Drawing';
+        query['$or'] = [
+          { 'acceptedRORevisions.0': { $exists: true } },
+          { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
+          { 'acceptedSiteHeadRevisions.0': { $exists: true } },
+        ];
+        data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
+        break;
+
+      case 'pending':
+        query['$or'] = [
+            { acceptedSiteHeadRevisions: { $size: 0 } },
+            { acceptedRORevisions: { $size: 0 } },
+            { acceptedSiteHeadHardCopyRevisions: { $size: 0 } },
+            { regState :'Pending'}
+          ],
+        
+        data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).lean();
+        break;
+
+      case 'register':
+        data = await ArchitectureToRoRegister.find({siteId}).populate(dataPopulateFields).lean();
+        break;
+
+      case 'RFI':
+        const rfiData = await RoToSiteLevelRoRequest.find(query)
+          .populate({
+            path: 'drawingId',
+            select: 'drawingTitle designDrawingConsultant category',
+            populate: [
+              { path: 'designDrawingConsultant', select: 'role' },
+              { path: 'category', select: 'category' },
+              { path: 'folderId', select: 'folderName' },
+            ],
+          })
+          .exec();
+
+        // Filter RFI data based on the design drawing consultant
+        const filteredRfiData1 = rfiData.filter(item => designConsultantIds.includes(item.drawingId?.designDrawingConsultant?._id.toString()));
+        const filteredRfiData = filteredRfiData1.map((request) => {
+         
+            // Apply logic for siteHead enabled
+            if (request.rfiState === "Forwarded" && request.status === "Requested") {
+              request.status = "Forwarded";
+            }
+          
+          return request;
+        });
+        data = filteredRfiData;
+        break;
+
+      default:
+        return res.status(400).json({ message: 'Invalid report type' });
+    }
+
+    // Apply time period filter
+    data = applyTimePeriodFilter(data, selectTimePeriod, fromDate, toDate, month, year);
+    const creationDates = data.map(item => new Date(item.toObject ? item.toObject().creationDate : item.creationDate));
+
+    // Set startDate as the earliest creationDate
+    const startDate = new Date(Math.min(...creationDates));
+  
+    // Set endDate as the latest creationDate
+    const endDate = new Date(Math.max(...creationDates));
+    // Remove unwanted fields from the data only if they exist
+    const cleanedData = data.map(item => {
+      const itemData = item.toObject ? item.toObject() : item; // Convert Mongoose document to a plain object if needed
+
+      delete itemData.acceptedArchitectRevisions; // Remove this field
+      delete itemData.acceptedSiteRevisions; // Remove this field
+      delete itemData.acceptedROHardCopyRevisions; 
+      return itemData; // Return the modified item
+    });
+
+      return res.status(200).json({
+      cleanedData,
+      startDate,
+      endDate,
+    });
+
+  } catch (error) {
+    console.error('Error fetching Site Head reports:', error);
+    return res.status(400).json({ message: 'Server error', error: error.message });
+  }
+};
+

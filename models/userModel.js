@@ -68,6 +68,16 @@ const RoModuleSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+
+  hardcopyUploadAccess:
+  {
+    type: Boolean,
+    default: true
+  },
+  drawingEditAccess: {
+    type: Boolean,
+    default: true
+  },
 });
 
 const SiteHeadModuleSchema = new mongoose.Schema({

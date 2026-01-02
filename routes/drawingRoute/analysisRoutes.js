@@ -19,9 +19,12 @@ router.get('/roRfiReport/:siteId', authController.protect,analysisController.get
 
 router.get('/consultantAnalysisCount/:siteId', authController.protect,analysisController.getAcceptedArchitectRevisionsAnalysisCount);
 router.get('/consultantRfiAnalysisCount/:siteId', authController.protect,analysisController.getRfiAnalysisCountForConsultant);
+
 router.get('/roDrawingAnalysisCount/:siteId', authController.protect,analysisController.getDrawingsAnalysisCountForRo);
 router.get('/roAndSiteHeadRfiAnalysisCount/:siteId', authController.protect,analysisController.getRfiAnalysisCountForRoAndSiteHead);
 router.get('/SiteHeadDrawingAnalysisCount/:siteId', authController.protect,analysisController.getDrawingsAnalysisCountForSiteHead);
+router.get('/SiteLevelDrawingAnalysisCount/:siteId', authController.protect,analysisController.getDrawingsAnalysisCountForSiteLevel);
+
 router.get('/consultantHardCopyAnalysisCount/:siteId', authController.protect,analysisController.getHardCopyAnalysisCountForConsultant);
 router.get('/roHardCopyAnalysisCount/:siteId', authController.protect,analysisController.getHardCopyAnalysisCountForRo);
 

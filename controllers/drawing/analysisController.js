@@ -1258,9 +1258,12 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
 // });
 exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
-  const { selectTimePeriod, month, year, folderId, consultantId } = req.query; // ⭐ ADDED consultantId
+  const { selectTimePeriod, month, year, folderId, consultantId } = req.query;
   const userId = req.user.id;
 
+  // ---------------------------------------
+  // User + Permission
+  // ---------------------------------------
   const user = await User.findOne({
     _id: userId,
     "permittedSites.siteId": siteId,
@@ -1279,13 +1282,18 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
 
   const customizedView =
     sitePermissions?.enableModules?.customizedView || false;
+
   const isSiteHead =
     sitePermissions?.enableModules?.drawingDetails?.siteHead || false;
+
   const isRo =
     sitePermissions?.enableModules?.drawingDetails?.ro || false;
 
+  const isSiteLevel =
+    sitePermissions?.enableModules?.drawingDetails?.siteToSite || false;
+
   // ---------------------------------------
-  // Date Range
+  // Date range
   // ---------------------------------------
   let startDate, endDate;
   if (selectTimePeriod) {
@@ -1297,7 +1305,7 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
   }
 
   // ---------------------------------------
-  // Base query
+  // Base Query
   // ---------------------------------------
   let query = { siteId };
 
@@ -1309,38 +1317,52 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     query.folderId = folderId;
   }
 
-  // ⭐⭐⭐ CONSULTANT FILTER ADDED ⭐⭐⭐
   if (consultantId && consultantId !== "all") {
-    query.designDrawingConsultant = consultantId; // ⭐ ADDED
+    query.designDrawingConsultant = consultantId;
   }
 
   // ---------------------------------------
-  // Consultant logic
+  // Consultant Mapping by Role
   // ---------------------------------------
   let designConsultantIds = [];
 
   if (isSiteHead) {
     const consultants = await assignDesignConsultantsToDepartment
       .findOne({
-        siteId: siteId,
+        siteId,
         department: user.department,
         module: "siteHead",
       })
       .select("designConsultants")
       .lean();
 
-    designConsultantIds = consultants ? consultants.designConsultants : [];
-  } else if (isRo) {
+    designConsultantIds = consultants?.designConsultants || [];
+  }
+
+  if (isSiteLevel) {
     const consultants = await assignDesignConsultantsToDepartment
       .findOne({
-        siteId: siteId,
+        siteId,
+        department: user.department,
+        module: "siteLevel",
+      })
+      .select("designConsultants")
+      .lean();
+
+    designConsultantIds = consultants?.designConsultants || [];
+  }
+
+  if (isRo) {
+    const consultants = await assignDesignConsultantsToDepartment
+      .findOne({
+        siteId,
         department: user.department,
         module: "ro",
       })
       .select("designConsultants")
       .lean();
 
-    designConsultantIds = consultants ? consultants.designConsultants : [];
+    designConsultantIds = consultants?.designConsultants || [];
   }
 
   // ---------------------------------------
@@ -1359,16 +1381,14 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
   }
 
   // ---------------------------------------
-  // Fetch main data
+  // Fetch Data
   // ---------------------------------------
-  const data = await RoToSiteLevelRequest.find(query);
-
   const roToSiteData = await RoToSiteLevelRequest.find(query).lean();
   const siteToSiteData = await SiteToSiteLevelRequest.find(query).lean();
   const archToRoData = await ArchitectureToRoRequest.find(query).lean();
 
   // ---------------------------------------
-  // Count Actions Helper
+  // Count helper
   // ---------------------------------------
   function countActions(records) {
     const actionCounts = {
@@ -1384,7 +1404,7 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
       if (Array.isArray(record.natureOfRequestedInformationReasons)) {
         record.natureOfRequestedInformationReasons.forEach((reason) => {
           if (reason.action && actionCounts.hasOwnProperty(reason.action)) {
-            actionCounts[reason.action] += 1;
+            actionCounts[reason.action]++;
           }
         });
       }
@@ -1396,9 +1416,9 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
   const roActions = countActions(roToSiteData);
   const siteHeadActions = countActions(siteToSiteData);
 
-  // ===========================================================
-  // GROUPED BY CONSULTANT (Original logic unchanged)
-  // ===========================================================
+  // ---------------------------------------
+  // Consultant-wise aggregation
+  // ---------------------------------------
   const consultantIds = [
     ...new Set(archToRoData.map((r) => r.designDrawingConsultant)),
   ].filter(Boolean);
@@ -1420,8 +1440,8 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
   }));
 
   const consultantIndexMap = {};
-  consultantDetails.forEach((c, index) => {
-    consultantIndexMap[c._id] = index;
+  consultantDetails.forEach((c, i) => {
+    consultantIndexMap[c._id] = i;
   });
 
   archToRoData.forEach((record) => {
@@ -1431,22 +1451,20 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     const idx = consultantIndexMap[consultantId];
     if (idx === undefined) return;
 
-    const actionsForConsultant = architectureToRoActions[idx];
-
     if (Array.isArray(record.natureOfRequestedInformationReasons)) {
       record.natureOfRequestedInformationReasons.forEach((reason) => {
         if (
           reason.action &&
-          actionsForConsultant.hasOwnProperty(reason.action)
+          architectureToRoActions[idx].hasOwnProperty(reason.action)
         ) {
-          actionsForConsultant[reason.action] += 1;
+          architectureToRoActions[idx][reason.action]++;
         }
       });
     }
   });
 
   // ---------------------------------------
-  // Final Count Values
+  // Final Counts per Role
   // ---------------------------------------
   let counts = {};
 
@@ -1473,12 +1491,27 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
     };
   }
 
+  if (isSiteLevel) {
+    counts = {
+      siteToSiteLevelRequest: siteToSiteData.length,
+      roToSiteLevelRequest: roToSiteData.length,
+      architectureToRoRequested: archToRoData.length,
+      roActions,
+      siteHeadActions,
+      architectureToRoActions,
+    };
+  }
+
   // ---------------------------------------
   // Response
   // ---------------------------------------
   res.status(200).json({
     status: "success",
-    data,
+    data: {
+      roToSiteData,
+      siteToSiteData,
+      archToRoData,
+    },
     counts,
   });
 });
@@ -2026,5 +2059,174 @@ exports.getAllDrawingStatusCount = catchAsync(async (req, res, next) => {
     status: "success",
     // filterType: "site only",
     data: finalData,
+  });
+});
+
+
+
+
+
+exports.getDrawingsAnalysisCountForSiteLevel = catchAsync(async (req, res, next) => {
+  const { siteId } = req.params;
+  const { selectTimePeriod, month, year, folderId, consultantId } = req.query;
+  const userId = req.user.id;
+  const userDepartment = req.user.department;
+
+  // Fetch user data to check for customized view permission
+  const user = await User.findOne({
+    _id: userId,
+    "permittedSites.siteId": siteId,
+  }).select("permittedSites");
+
+  const customizedView = user
+    ? user.permittedSites.find((site) => site.siteId.toString() === siteId)
+        .enableModules.customizedView
+    : false;
+
+  const consultantsInDepartment = await assignDesignConsultantsToDepartment
+    .findOne({
+      department: userDepartment,
+      siteId: siteId,
+      module: "siteLevel",
+    })
+    .select("designConsultants")
+    .exec();
+
+  const designConsultantIds = consultantsInDepartment
+    ? consultantsInDepartment.designConsultants
+    : [];
+  console.log(designConsultantIds, "designConsultantIds");
+
+  // Step 1: Calculate the date range only if selectTimePeriod is provided
+  let startDate, endDate;
+  if (selectTimePeriod) {
+    ({ startDate, endDate } = calculateDateRange(
+      selectTimePeriod,
+      parseInt(month),
+      parseInt(year)
+    ));
+  }
+
+  // Step 2: Construct base query
+  let query = {
+    siteId,
+    drawingStatus: "Approval",
+  };
+  if (selectTimePeriod) {
+    query.creationDate = { $gte: startDate, $lt: endDate };
+  }
+
+  if (folderId) {
+    query.folderId = folderId;
+  }
+
+  // Step 3: Filter by consultantId if provided, otherwise show all consultants (no filtering)
+  // Handle special case: "all" means show all consultants (no filtering)
+  if (consultantId && consultantId !== "all") {
+    query.designDrawingConsultant = consultantId;
+  }
+  // By default, show all consultants data (no department-based filtering)
+
+  // Step 4: Fetch data with consultant population
+  const data = await ArchitectureToRoRegister.find(query)
+    .populate({
+      path: "designDrawingConsultant",
+      select: "firstName lastName email role",
+    })
+    .lean()
+    .exec();
+
+  let totalApprovalCount = data.length;
+  let totalPendingDrawings = 0;
+  let totalDrawingCount = 0;
+  let PendingSoftCoyCount = 0;
+
+  // Object to store consultant-specific counts
+  const consultantData = {};
+
+  data.forEach((record) => {
+    const architectRevisions = record.acceptedRORevisions || [];
+    const roRevisions = record.acceptedSiteHeadRevisions || [];
+
+    // Get consultant info
+    const consultantId = record.designDrawingConsultant
+      ? record.designDrawingConsultant._id.toString()
+      : "no-consultant";
+    const consultantName = record.designDrawingConsultant
+      ? `${record.designDrawingConsultant.firstName || ""} ${
+          record.designDrawingConsultant.lastName || ""
+        }`.trim() || "Unknown"
+      : "No Consultant";
+    const consultantRole = record.designDrawingConsultant
+      ? record.designDrawingConsultant.role || null
+      : null;
+
+    // Initialize consultant data if not exists
+    if (!consultantData[consultantId]) {
+      consultantData[consultantId] = {
+        consultantId: consultantId === "no-consultant" ? null : consultantId,
+        consultantName,
+        consultantRole,
+        totalApprovalCount: 0,
+        drawing: {
+          approved: 0,
+          pending: 0,
+        },
+        PendingSoftCoyCount: 0,
+      };
+    }
+
+    // Increment consultant total count
+    consultantData[consultantId].totalApprovalCount++;
+
+    // Count records with no SiteHead revisions as PendingSoftCoyCount
+    if (roRevisions.length === 0) {
+      PendingSoftCoyCount++;
+      consultantData[consultantId].PendingSoftCoyCount++;
+    }
+
+    const latestArchitectRevision =
+      architectRevisions.length > 0
+        ? architectRevisions[architectRevisions.length - 1]
+        : null;
+
+    const latestRoRevision =
+      roRevisions.length > 0 ? roRevisions[roRevisions.length - 1] : null;
+
+    if (!latestRoRevision || latestRoRevision.rfiStatus === "Raised") {
+      totalPendingDrawings++;
+      consultantData[consultantId].drawing.pending++;
+      return;
+    }
+
+    if (latestRoRevision.rfiStatus === "Not Raised") {
+      if (
+        latestRoRevision &&
+        latestArchitectRevision &&
+        latestArchitectRevision.revision === latestRoRevision.revision
+      ) {
+        totalDrawingCount++;
+        consultantData[consultantId].drawing.approved++;
+      } else {
+        totalPendingDrawings++;
+        consultantData[consultantId].drawing.pending++;
+      }
+    }
+  });
+
+  // Convert consultant data object to array
+  const consultants = Object.values(consultantData);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      totalApprovalCount,
+      drawing: {
+        approved: totalDrawingCount,
+        pending: totalPendingDrawings,
+      },
+      PendingSoftCoyCount,
+      consultants,
+    },
   });
 });

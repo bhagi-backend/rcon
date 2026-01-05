@@ -616,6 +616,11 @@ exports.requestPasswordReset = catchAsync(async (req, res, next) => {
   if (!email) {
     return res.status(400).json({ error: "Email is required." });
   }
+   const user = await User.findOne({ email: email });
+
+  if (!user) {
+    return res.status(404).json({ error: "No user found with this email." });
+  }
 
   try {
     await requestPasswordReset(email);

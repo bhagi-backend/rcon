@@ -105,7 +105,7 @@ exports.resizeDrawingPhotoforRoRfi = catchAsync(async (req, res, next) => {
 
   // Retrieve the drawing by ID or create if it does not exist
   if (!req.drawing) {
-    req.drawing = await roToSiteRequest.findById(req.params.id);
+    req.drawing = await siteToSiteRequest.findById(req.params.id);
   }
 
   if (!req.drawing) {

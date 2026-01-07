@@ -1260,7 +1260,7 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
   const { siteId } = req.params;
   const { selectTimePeriod, month, year, folderId, consultantId } = req.query;
   const userId = req.user.id;
-
+console.log("userId", req.user.department);
   // ---------------------------------------
   // User + Permission
   // ---------------------------------------
@@ -1507,11 +1507,12 @@ exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) 
   // ---------------------------------------
   res.status(200).json({
     status: "success",
-    data: {
-      roToSiteData,
-      siteToSiteData,
-      archToRoData,
-    },
+    data:
+    // data: {
+    //   roToSiteData,
+    //   siteToSiteData,
+    //   archToRoData,
+    // },
     counts,
   });
 });

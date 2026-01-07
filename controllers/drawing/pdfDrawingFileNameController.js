@@ -130,6 +130,36 @@ exports.resizeDrawingPhotoforRoRfi = catchAsync(async (req, res, next) => {
  next();
 });
 
+exports.resizeDrawingPhotoRfi = catchAsync(async (req, res, next) => {
+  if (!req.file) return next();
+
+  // Retrieve the drawing by ID or create if it does not exist
+  if (!req.drawing) {
+    req.drawing = await roToSiteRequest.findById(req.params.id);
+  }
+
+  if (!req.drawing) {
+    return next(new AppError('Drawing not found', 404));
+  }
+
+  // Define new file name and upload path
+  const fileExtension = path.extname(req.file.originalname);
+  const newFilename = `request-roToSiteRequest-${req.drawing._id}-${Date.now()}${fileExtension}`;
+  // req.file.filename = newFilename;
+  const companyId = req.user.companyId;
+  
+  
+ const { relativePath, uploadToS3 } = getUploadPath(companyId, newFilename, "drawings", req.drawing.siteId);
+
+
+    // Upload the file to S3
+    await uploadToS3(req.file.buffer, req.file.mimetype);
+
+    // Attach the relative S3 path to req.file for later use
+    req.file.filename = relativePath;
+ next();
+});
+
 // Function to update the PDF in the latest revision of ArchitectureToRoRequest
 exports.updatePdfInLatestRevisionsforRfi = catchAsync(async (req, res, next) => {
   const { id } = req.params;

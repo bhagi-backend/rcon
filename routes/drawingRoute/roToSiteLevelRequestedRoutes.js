@@ -36,7 +36,7 @@ router.put(
   "/drawingPdf/:id",
   authController.protect,
   pdfController.uploadDrawingPhoto,
-  pdfController.resizeDrawingPhotoforRoRfi,
+  pdfController.resizeDrawingPhotoRfi,
   pdfController.updatePdfInLatestRevisionsforRoRfi
 );
 router.put(
@@ -51,6 +51,11 @@ router.get("/", RoToSiteLevelRequestedController.getAllRequests);
 router.get("/byDrawingId",authController.protect, RoToSiteLevelRequestedController.getRequestByDrawingId);
 router.get("/pdfbyDrawingId",authController.protect, RoToSiteLevelRequestedController.generatePdfReport);
 router.get("/site",authController.protect, RoToSiteLevelRequestedController.getAllRequestsBySiteId);
+router.get(
+  "/viewRfi/:id",
+  authController.protect,
+  RoToSiteLevelRequestedController.getRequestById
+);
 router.get("/:id", authController.protect,RoToSiteLevelRequestedController.getRequest);
 router.get("/viewRejectDwg/:id",authController.protect, RoToSiteLevelRequestedController.getViewRejectDwgFile);
 router.put(

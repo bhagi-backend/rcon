@@ -1646,3 +1646,47 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
 });
 
 
+exports.getRequestById = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  // 1️⃣ Fetch the request by ID
+  const request = await ArchitectureToRoRequest.findById(id).populate({
+        path: "drawingId",
+        select: "drawingTitle designDrawingConsultant category",
+        populate: [
+          { path: "designDrawingConsultant", select: "role" },
+          { path: "category", select: "category" },
+          { path: "folderId", select: "folderName" },
+        ],
+      })
+
+  if (!request) {
+    return res.status(404).json({
+      status: "fail",
+      message: "Request not found",
+    });
+  }
+
+  // 2️⃣ Fetch related requests by same drawingId (excluding current request)
+  const relatedRequests = await ArchitectureToRoRequest.find({
+    drawingId: request.drawingId._id,
+    _id: { $ne: request._id }, // exclude the current request
+  }).populate({
+        path: "drawingId",
+        select: "drawingTitle designDrawingConsultant category",
+        populate: [
+          { path: "designDrawingConsultant", select: "role" },
+          { path: "category", select: "category" },
+          { path: "folderId", select: "folderName" },
+        ],
+      })
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      request,
+      relatedRequests,
+    },
+  });
+});
+

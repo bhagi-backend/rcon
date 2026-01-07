@@ -70,6 +70,11 @@ router.get(
 );
 router.get("/", ArchitectureToRoRequestedController.getAllRequests);
 router.get(
+  "/viewRfi/:id",
+  authController.protect,
+  ArchitectureToRoRequestedController.getRequestById
+);
+router.get(
   "/:id",
   authController.protect,
   ArchitectureToRoRequestedController.getRequest

@@ -978,24 +978,29 @@ exports.getAllSiteHeadReports = async (req, res) => {
     year,
     folderId
   } = req.query;
-
+  // const userId = req.user._id;
+  // const user = await User.findOne({
+  //   _id: userId,
+  //   permittedSites: {
+  //     $elemMatch: {
+  //       siteId: siteId,
+  //       'enableModules.drawingDetails.siteHead': true,
+  //     },
+  //   },
+  // });
   const userDepartment = req.user.department;
   const siteId = req.query.siteId;
   const userId = req.user.id;
 
-  // Step 1: Find the user's customizedView value based on siteId
-  const user = await User.findOne({
-    _id: userId,
-    "permittedSites.siteId": siteId
-  }).select('permittedSites');
+// Step 1: Find the user's customizedView value based on siteId
+const user = await User.findOne({
+  _id: userId,
+  "permittedSites.siteId": siteId
+}).select('permittedSites');
 
-  const customizedView = user
-    ? user.permittedSites.find(site => site.siteId.toString() === siteId).enableModules.customizedView
-    : false;
-
-  console.log("customizedView", customizedView);
-  console.log("userId", userId);
-
+const customizedView = user ? user.permittedSites.find(site => site.siteId.toString() === siteId).enableModules.customizedView : false;
+console.log("customizedView",customizedView);
+console.log("userId",userId);
   try {
     // Fetch consultants in the department
     const consultantsInDepartment = await assignDesignConsultantsToDepartment.findOne({
@@ -1006,47 +1011,48 @@ exports.getAllSiteHeadReports = async (req, res) => {
 
     let designConsultantIds = [];
 
-    // If consultants are assigned → use them
-    if (consultantsInDepartment && consultantsInDepartment.designConsultants.length > 0) {
-      designConsultantIds = consultantsInDepartment.designConsultants;
-      console.log("Consultant IDs:", designConsultantIds);
-    } else {
-      // If NO consultants assigned → fetch based only on siteId
-      console.log("No consultants assigned. Fetching data only using siteId.");
-      designConsultantIds = null;   // mark as no restriction
-    }
+// If consultants are assigned → use them
+if (consultantsInDepartment && consultantsInDepartment.designConsultants.length > 0) {
+  designConsultantIds = consultantsInDepartment.designConsultants;
+  console.log("Consultant IDs:", designConsultantIds);
+} else {
+  // If NO consultants assigned → fetch based only on siteId
+  console.log("No consultants assigned. Fetching data only using siteId.");
+  designConsultantIds = null;   // mark as no restriction
+}
+
 
     let query;
 
-    if (customizedView) {
-      if (designConsultantIds) {
-        // Consultants exist → restricted view
-        query = {
-          $and: [
-            { siteId },
-            ...(folderId ? [{ folderId }] : []),
-            { designDrawingConsultant: { $in: designConsultantIds } }
-          ]
-        };
-      } else {
-        // No consultants assigned → allow all from siteId
-        query = {
-          siteId,
-          ...(folderId ? { folderId } : {})
-        };
-      }
+  if (customizedView) {
+  if (designConsultantIds) {
+    // Consultants exist → restricted view
+    query = {
+      $and: [
+        { siteId },
+        ...(folderId ? [{ folderId }] : []),
+        { designDrawingConsultant: { $in: designConsultantIds } }
+      ]
+    };
+  } else {
+    // No consultants assigned → allow all from siteId
+    query = {
+      siteId,
+      ...(folderId ? { folderId } : {})
+    };
+  }
 
-      console.log("query1");
-    }
-    else {
+  console.log("query1");
+}
+ else {
       // If customizedView is false, fetch data based only on siteId
       query = {
-        siteId,
+        siteId, // Only match by siteId
         ...(folderId ? { folderId } : []) // Include folderId filter if it exists
       };
       console.log("query2");
     }
-
+    
     const dataPopulateFields = [
       { path: 'designDrawingConsultant', select: 'firstName role' },
       { path: 'category', select: 'category' },
@@ -1069,16 +1075,17 @@ exports.getAllSiteHeadReports = async (req, res) => {
 
       case 'pending':
         query['$or'] = [
-          { acceptedSiteHeadRevisions: { $size: 0 } },
-          { acceptedRORevisions: { $size: 0 } },
-          { acceptedSiteHeadHardCopyRevisions: { $size: 0 } },
-          { regState: 'Pending' }
-        ],
+            { acceptedSiteHeadRevisions: { $size: 0 } },
+            { acceptedRORevisions: { $size: 0 } },
+            { acceptedSiteHeadHardCopyRevisions: { $size: 0 } },
+            { regState :'Pending'}
+          ],
+        
         data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).lean();
         break;
 
       case 'register':
-        data = await ArchitectureToRoRegister.find({ siteId }).populate(dataPopulateFields).lean();
+        data = await ArchitectureToRoRegister.find({siteId}).populate(dataPopulateFields).lean();
         break;
 
       case 'RFI':
@@ -1094,24 +1101,17 @@ exports.getAllSiteHeadReports = async (req, res) => {
           })
           .exec();
 
-        // ✅ FIX APPLIED HERE (null-safe includes)
-        const filteredRfiData1 = rfiData.filter(item => {
-          // If no consultants assigned → allow all
-          if (!designConsultantIds) return true;
-
-          return designConsultantIds.includes(
-            item.drawingId?.designDrawingConsultant?._id?.toString()
-          );
-        });
-
+        // Filter RFI data based on the design drawing consultant
+        const filteredRfiData1 = rfiData.filter(item => designConsultantIds.includes(item.drawingId?.designDrawingConsultant?._id.toString()));
         const filteredRfiData = filteredRfiData1.map((request) => {
-          // Apply logic for siteHead enabled
-          if (request.rfiState === "Forwarded" && request.status === "Requested") {
-            request.status = "Forwarded";
-          }
+         
+            // Apply logic for siteHead enabled
+            if (request.rfiState === "Forwarded" && request.status === "Requested") {
+              request.status = "Forwarded";
+            }
+          
           return request;
         });
-
         data = filteredRfiData;
         break;
 
@@ -1120,37 +1120,25 @@ exports.getAllSiteHeadReports = async (req, res) => {
     }
 
     // Apply time period filter
-    data = applyTimePeriodFilter(
-      data,
-      selectTimePeriod,
-      fromDate,
-      toDate,
-      month,
-      year
-    );
-
-    const creationDates = data.map(item =>
-      new Date(item.toObject ? item.toObject().creationDate : item.creationDate)
-    );
+    data = applyTimePeriodFilter(data, selectTimePeriod, fromDate, toDate, month, year);
+    const creationDates = data.map(item => new Date(item.toObject ? item.toObject().creationDate : item.creationDate));
 
     // Set startDate as the earliest creationDate
     const startDate = new Date(Math.min(...creationDates));
-
+  
     // Set endDate as the latest creationDate
     const endDate = new Date(Math.max(...creationDates));
-
     // Remove unwanted fields from the data only if they exist
     const cleanedData = data.map(item => {
-      const itemData = item.toObject ? item.toObject() : item;
+      const itemData = item.toObject ? item.toObject() : item; // Convert Mongoose document to a plain object if needed
 
-      delete itemData.acceptedArchitectRevisions;
-      delete itemData.acceptedSiteRevisions;
-      delete itemData.acceptedROHardCopyRevisions;
-
-      return itemData;
+      delete itemData.acceptedArchitectRevisions; // Remove this field
+      delete itemData.acceptedSiteRevisions; // Remove this field
+      delete itemData.acceptedROHardCopyRevisions; 
+      return itemData; // Return the modified item
     });
 
-    return res.status(200).json({
+      return res.status(200).json({
       cleanedData,
       startDate,
       endDate,
@@ -1161,7 +1149,6 @@ exports.getAllSiteHeadReports = async (req, res) => {
     return res.status(400).json({ message: 'Server error', error: error.message });
   }
 };
-
 
 
 

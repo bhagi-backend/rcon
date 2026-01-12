@@ -19,6 +19,7 @@ const reasonSchema = new mongoose.Schema({
     type: mongoose.Schema.ObjectId,
     ref: "User",
   },
+  isHistory: { type: Boolean, default: false },
 });
 
 const ArchitectureToRoRequestSchema = new mongoose.Schema({
@@ -97,7 +98,7 @@ const ArchitectureToRoRequestSchema = new mongoose.Schema({
   status: {
     type: String,
     default: "Requested",
-    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded"]
+    enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded","Partially Accepted" ],
   },
   rfiType: {
     type: String,

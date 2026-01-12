@@ -32,6 +32,7 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
   const user = await User.findOne({ _id: userId });
   const companyId = user.companyId;
   console.log("companyId", companyId);
+
   if (
     !siteId ||
     !drawings ||
@@ -42,6 +43,26 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
       status: "error",
       statusCode: 400,
       message: "siteId and drawings array are required fields",
+    });
+  }
+
+  // =====================================================
+  // ✅ NEW: Check duplicate drawingNo inside request body
+  // =====================================================
+  const drawingNosInBody = drawings.map((d) => d.drawingNo);
+  const duplicateDrawingNos = drawingNosInBody.filter(
+    (item, index) => drawingNosInBody.indexOf(item) !== index
+  );
+
+  if (duplicateDrawingNos.length > 0) {
+    const uniqueDuplicates = [...new Set(duplicateDrawingNos)];
+
+    return res.status(400).json({
+      status: "error",
+      statusCode: 400,
+      message: `Duplicate drawing number(s) found in request body: ${uniqueDuplicates.join(
+        ", "
+      )}. Each drawing number must be unique.`,
     });
   }
 
@@ -59,6 +80,7 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
   const createdRegisters = [];
   const notifications = [];
   const createdFolders = [];
+
   const drawingNos = drawings.map((d) => d.drawingNo); // extract all drawingNos
   const existingDrawings = await ArchitectureToRoRegister.find({
     siteId,
@@ -66,7 +88,6 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
   });
 
   if (existingDrawings.length > 0) {
-    // Create a detailed error message for all duplicates
     const duplicateDetails = existingDrawings.map(
       (d) =>
         `Drawing No: "${d.drawingNo}", Title: "${d.drawingTitle}", Category: "${d.category}"`
@@ -77,7 +98,7 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
       message: `The following drawings already exist for this site:\n${duplicateDetails.join(
         "\n"
       )}`,
-      duplicates: existingDrawings, // optional: return duplicate data
+      duplicates: existingDrawings,
     });
   }
 
@@ -89,13 +110,16 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
       ],
     });
     console.log("categoryRecord", categoryRecord);
+
     if (!categoryRecord) {
       return res.status(200).json({
         status: "error",
-        message: `category ${category} does not exist. Please create the category before assigning it to a drawing.`,
+        message: `category ${drawing.category} does not exist. Please create the category before assigning it to a drawing.`,
       });
     }
+
     let folderId = drawing.folderId;
+
     const {
       drawingNo,
       drawingTitle,
@@ -120,7 +144,6 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
 
       if (existingFolder) {
         folderId = existingFolder._id;
-        console.log("hi"); // Use the existing folder ID
       } else {
         try {
           const newFolder = await DrawingFolder.create({
@@ -128,7 +151,7 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
             folderName: siteName,
           });
           createdFolders.push(newFolder);
-          folderId = newFolder._id; // Assign the new folder ID
+          folderId = newFolder._id;
         } catch (error) {
           console.error("Error creating folder:", error);
           return next(
@@ -140,13 +163,6 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
         }
       }
     }
-    // const existingDrawing = await ArchitectureToRoRegister.findOne({ siteId, drawingNo });
-    // if (existingDrawing) {
-    //   return res.status(200).json({
-    //     status: 'error',
-    //      message: `${drawingNo} drawing number already exists. Please provide a unique drawing number.`
-    //   });
-    // }
 
     if (!drawingNo || !drawingTitle || !designDrawingConsultant) {
       return res.status(400).json({
@@ -159,14 +175,7 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
 
     const count = await ArchitectureToRoRegister.countDocuments({ siteId });
 
-    // // Generate the 3-digit suffix
-    // const sequenceNumber = (count + createdRegisters.length + 1).toString().padStart(3, '0');
-
-    // // Append it to the provided drawing number
-    // const uniqueDrawingNo = `${drawingNo}-${sequenceNumber}`;
-
     try {
-      // Create the record in ArchitectureToRoRegister
       const newRegister = await ArchitectureToRoRegister.create({
         siteId,
         companyId,
@@ -217,6 +226,7 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
     },
   });
 });
+
 exports.uploadDrawingPhoto = upload.single("pdfDrawingFileName");
 
 exports.uploadDrawingFiles = upload.fields([
@@ -1317,16 +1327,16 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
     const latestRevision =
       existingRegister[revisionType][existingRegister[revisionType].length - 1];
     console.log("Latest Revision:", latestRevision);
-    if (latestRevision && latestRevision.typeOfDrawing === typeOfDrawing) {
-      if (latestRevision.rfiStatus === "Not Raised") {
-        return res.status(200).json({
-          status: "fail",
-          success: false,
-          message:
-            "Cannot update revision because RFI has not been raised on the latest revision",
-        });
-      }
-    }
+    // if (latestRevision && latestRevision.typeOfDrawing === typeOfDrawing) {
+    //   if (latestRevision.rfiStatus === "Not Raised") {
+    //     return res.status(200).json({
+    //       status: "fail",
+    //       success: false,
+    //       message:
+    //         "Cannot update revision because RFI has not been raised on the latest revision",
+    //     });
+    //   }
+    // }
   }
   try {
     let drawingFileName = null;

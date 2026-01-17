@@ -125,6 +125,9 @@ const SiteHeadSoftrevisionSchema = new mongoose.Schema({
     enum: ["Raised", "Not Raised"],
     default: "Not Raised",
   },
+  rfiRespondedDate: {
+    type: Date,
+  },
   rfiRejectStatus :{
     type: String,
     enum: ["Rejected", "Not Rejected"],
@@ -196,6 +199,9 @@ const RoSoftrevisionSchema = new mongoose.Schema({
     type: String,
     enum: ["Raised", "Not Raised"],
     default: "Not Raised",
+  },
+  rfiRespondedDate: {
+    type: Date,
   },
   rfiRejectStatus :{
     type: String,
@@ -280,12 +286,18 @@ const architectSoftRevisionSchema = new mongoose.Schema({
     enum: ["Raised", "Not Raised"],
     default: "Not Raised",
   },
+  rfiRespondedDate: {
+    type: Date,
+  },
   rfiRejectStatus :{
     type: String,
     enum: ["Rejected", "Not Rejected"],
     default: "Not Rejected",
   },
   roRfiTimeStampDays: {
+    type: Number,
+  },
+  howManyDaysToAcceptOrRejectRfi: {
     type: Number,
   },
   viewDates: {

@@ -706,32 +706,36 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
 
   if (rfiType === "Created") {
     // Handle case where rfiType is "Created"
-   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-  { drawingNo, siteId },
-  {
-    $set: {
-      "acceptedArchitectRevisions.$[elem].rfiStatus": "Not Raised",
-      "acceptedArchitectRevisions.$[elem].rfiRejectStatus": "Rejected"
-    },
-  },
-  {
-    new: true,
-    arrayFilters: [{ "elem.revision": revision }],
-  }
-);
+    const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+      { drawingNo, siteId },
+      {
+        $set: {
+          "acceptedArchitectRevisions.$[elem].rfiStatus": "Not Raised",
+          "acceptedArchitectRevisions.$[elem].rfiRejectStatus": "Rejected",
 
+          // ✅ ADDED
+          // "acceptedArchitectRevisions.$[elem].respondedDate": Date.now(),
+          "acceptedArchitectRevisions.$[elem].rfiRespondedDate": Date.now(),
+        },
+      },
+      {
+        new: true,
+        arrayFilters: [{ "elem.revision": revision }],
+      }
+    );
 
     if (!updatedRegister) {
       return next(
         new AppError("Failed to update ArchitectureToRoRegister", 400)
       );
     }
+
     const siteHeadIds = await User.find({
       "permittedSites.siteId": siteId,
     }).select("permittedSites _id");
+
     if (siteHeadIds.length > 0) {
       for (let user of siteHeadIds) {
-        //console.log(`User ${user._id} permittedSites:`, JSON.stringify(user.permittedSites, null, 2));
         const site = user?.permittedSites?.find((site) => {
           console.log("Checking site:", site?.siteId, "against input:", siteId);
           return site?.siteId?.toString() === siteId.toString();
@@ -746,13 +750,14 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
 
         const rfiAccessEnabled =
           site?.enableModules?.drawingDetails?.roDetails?.rfiRaisedAccess;
+
         console.log(
           `RFI Access Enabled for site ${site?.siteId}:`,
           rfiAccessEnabled
         );
 
         if (rfiAccessEnabled) {
-          const notificationMessage1 = `A RFI has been Rejected for drawing number ${drawingNo} with  revision ${revision}.`;
+          const notificationMessage1 = `A RFI has been Rejected for drawing number ${drawingNo} with revision ${revision}.`;
 
           try {
             const notificationToSiteHead = await sendNotification(
@@ -810,7 +815,9 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
         new AppError("Failed to update RO-to-Site Level Request", 400)
       );
     }
+
     const roRevision = updatedRoRequest.revision;
+
     // Proceed to update the register for forwarded case if necessary
     const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
       { drawingNo, siteId },
@@ -818,13 +825,20 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
         $set: {
           "acceptedArchitectRevisions.$[architectElem].rfiStatus": "Not Raised",
           "acceptedRORevisions.$[roElem].rfiStatus": "Not Raised",
+
+          // ✅ ADDED
+          // "acceptedArchitectRevisions.$[architectElem].respondedDate": Date.now(),
+          "acceptedArchitectRevisions.$[architectElem].rfiRespondedDate": Date.now(),
+
+          // "acceptedRORevisions.$[roElem].respondedDate": Date.now(),
+          "acceptedRORevisions.$[roElem].rfiRespondedDate": Date.now(),
         },
       },
       {
         new: true,
         arrayFilters: [
-          { "architectElem.revision": revision }, // Filter for acceptedArchitectRevisions
-          { "roElem.revision": roRevision }, // Filter for acceptedRORevisions
+          { "architectElem.revision": revision },
+          { "roElem.revision": roRevision },
         ],
       }
     );
@@ -832,9 +846,9 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
     const siteHeadIds = await User.find({
       "permittedSites.siteId": siteId,
     }).select("permittedSites _id");
+
     if (siteHeadIds.length > 0) {
       for (let user of siteHeadIds) {
-        //console.log(`User ${user._id} permittedSites:`, JSON.stringify(user.permittedSites, null, 2));
         const site = user?.permittedSites?.find((site) => {
           console.log("Checking site:", site?.siteId, "against input:", siteId);
           return site?.siteId?.toString() === siteId.toString();
@@ -849,13 +863,14 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
 
         const rfiAccessEnabled =
           site?.enableModules?.drawingDetails?.roDetails?.rfiRaisedAccess;
+
         console.log(
           `RFI Access Enabled for site ${site?.siteId}:`,
           rfiAccessEnabled
         );
 
         if (rfiAccessEnabled) {
-          const notificationMessage1 = `A RFI has been Rejected for drawing number ${drawingNo} with  revision ${revision}.`;
+          const notificationMessage1 = `A RFI has been Rejected for drawing number ${drawingNo} with revision ${revision}.`;
 
           try {
             const notificationToSiteHead = await sendNotification(
@@ -877,6 +892,7 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
         }
       }
     }
+
     res.status(200).json({
       status: "success",
       data: updatedRequest,
@@ -887,6 +903,7 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
     return next(new AppError("Invalid rfiType value", 400));
   }
 });
+
 
 exports.uploadRejectedFile = upload.single("rejectedFile");
 
@@ -1069,11 +1086,15 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     });
   }
 
+  // ✅ ADDED: conditional status (only addition)
+  const requestStatus =
+    req.query?.status === "Partially Accepted" ? "Partially Accepted" : "Responded";
+
   // Update the RO request status
   const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
     req.params.id,
     {
-      status: "Responded",
+      status: requestStatus, // ✅ modified only by condition
       acceptedBy: userId,
       acceptedDate: Date.now(),
     },
@@ -1094,6 +1115,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
   const revisionToUpdate = architectureToRoRequest.revision;
   const siteId = architectureToRoRequest.siteId;
   const drawingNo = architectureToRoRequest.drawingNo;
+
   // Update revision in ArchitectureToRoRegister if revisionToUpdate exists
   if (revisionToUpdate) {
     const architectureToRoRegister = await ArchitectureToRoRegister.findById(
@@ -1107,14 +1129,21 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
       });
     }
 
-    const revisionIndex = architectureToRoRegister.acceptedArchitectRevisions.findIndex(
-      (rev) => rev.revision === revisionToUpdate
-    );
+    const revisionIndex =
+      architectureToRoRegister.acceptedArchitectRevisions.findIndex(
+        (rev) => rev.revision === revisionToUpdate
+      );
 
     if (revisionIndex !== -1) {
       architectureToRoRegister.acceptedArchitectRevisions[
         revisionIndex
       ].issuesInRevision = architectureToRoRequest.remarks;
+
+      // ✅ ADDED: rfiRespondedDate
+      architectureToRoRegister.acceptedArchitectRevisions[
+        revisionIndex
+      ].rfiRespondedDate = Date.now();
+
       architectureToRoRegister.archRevision = revisionToUpdate;
       architectureToRoRegister.regState = "Pending";
       await architectureToRoRegister.save();
@@ -1135,7 +1164,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     ? await RoToSiteLevelRequest.findByIdAndUpdate(
         roRfiId,
         {
-          status: "Responded",
+          status: requestStatus, // ✅ same conditional status
           acceptedBy: userId,
           acceptedDate: Date.now(),
         },
@@ -1161,6 +1190,11 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
         if (revisionIndex1 !== -1) {
           roRegister.acceptedRORevisions[revisionIndex1].issuesInRevision =
             architectureToRoRequest.remarks;
+
+          // ✅ ADDED: rfiRespondedDate
+          roRegister.acceptedRORevisions[revisionIndex1].rfiRespondedDate =
+            Date.now();
+
           await roRegister.save();
         }
       }
@@ -1168,16 +1202,15 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
   }
 
   // Fetch updated data for response
-  const updatedArchitectureToRoRegister = await ArchitectureToRoRegister.findById(
-    drawingId
-  );
+  const updatedArchitectureToRoRegister =
+    await ArchitectureToRoRegister.findById(drawingId);
 
   const siteHeadIds = await User.find({
     "permittedSites.siteId": siteId,
   }).select("permittedSites _id");
+
   if (siteHeadIds.length > 0) {
     for (let user of siteHeadIds) {
-      //console.log(`User ${user._id} permittedSites:`, JSON.stringify(user.permittedSites, null, 2));
       const site = user?.permittedSites?.find((site) => {
         console.log("Checking site:", site?.siteId, "against input:", siteId);
         return site?.siteId?.toString() === siteId.toString();
@@ -1192,6 +1225,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
 
       const rfiAccessEnabled =
         site?.enableModules?.drawingDetails?.roDetails?.rfiRaisedAccess;
+
       console.log(
         `RFI Access Enabled for site ${site?.siteId}:`,
         rfiAccessEnabled
@@ -1205,7 +1239,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
             "Drawing",
             notificationMessage1,
             "RFI Responded",
-            "Responded",
+            requestStatus, // ✅ keep status consistent
             user._id
           );
           console.log("notificationToSiteHead", notificationToSiteHead);
@@ -1230,6 +1264,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     },
   });
 });
+
 
 exports.closeRequest = catchAsync(async (req, res, next) => {
   const userId = req.user.id;

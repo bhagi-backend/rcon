@@ -1988,8 +1988,96 @@ exports.updateImpactImages = catchAsync(async (req, res, next) => {
     data: updatedRequest,
   });
 });
+// exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
+//   const { id } = req.params;
+
+//   // 1) Load request + drawing (for siteId used in S3 path)
+//   const request = await ArchitectureToRoRequest.findById(id).populate("drawingId", "siteId");
+//   if (!request || !request.drawingId) {
+//     return next(new AppError("Request or associated drawing not found", 404));
+//   }
+
+//   const companyId = req.user.companyId;
+
+//   // Normalize existing reasons as an array
+//   const existingReasons = Array.isArray(request.natureOfRequestedInformationReasons)
+//     ? request.natureOfRequestedInformationReasons
+//     : [];
+
+//   // Process single entry
+//   const newReason = {};
+
+//   // Body fields (handle flat text fields)
+//   if (req.body.natureOfRequest) newReason.natureOfRequest = req.body.natureOfRequest || null;
+//   if (req.body.reason) newReason.reason = req.body.reason || null;
+//   if (req.body.action) newReason.action = req.body.action || null;
+
+//   // **Add createdBy field from logged-in user**
+//   newReason.createdBy = req.user.id;
+
+//   // File processing (handle single file)
+//   const file = req.files && req.files.length > 0 ? req.files[0] : null;
+//   if (file && file.fieldname.startsWith("reasonFile")) {
+//     const ext = path.extname(file.originalname) || "";
+//     const newFilename = `reason-${id}-${Date.now()}${ext}`;
+
+//     const { uploadToS3, relativePath } = getUploadPath(
+//       companyId,
+//       newFilename,
+//       "reasons",
+//       request.drawingId.siteId
+//     );
+
+//     try {
+//       await uploadToS3(file.buffer, file.mimetype);
+//       newReason.reasonFile = relativePath;
+//     } catch (err) {
+//       return next(new AppError(`Failed to upload file: ${err.message}`, 500));
+//     }
+//   }
+
+//   // Validate that at least one field is provided
+//   if (
+//     !newReason.natureOfRequest &&
+//     !newReason.reason &&
+//     !newReason.action &&
+//     !newReason.reasonFile
+//   ) {
+//     return next(
+//       new AppError(
+//         "At least one field (natureOfRequest, reason, action, or reasonFile) is required",
+//         400
+//       )
+//     );
+//   }
+
+//   // Update reasons array (prepend the new entry)
+//   const updatedReasons = [
+//     newReason,
+//     ...existingReasons.filter(
+//       (r) => r.natureOfRequest || r.reason || r.action || r.reasonFile
+//     ),
+//   ];
+
+//   // Save updated reasons back to the document
+//   const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
+//     id,
+//     { $set: { natureOfRequestedInformationReasons: updatedReasons } },
+//     { new: true, runValidators: true }
+//   );
+
+//   if (!updatedRequest) {
+//     return next(new AppError("No request found with that ID", 404));
+//   }
+
+//   res.status(200).json({
+//     status: "success",
+//     data: updatedRequest,
+//   });
+// });
 exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
   const { id } = req.params;
+  const { natureOfRequestId } = req.query; // ✅ NEW
 
   // 1) Load request + drawing (for siteId used in S3 path)
   const request = await ArchitectureToRoRequest.findById(id).populate("drawingId", "siteId");
@@ -2007,15 +2095,15 @@ exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
   // Process single entry
   const newReason = {};
 
-  // Body fields (handle flat text fields)
+  // Body fields
   if (req.body.natureOfRequest) newReason.natureOfRequest = req.body.natureOfRequest || null;
   if (req.body.reason) newReason.reason = req.body.reason || null;
   if (req.body.action) newReason.action = req.body.action || null;
 
-  // **Add createdBy field from logged-in user**
+  // createdBy
   newReason.createdBy = req.user.id;
 
-  // File processing (handle single file)
+  // File processing
   const file = req.files && req.files.length > 0 ? req.files[0] : null;
   if (file && file.fieldname.startsWith("reasonFile")) {
     const ext = path.extname(file.originalname) || "";
@@ -2036,7 +2124,7 @@ exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
     }
   }
 
-  // Validate that at least one field is provided
+  // Validate at least one field
   if (
     !newReason.natureOfRequest &&
     !newReason.reason &&
@@ -2051,13 +2139,41 @@ exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
     );
   }
 
-  // Update reasons array (prepend the new entry)
-  const updatedReasons = [
-    newReason,
-    ...existingReasons.filter(
-      (r) => r.natureOfRequest || r.reason || r.action || r.reasonFile
-    ),
-  ];
+  let updatedReasons;
+
+  // =====================================================
+  // ✅ NEW LOGIC: UPDATE EXISTING REASON IF ID PROVIDED
+  // =====================================================
+  if (natureOfRequestId) {
+    let found = false;
+
+    updatedReasons = existingReasons.map((r) => {
+      if (r._id.toString() === natureOfRequestId) {
+        found = true;
+        return {
+          ...r.toObject(),
+          ...newReason,
+          isHistory: true, // optional: mark edited record
+        };
+      }
+      return r;
+    });
+
+    if (!found) {
+      return next(new AppError("Nature of request reason not found", 404));
+    }
+
+  } else {
+    // =====================================================
+    // ✅ EXISTING LOGIC (UNCHANGED): PREPEND NEW ENTRY
+    // =====================================================
+    updatedReasons = [
+      newReason,
+      ...existingReasons.filter(
+        (r) => r.natureOfRequest || r.reason || r.action || r.reasonFile
+      ),
+    ];
+  }
 
   // Save updated reasons back to the document
   const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
@@ -2284,21 +2400,13 @@ exports.createCombinedRequest = catchAsync(async (req, res, next) => {
 
 
 exports.updateViewDates = catchAsync(async (req, res, next) => {
-  const { _id, newViewDate } = req.body;
+  const { _id } = req.body;
+  const userId = req.user.id;
 
-  if (!_id || !newViewDate) {
+  if (!_id) {
     return res.status(400).json({
       status: "fail",
-      message: "_id and newViewDate are required",
-    });
-  }
-
-  // Convert to Date safely
-  const parsedDate = new Date(newViewDate);
-  if (isNaN(parsedDate.getTime())) {
-    return res.status(400).json({
-      status: "fail",
-      message: "Invalid newViewDate format",
+      message: "_id is required",
     });
   }
 
@@ -2311,16 +2419,27 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Update (avoid duplicates)
-  const updatedRfi = await ArchitectureToRoRequest.findOneAndUpdate(
-    { _id },
-    {
-      $addToSet: {
-        viewDates: parsedDate, // prevents duplicate dates
-      },
-    },
-    { new: true }
+  // Check if user already viewed
+  const alreadyViewed = rfi.viewedBy?.some(
+    (v) => v.user?.toString() === userId.toString()
   );
+
+  if (!alreadyViewed) {
+    await ArchitectureToRoRequest.findOneAndUpdate(
+      { _id },
+      {
+        $push: {
+          viewedBy: {
+            user: userId,
+            viewedAt: new Date(),
+          },
+        },
+      },
+      { new: true }
+    );
+  }
+
+  const updatedRfi = await ArchitectureToRoRequest.findById(_id);
 
   res.status(200).json({
     status: "success",
@@ -2335,15 +2454,20 @@ exports.getRequestById = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
   // 1️⃣ Fetch the request by ID
-  const request = await ArchitectureToRoRequest.findById(id).populate({
-        path: "drawingId",
-        select: "drawingTitle designDrawingConsultant category",
-        populate: [
-          { path: "designDrawingConsultant", select: "role" },
-          { path: "category", select: "category" },
-          { path: "folderId", select: "folderName" },
-        ],
-      })
+  const request = await ArchitectureToRoRequest.findById(id)
+    .populate({
+      path: "drawingId",
+      select: "drawingTitle designDrawingConsultant category",
+      populate: [
+        { path: "designDrawingConsultant", select: "role" },
+        { path: "category", select: "category" },
+        { path: "folderId", select: "folderName" },
+      ],
+    })
+    .populate({
+      path: "viewedBy.user",
+      select: "firstName email role",
+    });
 
   if (!request) {
     return res.status(404).json({
@@ -2356,15 +2480,20 @@ exports.getRequestById = catchAsync(async (req, res, next) => {
   const relatedRequests = await ArchitectureToRoRequest.find({
     drawingId: request.drawingId._id,
     _id: { $ne: request._id }, // exclude the current request
-  }).populate({
-        path: "drawingId",
-        select: "drawingTitle designDrawingConsultant category",
-        populate: [
-          { path: "designDrawingConsultant", select: "role" },
-          { path: "category", select: "category" },
-          { path: "folderId", select: "folderName" },
-        ],
-      })
+  })
+    .populate({
+      path: "drawingId",
+      select: "drawingTitle designDrawingConsultant category",
+      populate: [
+        { path: "designDrawingConsultant", select: "role" },
+        { path: "category", select: "category" },
+        { path: "folderId", select: "folderName" },
+      ],
+    })
+    .populate({
+      path: "viewedBy.user",
+      select: "firstName email role",
+    });
 
   res.status(200).json({
     status: "success",
@@ -2374,3 +2503,4 @@ exports.getRequestById = catchAsync(async (req, res, next) => {
     },
   });
 });
+

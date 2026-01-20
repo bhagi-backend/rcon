@@ -89,4 +89,10 @@ router.put(
   authController.protect,upload.any(),
   RoToSiteLevelRequestedController.updateNatureOfReasons
 );
+router.delete(
+  "/rfi/:id/reasons/:reasonId",
+  authController.protect,
+  RoToSiteLevelRequestedController.deleteNatureOfReason
+);
+
 module.exports = router;

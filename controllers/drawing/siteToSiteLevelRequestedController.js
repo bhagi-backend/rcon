@@ -1742,3 +1742,33 @@ exports.getRequestById = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.deleteNatureOfReason = catchAsync(async (req, res, next) => {
+  const { id, reasonId } = req.params;
+
+  const request = await ArchitectureToRoRequest.findById(id);
+  if (!request) {
+    return next(new AppError("Request not found", 404));
+  }
+
+  const reasons = Array.isArray(request.natureOfRequestedInformationReasons)
+    ? request.natureOfRequestedInformationReasons
+    : [];
+
+  const initialLength = reasons.length;
+
+  const updatedReasons = reasons.filter(
+    (r) => r._id.toString() !== reasonId
+  );
+
+  if (updatedReasons.length === initialLength) {
+    return next(new AppError("Reason not found", 404));
+  }
+
+  request.natureOfRequestedInformationReasons = updatedReasons;
+  await request.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Reason deleted successfully",
+  });
+});

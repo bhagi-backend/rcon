@@ -154,4 +154,9 @@ router.put(
   ArchitectureToRoRequestedController.updateNatureOfReasons
 );
 
+router.delete(
+  "/rfi/:id/reasons/:reasonId",
+  authController.protect,
+  ArchitectureToRoRequestedController.deleteNatureOfReason
+);
 module.exports = router;

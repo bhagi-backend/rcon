@@ -10,7 +10,7 @@ router.get('/report',authController.protect, pdfController.getArchitectReports);
 router.get('/RoReport', authController.protect,pdfController.getRoReports);
 
 router.get('/SiteHeadReport',authController.protect, pdfController.getsiteHeadReports);
-router.get('/SiteHeadReportsOfAllConsultants',authController.protect,  authController.protect,pdfController.getAllSiteHeadReports);
+router.get('/SiteHeadReportsOfAllConsultants',authController.protect,  pdfController.getAllSiteHeadReports);
 router.get('/RoReportsOfAllConsultants', authController.protect,pdfController.getAllRoReports);
 
 router.get('/SiteLevelReport',authController.protect, pdfController.getsiteLevelReports);

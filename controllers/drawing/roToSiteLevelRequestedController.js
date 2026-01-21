@@ -831,121 +831,149 @@ req.file.filename = relativePath;
   
 exports.acceptRequest = catchAsync(async (req, res, next) => {
   // Step 1: Find the request and populate drawingId
-  const userId =req.user.id;
-  const architectureToRoRequest = await ArchitectureToRoRequest.findById(req.params.id).populate('drawingId');
+  const userId = req.user.id;
+  const architectureToRoRequest = await ArchitectureToRoRequest.findById(
+    req.params.id
+  ).populate("drawingId");
 
   if (!architectureToRoRequest) {
     return res.status(404).json({
-      status: 'fail',
-      message: 'No RO request found with that ID'
+      status: "fail",
+      message: "No RO request found with that ID",
     });
   }
 
-  // Step 2: Update the request status to 'Accepted'
+  // ✅ ADDED: conditional status (else works as it is)
+  const requestStatus =
+    req.query?.status === "Partially Accepted"
+      ? "Partially Accepted"
+      : "Responded";
+
+  // Step 2: Update the request status
   const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
     req.params.id,
     {
-      status: 'Responded',
-      acceptedBy:userId,
-      acceptedDate:Date.now(),
-      
+      status: requestStatus, // ✅ conditional
+      acceptedBy: userId,
+      acceptedDate: Date.now(),
     },
     {
       new: true,
-      runValidators: true
+      runValidators: true,
     }
   );
 
   if (!updatedRequest) {
     return res.status(400).json({
-      status: 'error',
-      message: 'Failed to update RO request'
+      status: "error",
+      message: "Failed to update RO request",
     });
   }
 
-  const drawingId = architectureToRoRequest.drawingId._id; 
-  const revisionToUpdate = architectureToRoRequest.revision; 
+  const drawingId = architectureToRoRequest.drawingId._id;
+  const revisionToUpdate = architectureToRoRequest.revision;
   const siteId = architectureToRoRequest.siteId;
   const drawingNo = architectureToRoRequest.drawingNo;
+
   if (revisionToUpdate) {
-    const architectureToRoRegister = await ArchitectureToRoRegister.findById(drawingId);
+    const architectureToRoRegister = await ArchitectureToRoRegister.findById(
+      drawingId
+    );
 
     if (!architectureToRoRegister) {
       return res.status(404).json({
-        status: 'fail',
-        message: 'No ArchitectureToRoRegister found with that drawingId'
+        status: "fail",
+        message: "No ArchitectureToRoRegister found with that drawingId",
       });
     }
 
     // Find the revision and update issuesInRevision
-    const revisionIndex = architectureToRoRegister.acceptedRORevisions.findIndex(
-      (rev) => rev.revision === revisionToUpdate
-    );
+    const revisionIndex =
+      architectureToRoRegister.acceptedRORevisions.findIndex(
+        (rev) => rev.revision === revisionToUpdate
+      );
 
     if (revisionIndex === -1) {
       return res.status(404).json({
-        status: 'fail',
-        message: 'No matching revision found to update'
+        status: "fail",
+        message: "No matching revision found to update",
       });
     }
 
-    architectureToRoRegister.acceptedRORevisions[revisionIndex].issuesInRevision = architectureToRoRequest.remarks;
+    architectureToRoRegister.acceptedRORevisions[revisionIndex].issuesInRevision =
+      architectureToRoRequest.remarks;
+
+    // ✅ ADDED: rfiRespondedDate
+    architectureToRoRegister.acceptedRORevisions[
+      revisionIndex
+    ].rfiRespondedDate = Date.now();
 
     await architectureToRoRegister.save();
 
     // Fetch the updated ArchitectureToRoRegister document to include in the response
-    const updatedArchitectureToRoRegister = await ArchitectureToRoRegister.findById(drawingId);
-    
+    const updatedArchitectureToRoRegister =
+      await ArchitectureToRoRegister.findById(drawingId);
 
     const siteHeadIds = await User.find({
-      "permittedSites.siteId": siteId
-    }).select('permittedSites _id');
+      "permittedSites.siteId": siteId,
+    }).select("permittedSites _id");
+
     if (siteHeadIds.length > 0) {
       for (let user of siteHeadIds) {
-        //console.log(`User ${user._id} permittedSites:`, JSON.stringify(user.permittedSites, null, 2));
-        const site = user?.permittedSites?.find(site => {
+        const site = user?.permittedSites?.find((site) => {
           console.log("Checking site:", site?.siteId, "against input:", siteId);
           return site?.siteId?.toString() === siteId.toString();
         });
-    
+
         if (!site) {
-          console.warn(`No matching site found for user ${user._id} and siteId ${siteId}`);
+          console.warn(
+            `No matching site found for user ${user._id} and siteId ${siteId}`
+          );
           continue;
         }
-    
-        const rfiAccessEnabled = site?.enableModules?.drawingDetails?.siteHeadDetails?.rfiRaisedAccess;
-        console.log(`RFI Access Enabled for site ${site?.siteId}:`, rfiAccessEnabled);
-    
+
+        const rfiAccessEnabled =
+          site?.enableModules?.drawingDetails?.siteHeadDetails?.rfiRaisedAccess;
+
+        console.log(
+          `RFI Access Enabled for site ${site?.siteId}:`,
+          rfiAccessEnabled
+        );
+
         if (rfiAccessEnabled) {
-            const notificationMessage1 = `A RFI has been Responded for drawing number ${drawingNo} with  revision ${revisionToUpdate}.`;
-    
-            try {
-              const notificationToSiteHead = await sendNotification(
-                'Drawing', 
-                notificationMessage1, 
-                'RFI Responded', 
-                'Responded', 
-                user._id
-              );
-              console.log("notificationToSiteHead", notificationToSiteHead);
-            } catch (error) {
-              console.error("Error sending notification to SiteHeadId ", user._id, ": ", error);
-            
+          const notificationMessage1 = `A RFI has been Responded for drawing number ${drawingNo} with  revision ${revisionToUpdate}.`;
+
+          try {
+            const notificationToSiteHead = await sendNotification(
+              "Drawing",
+              notificationMessage1,
+              "RFI Responded",
+              requestStatus, // ✅ keep same status
+              user._id
+            );
+            console.log("notificationToSiteHead", notificationToSiteHead);
+          } catch (error) {
+            console.error(
+              "Error sending notification to SiteHeadId ",
+              user._id,
+              ": ",
+              error
+            );
           }
-        } 
+        }
       }
-    } 
-  
+    }
+
     res.status(200).json({
-      status: 'success',
+      status: "success",
       data: {
         updatedRequest,
         updatedArchitectureToRoRegister,
-        //newRoPendingRegister,
-      }
+      },
     });
   }
 });
+
 
 exports.closeRequest = catchAsync(async (req, res, next) => {
   // Step 1: Find the request and populate drawingId
@@ -1703,9 +1731,9 @@ exports.getRequestById = catchAsync(async (req, res, next) => {
   }
 
   // 2️⃣ Fetch related requests by same drawingId (excluding current request)
-  const relatedRequests = await ArchitectureToRoRequest.find({
-    drawingId: request.drawingId._id,
-    _id: { $ne: request._id }, // exclude the current request
+   const relatedRequests = await ArchitectureToRoRequest.find({
+    drawingId: request.drawingId,
+    // _id: { $ne: request._id }, // exclude the current request
   })
     .populate({
       path: "drawingId",

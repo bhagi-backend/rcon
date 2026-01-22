@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>RFI Analysis Report</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      color: #333;
+      padding: 1.5rem;
+      counter-reset: page;
+    }
+
+    .groupContainer {
+      margin-bottom: 2rem;
+      page-break-inside: auto;
+    }
+
+    .siteNameHeadingContainer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background-color: #f5f5f5;
+      border-radius: 8px;
+      gap: 1rem;
+    }
+
+    .siteNameContainer h5 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .siteNameContainer p {
+      margin: 0.25rem 0;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .rconImage {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 0.5rem;
+    }
+
+    .rconImage img {
+      height: 50px;
+      width: 50px;
+    }
+
+    .revisionContainer {
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      background-color: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      page-break-inside: auto;
+      break-inside: auto;
+    }
+
+    .tableBorder {
+      border-top: 2px solid #0075a4;
+      margin-bottom: 1rem;
+    }
+
+    .tableNumberTitleRevision {
+      margin-bottom: 1.5rem;
+    }
+
+    .tableNumberTitleRevision h5 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #333;
+      padding: 0.75rem;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+    }
+
+    .tableContentContainer {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .tableRfiRaisedDateContainer {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .tableLeftContainer {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .tableParaContainer {
+      margin-bottom: 0.5rem;
+    }
+
+    .tableParaContainer p {
+      margin: 0;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tableLeftContainer > div:last-child,
+    .tableCompanyName > div:last-child {
+      font-size: 1rem;
+      color: #333;
+      padding: 0.5rem 0;
+    }
+
+    .tableCompanyName {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .natureOfRequestTableContainer {
+      margin-bottom: 1.5rem;
+    }
+
+    .natureOfRequestTitle {
+      font-weight: 600 !important;
+      font-size: 0.95rem !important;
+      margin-bottom: 0.75rem !important;
+    }
+
+    .natureOfRequestTable {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+      background-color: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .natureOfRequestTable thead {
+      background-color: #000000;
+    }
+
+    .tableHeaderCell {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #ffffff;
+      background-color: #000000;
+      border-bottom: 2px solid #333;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tableRow {
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .tableRow:nth-child(even) {
+      background-color: #fdf8f4;
+    }
+
+    .tableRow:nth-child(odd) {
+      background-color: #f3f6f8;
+    }
+
+    .tableCell {
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      color: #333;
+      vertical-align: middle;
+      word-wrap: break-word;
+    }
+
+    .reasonFileImage {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      object-fit: cover;
+      width: 50px;
+      height: 50px;
+    }
+
+    .noDataText {
+      padding: 1rem;
+      text-align: center;
+      color: #999;
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+
+    .tableCompanyReasonsContainer {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tableReasonContent {
+      padding: 0.5rem 0;
+    }
+
+    .pdfLink {
+      display: inline-block;
+      color: #0075a4;
+      text-decoration: underline;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+
+    .imageGrid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .imageItem {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      object-fit: cover;
+      width: 50px;
+      height: 50px;
+    }
+
+
+    .continuationHeader {
+      padding: 10px 20px;
+      background-color: #f8f9fa;
+      border-bottom: 2px solid #0075a4;
+      margin-bottom: 1rem;
+      font-weight: 600;
+      color: #0075a4;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    body {
+      padding-bottom: 20px;
+    }
+
+    @media print {
+      .groupContainer {
+        page-break-inside: auto;
+        margin-bottom: 1.5rem;
+        break-inside: auto;
+      }
+
+      .revisionContainer {
+        page-break-inside: auto;
+        margin-bottom: 1.5rem;
+        break-inside: auto;
+      }
+
+      .siteNameHeadingContainer {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .tableNumberTitleRevision {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      .natureOfRequestTable {
+        page-break-inside: auto;
+      }
+
+      .natureOfRequestTable thead {
+        display: table-header-group;
+      }
+
+      .natureOfRequestTable tbody tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+    }
+
+    @page {
+      size: A4;
+    }
+  </style>
+</head>
+<body>
+  <% 
+    let isFirstPage = true;
+    Object.entries(groupedByDrawing).forEach(([drawingId, revisions], groupIndex) => { 
+  %>
+    <div class="groupContainer">
+      <% if (!isFirstPage) { %>
+        <div class="continuationHeader">
+          RFI Analysis Report - Continued...
+        </div>
+      <% } %>
+      <% isFirstPage = false; %>
+      <div class="siteNameHeadingContainer">
+        <div class="siteNameContainer">
+          <h5><%= revisions[0]?.drawingId?.siteId?.siteName || "Site Name" %></h5>
+          <p><%= revisions[0]?.drawingId?.siteId?.siteAddress || "Site Address" %></p>
+          <p>
+            Report Generated By <%= userInfo?.name || "" %> - <%= userInfo?.department || "" %>
+          </p>
+        </div>
+        <% if (logoPath) { %>
+          <div class="rconImage">
+            <img src="<%= logoPath %>" alt="Logo" />
+          </div>
+        <% } %>
+      </div>
+
+      <% revisions.forEach((data, index) => { %>
+        <div class="revisionContainer">
+          <div class="tableBorder"></div>
+          <div class="tableNumberTitleRevision">
+            <h5>
+              <%= data?.drawingId?.drawingNo || "Drawing Number" %> - 
+              <%= data?.drawingId?.drawingTitle || "Drawing Title" %> - 
+              <%= data?.revision || "Revision" %>
+            </h5>
+          </div>
+          <div class="tableContentContainer">
+            <div class="tableRfiRaisedDateContainer">
+              <div class="tableLeftContainer">
+                <div class="tableParaContainer">
+                  <p>RFI</p>
+                </div>
+                <div><%= data?.architectRfiNo || data?.roRfiNo || "N/A" %></div>
+              </div>
+              <div class="tableLeftContainer">
+                <div class="tableParaContainer">
+                  <p>Raised Date</p>
+                </div>
+                <div>
+                  <%= data?.requestedDate ? new Date(data.requestedDate).toLocaleDateString() : "N/A" %>
+                </div>
+              </div>
+            </div>
+            <div class="tableCompanyName">
+              <div class="tableParaContainer">
+                <p>Company Name</p>
+              </div>
+              <div><%= data?.drawingId?.companyId?.companyDetails?.companyName || "N/A" %></div>
+            </div>
+            <div class="tableRfiRaisedDateContainer">
+              <div class="tableLeftContainer">
+                <div class="tableParaContainer">
+                  <p>Consultant</p>
+                </div>
+                <div><%= data?.drawingId?.designDrawingConsultant?.role || "N/A" %></div>
+              </div>
+              <div class="tableLeftContainer">
+                <div class="tableParaContainer">
+                  <p>Reviewer</p>
+                </div>
+                <div>
+                  <%= data?.createdBy?.firstName || "N/A" %> <%= data?.createdBy?.lastName || "N/A" %>
+                </div>
+              </div>
+            </div>
+            <div class="tableCompanyName">
+              <div class="tableParaContainer">
+                <p>Impact</p>
+              </div>
+              <div class="tableReasonContent">
+                <% if (data?.impactReasons && data.impactReasons.length > 0) { %>
+                  <p><%= data.impactReasons.join(", ") %></p>
+                <% } else { %>
+                  <div>N/A</div>
+                <% } %>
+              </div>
+            </div>
+            <div class="natureOfRequestTableContainer">
+              <div class="tableParaContainer">
+                <p class="natureOfRequestTitle">Nature of Request Reason</p>
+              </div>
+              <% if (data?.natureOfRequestedInformationReasons && data.natureOfRequestedInformationReasons.length > 0) { %>
+                <table class="natureOfRequestTable">
+                  <thead>
+                    <tr>
+                      <th class="tableHeaderCell">Nature of Request</th>
+                      <th class="tableHeaderCell">Reason</th>
+                      <th class="tableHeaderCell">Reason File</th>
+                      <th class="tableHeaderCell">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% data.natureOfRequestedInformationReasons.forEach((item, idx) => { %>
+                      <tr class="tableRow">
+                        <td class="tableCell"><%= item?.natureOfRequest || "N/A" %></td>
+                        <td class="tableCell"><%= item?.reason || "N/A" %></td>
+                        <td class="tableCell">
+                          <% if (item?.reasonFile) { %>
+                            <% 
+                              let reasonFileUrl = item.reasonFile;
+                              if (!reasonFileUrl.startsWith("http")) {
+                                reasonFileUrl = `${cdnBase}/${reasonFileUrl}`;
+                              }
+                            %>
+                            <img src="<%= reasonFileUrl %>" alt="Reason File <%= idx + 1 %>" class="reasonFileImage" />
+                          <% } else { %>
+                            N/A
+                          <% } %>
+                        </td>
+                        <td class="tableCell"><%= item?.action || "N/A" %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              <% } else { %>
+                <div class="noDataText">No nature of request reasons available</div>
+              <% } %>
+            </div>
+            <div class="tableCompanyReasonsContainer">
+              <div class="tableParaContainer">
+                <p>Attachments</p>
+              </div>
+              <div class="tableReasonContent">
+                <% if (data?.pdfDrawingFileName) { %>
+                  <% 
+                    let pdfUrl = data.pdfDrawingFileName;
+                    if (!pdfUrl.startsWith("http")) {
+                      pdfUrl = `${cdnBase}/${pdfUrl}`;
+                    }
+                  %>
+                  <a href="<%= pdfUrl %>" class="pdfLink">Attached RFI file.pdf</a>
+                <% } %>
+                <% if (data?.impactImages && data.impactImages.length > 0) { %>
+                  <div class="imageGrid">
+                    <% data.impactImages.forEach((image, idx) => { %>
+                      <% 
+                        let imageUrl = image;
+                        if (!imageUrl.startsWith("http")) {
+                          imageUrl = `${cdnBase}/${imageUrl}`;
+                        }
+                      %>
+                      <img src="<%= imageUrl %>" alt="Impact Image <%= idx + 1 %>" class="imageItem" />
+                    <% }) %>
+                  </div>
+                <% } %>
+              </div>
+            </div>
+            <div class="siteNameHeadingContainer">
+              <p>
+                Expected Date: <%= data?.expectedDate ? new Date(data.expectedDate).toLocaleDateString() : "N/A" %>
+              </p>
+              <p>RFI Status: <%= data?.status || "N/A" %></p>
+              <% if (data?.acceptedDate) { %>
+                <p>
+                  Document Submitted Date: <%= new Date(data.acceptedDate).toLocaleDateString() %>
+                </p>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% }) %>
+</body>
+</html>

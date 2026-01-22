@@ -1367,7 +1367,7 @@ exports.getRequestByDrawingId = catchAsync(async (req, res, next) => {
 });
 
 exports.generatePdfReport = catchAsync(async (req, res) => {
-  const { drawingId, revision, designDrawingConsultant,  } = req.query;
+  const { drawingId, revision, designDrawingConsultant } = req.query;
 
   const query = {};
   if (drawingId) query.drawingId = drawingId;
@@ -1381,14 +1381,14 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
       populate: [
         { path: "designDrawingConsultant", select: "role" },
         { path: "siteId", select: "siteName siteAddress" },
-        { path: "companyId", select: "companyDetails.companyName" },
+        { path: "companyId", select: "companyDetails.companyName uploadLogo" },
         { path: "category", select: "category" },
         { path: "folderId", select: "folderName" },
       ],
     })
     .populate("createdBy", "firstName lastName department")
     .populate("acceptedBy", "firstName lastName department")
-    .populate("closedBy", "firstName lastName department" )
+    .populate("closedBy", "firstName lastName department")
     .populate("reOpenedBy", "firstName lastName department");
 
   if (!requests || requests.length === 0) {
@@ -1396,31 +1396,54 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
   }
 
   const first = requests[0];
-  const siteInfo = first?.drawingId?.siteId || {
-    siteName: "Site Name",
-    siteAddress: "Site Address",
-  };
+  const cdnBase = "https://rconfiles.b-cdn.net";
 
-  // ✅ Hardcoded localhost for file paths
- const baseUrl = `http://13.204.94.237:4500`;
-  //  const baseUrl = `http://localhost:4500`;
-//console.log("baseUrl")
-  const updatedGroupedData = requests.map((item) => {
+  // Group data by drawingId (matching React component structure)
+  const groupedByDrawing = requests.reduce((acc, item) => {
+    const drawingIdKey = item?.drawingId?._id?.toString();
+    if (!drawingIdKey) return acc;
+    
+    if (!acc[drawingIdKey]) {
+      acc[drawingIdKey] = [];
+    }
+    acc[drawingIdKey].push(item);
+    return acc;
+  }, {});
+
+  // Process each request to prepare URLs
+  const processedRequests = requests.map((item) => {
+    // Convert main PDF
     const fullPdfPath = item.pdfDrawingFileName
       ? item.pdfDrawingFileName.startsWith("http")
         ? item.pdfDrawingFileName
-        : `${baseUrl}/${item.pdfDrawingFileName}`
+        : `${cdnBase}/${item.pdfDrawingFileName}`
       : null;
 
+    // Process impact images
     const fullImpactImages = Array.isArray(item.impactImages)
       ? item.impactImages.map((imgPath) =>
-          imgPath.startsWith("http") ? imgPath : `${baseUrl}/${imgPath}`
+          imgPath.startsWith("http") ? imgPath : `${cdnBase}/${imgPath}`
         )
       : [];
-      //console.log(fullImpactImages)
-//  const fullImpactImages = [
-//     "https://image-cdn.essentiallysports.com/wp-content/uploads/Tyrese-Haliburton-3.jpg"
-//   ];
+
+    // Process reasonFile in natureOfRequestedInformationReasons
+    if (
+      Array.isArray(item.natureOfRequestedInformationReasons) &&
+      item.natureOfRequestedInformationReasons.length > 0
+    ) {
+      item.natureOfRequestedInformationReasons = item.natureOfRequestedInformationReasons.map((x) => {
+        if (x.reasonFile) {
+          let file = x.reasonFile || "";
+          // Remove Markdown formatting if present
+          file = file.replace(/\[.*?\]\((.*?)\)/, "$1");
+          if (!file.startsWith("http")) {
+            x.reasonFile = `${cdnBase}/${file}`;
+          }
+        }
+        return x;
+      });
+    }
+
     return {
       ...item.toObject(),
       pdfDrawingFileName: fullPdfPath,
@@ -1428,66 +1451,117 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
     };
   });
 
-  // const logoPath = `file://${path
-  //   .join(__dirname, "../../public/logo/rcon.png")
-  //   .replace(/\\/g, "/")}`;
-  // const cssFileUrl = `file://${path
-  //   .join(__dirname, "../../public/styles/pdfgenerator.css")
-  //   .replace(/\\/g, "/")}`;
-  const logoPath = null;
-const cssFileUrl = null;
-  const templatePath = path.join(__dirname, "../../templates/rfi-template.ejs");
-console.log("logoPath",logoPath)
-console.log("cssFileUrl",cssFileUrl)
+  // Rebuild groupedByDrawing with processed data
+  const processedGroupedByDrawing = processedRequests.reduce((acc, item) => {
+    const drawingIdKey = item?.drawingId?._id?.toString();
+    if (!drawingIdKey) return acc;
+    
+    if (!acc[drawingIdKey]) {
+      acc[drawingIdKey] = [];
+    }
+    acc[drawingIdKey].push(item);
+    return acc;
+  }, {});
+
+  // Company logo path
+  let logoPath = null;
+  if (first?.drawingId?.companyId?.uploadLogo) {
+    const logoFile = first.drawingId.companyId.uploadLogo;
+
+    if (logoFile.startsWith("http")) {
+      logoPath = logoFile;
+    } else {
+      logoPath = `${cdnBase}/${logoFile}`;
+    }
+  }
+
+  const templatePath = path.join(__dirname, "../../templates/rfi-analysis-template.ejs");
+
   const userInfo = {
     name: `${first?.createdBy?.firstName || ""} ${first?.createdBy?.lastName ||
       ""}`,
     role: first?.drawingId?.designDrawingConsultant?.role || "",
     department: first?.createdBy?.department || "",
   };
-  //console.log("userInfo", userInfo);
+
+  // Get current user who is downloading the PDF
+  const currentUser = await User.findById(req.user.id).select("firstName lastName");
+  const downloadedBy = currentUser
+    ? `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim()
+    : userInfo.name;
+  const downloadDate = new Date().toLocaleDateString();
+
   try {
     const html = await ejs.renderFile(templatePath, {
-      dataGroupedByDrawing: updatedGroupedData,
+      groupedByDrawing: processedGroupedByDrawing,
       userInfo,
       logoPath,
-      cssFileUrl,
-      siteInfo,
-    //  baseUrl,
+      cdnBase,
+      downloadedBy,
+      downloadDate,
     });
 
-    // const browser = await puppeteer.launch({
-    //   headless: "new",
-    //   args: ["--no-sandbox"],
-    // });
     const browser = await puppeteer.launch({
-  headless: true,
-  args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  executablePath: puppeteer.executablePath(), // optional if using bundled Chromium
-});
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      executablePath: puppeteer.executablePath(),
+    });
 
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    await new Promise((resolve) => setTimeout(resolve, 1000)); // wait for images
+
+    await page.setContent(html, { waitUntil: "load" });
+
+    // Wait until all images finish downloading
+    await page.evaluate(async () => {
+      const imgs = Array.from(document.images);
+      await Promise.all(
+        imgs.map((img) => {
+          if (img.complete) return;
+          return new Promise((resolve) => {
+            img.addEventListener("load", resolve);
+            img.addEventListener("error", resolve);
+          });
+        }),
+      );
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
+      displayHeaderFooter: true,
+      headerTemplate: '<div style="font-size: 10px; width: 100%; text-align: center; color: #666;"></div>',
+      footerTemplate: `<div style="font-size: 10px; width: 100%; padding: 0 20px; display: flex; justify-content: space-between; color: #666;">
+        <span>Downloaded By: <strong>${downloadedBy}</strong> | Date: <strong>${downloadDate}</strong></span>
+        <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+      </div>`,
+      margin: {
+        top: "20px",
+        right: "20px",
+        bottom: "80px",
+        left: "20px",
+      },
     });
 
     await browser.close();
 
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:T.]/g, "")
+      .slice(0, 14);
+
+    const fileName = `rfi-report-${timestamp}.pdf`;
+
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="rfi-report.pdf"'
-    );
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
     res.end(pdfBuffer);
   } catch (err) {
     console.error("PDF Generation Error:", err);
-    res
-      .status(400)
-      .json({ message: "Failed to generate PDF", error: err.message });
+    res.status(400).json({
+      message: "Failed to generate PDF",
+      error: err.message,
+    });
   }
 });
 

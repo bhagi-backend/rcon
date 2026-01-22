@@ -363,6 +363,14 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+    latestConsultantUploadedRevision: {
+    type: String,
+   
+  },
+   latestRoForwardedRevision: {
+    type: String,
+   
+  },
   category: {
     type: mongoose.Schema.ObjectId,
     ref: "Category",

@@ -1845,17 +1845,22 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
   }
 
   const first = requests[0];
-  const siteInfo = first?.drawingId?.siteId || {
-    siteName: "Site Name",
-    siteAddress: "Site Address",
-  };
-
   const cdnBase = "https://rconfiles.b-cdn.net";
 
-  // --------------------------------------------------
-  // UPDATE: PROCESS reasonFile instead of impactImages
-  // --------------------------------------------------
-  const updatedGroupedData = requests.map((item) => {
+  // Group data by drawingId (matching React component structure)
+  const groupedByDrawing = requests.reduce((acc, item) => {
+    const drawingIdKey = item?.drawingId?._id?.toString();
+    if (!drawingIdKey) return acc;
+    
+    if (!acc[drawingIdKey]) {
+      acc[drawingIdKey] = [];
+    }
+    acc[drawingIdKey].push(item);
+    return acc;
+  }, {});
+
+  // Process each request to prepare URLs
+  const processedRequests = requests.map((item) => {
     // Convert main PDF
     const fullPdfPath = item.pdfDrawingFileName
       ? item.pdfDrawingFileName.startsWith("http")
@@ -1863,35 +1868,51 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
         : `${cdnBase}/${item.pdfDrawingFileName}`
       : null;
 
-    // Extract all reasonFile images as URLs
-    let reasonFileImages = [];
+    // Process impact images
+    const fullImpactImages = Array.isArray(item.impactImages)
+      ? item.impactImages.map((imgPath) =>
+          imgPath.startsWith("http") ? imgPath : `${cdnBase}/${imgPath}`
+        )
+      : [];
 
+    // Process reasonFile in natureOfRequestedInformationReasons
     if (
       Array.isArray(item.natureOfRequestedInformationReasons) &&
       item.natureOfRequestedInformationReasons.length > 0
     ) {
-      reasonFileImages = item.natureOfRequestedInformationReasons
-        .filter((x) => x.reasonFile)
-        .map((x) => {
+      item.natureOfRequestedInformationReasons = item.natureOfRequestedInformationReasons.map((x) => {
+        if (x.reasonFile) {
           let file = x.reasonFile || "";
-
           // Remove Markdown formatting if present
           file = file.replace(/\[.*?\]\((.*?)\)/, "$1");
-
-          return file.startsWith("http") ? file : `${cdnBase}/${file}`;
-        });
+          if (!file.startsWith("http")) {
+            x.reasonFile = `${cdnBase}/${file}`;
+          }
+        }
+        return x;
+      });
     }
-    console.log("reasonFileImages", reasonFileImages);
+
     return {
       ...item.toObject(),
       pdfDrawingFileName: fullPdfPath,
-      reasonFileImages,
+      impactImages: fullImpactImages,
     };
   });
 
-  // --------------------------------------------------
+  // Rebuild groupedByDrawing with processed data
+  const processedGroupedByDrawing = processedRequests.reduce((acc, item) => {
+    const drawingIdKey = item?.drawingId?._id?.toString();
+    if (!drawingIdKey) return acc;
+    
+    if (!acc[drawingIdKey]) {
+      acc[drawingIdKey] = [];
+    }
+    acc[drawingIdKey].push(item);
+    return acc;
+  }, {});
+
   // Company logo path
-  // --------------------------------------------------
   let logoPath = null;
   if (first?.drawingId?.companyId?.uploadLogo) {
     const logoFile = first.drawingId.companyId.uploadLogo;
@@ -1903,9 +1924,7 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
     }
   }
 
-  const cssFileUrl = null;
-
-  const templatePath = path.join(__dirname, "../../templates/rfi-template.ejs");
+  const templatePath = path.join(__dirname, "../../templates/rfi-analysis-template.ejs");
 
   const userInfo = {
     name: `${first?.createdBy?.firstName || ""} ${first?.createdBy?.lastName ||
@@ -1914,13 +1933,21 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
     department: first?.createdBy?.department || "",
   };
 
+  // Get current user who is downloading the PDF
+  const currentUser = await User.findById(req.user.id).select("firstName lastName");
+  const downloadedBy = currentUser
+    ? `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim()
+    : userInfo.name;
+  const downloadDate = new Date().toLocaleDateString();
+
   try {
     const html = await ejs.renderFile(templatePath, {
-      dataGroupedByDrawing: updatedGroupedData,
+      groupedByDrawing: processedGroupedByDrawing,
       userInfo,
       logoPath,
-      cssFileUrl,
-      siteInfo,
+      cdnBase,
+      downloadedBy,
+      downloadDate,
     });
 
     const browser = await puppeteer.launch({
@@ -1931,7 +1958,6 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
 
     const page = await browser.newPage();
 
-    // await page.setContent(html, { waitUntil: "networkidle0" });
     await page.setContent(html, { waitUntil: "load" });
 
     // Wait until all images finish downloading
@@ -1953,6 +1979,18 @@ exports.generatePdfReport = catchAsync(async (req, res) => {
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
+      displayHeaderFooter: true,
+      headerTemplate: '<div style="font-size: 10px; width: 100%; text-align: center; color: #666;"></div>',
+      footerTemplate: `<div style="font-size: 10px; width: 100%; padding: 0 20px; display: flex; justify-content: space-between; color: #666;">
+        <span>Downloaded By: <strong>${downloadedBy}</strong> | Date: <strong>${downloadDate}</strong></span>
+        <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+      </div>`,
+      margin: {
+        top: "20px",
+        right: "20px",
+        bottom: "80px",
+        left: "20px",
+      },
     });
 
     await browser.close();

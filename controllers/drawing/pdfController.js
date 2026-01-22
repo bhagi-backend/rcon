@@ -698,67 +698,113 @@ exports.getAllRoReports = async (req, res) => {
           .populate(dataPopulateFields)
           .lean();
         break;
+    
+  
+case 'RFI':
+  // console.log("query", query);
 
-      case 'RFI':
-        const architectureRfiData =
-          await ArchitectureToRoRequest.find(query)
-            .populate({
-              path: 'drawingId',
-              select: 'drawingTitle designDrawingConsultant category',
-              populate: [
-                { path: 'designDrawingConsultant', select: 'role' },
-                { path: 'category', select: 'category' },
-                { path: 'folderId', select: 'folderName' }
-              ]
-            })
-            .exec();
+  const architectureRfiData =
+    await ArchitectureToRoRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
 
-        const siteLevelRfiData =
-          await RoToSiteLevelRoRequest.find(query)
-            .populate({
-              path: 'drawingId',
-              select: 'drawingTitle designDrawingConsultant category',
-              populate: [
-                { path: 'designDrawingConsultant', select: 'role' },
-                { path: 'category', select: 'category' },
-                { path: 'folderId', select: 'folderName' }
-              ]
-            })
-            .exec();
+  const siteLevelRfiData =
+    await RoToSiteLevelRoRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
 
-        // ✅ FIX: allow all data if no consultants assigned
-        const filteredArchitectureRfiData = designConsultantIds
-          ? architectureRfiData.filter(item =>
-              designConsultantIds.includes(
-                item.drawingId?.designDrawingConsultant?._id?.toString()
-              )
-            )
-          : architectureRfiData;
+  // console.log("architectureRfiData length:", architectureRfiData.length);
+  // console.log("siteLevelRfiData length:", siteLevelRfiData.length);
 
-        const filteredSiteLevelRfiData = designConsultantIds
-          ? siteLevelRfiData.filter(item =>
-              designConsultantIds.includes(
-                item.drawingId?.designDrawingConsultant?._id?.toString()
-              )
-            )
-          : siteLevelRfiData;
+  // --------------------------------------------------
+  // ✅ SAFE HELPER — supports both populated & raw id
+  // --------------------------------------------------
+  const getConsultantId = (item) =>
+    item?.drawingId?.designDrawingConsultant?._id?.toString() ||
+    item?.designDrawingConsultant?.toString() ||
+    null;
 
-        const architectDates = filteredArchitectureRfiData.map(
-          i => new Date(i.creationDate)
-        );
-        const siteDates = filteredSiteLevelRfiData.map(
-          i => new Date(i.creationDate)
-        );
+  // --------------------------------------------------
+  // ✅ NORMALIZE consultant ids (ObjectId vs string)
+  // --------------------------------------------------
+  const consultantIdSet = new Set(
+    (designConsultantIds || []).map(id => id.toString())
+  );
 
-        rfiData = {
-          architectureRequests: filteredArchitectureRfiData,
-          siteLevelRequests: filteredSiteLevelRfiData,
-          architectStartDate: architectDates.length ? new Date(Math.min(...architectDates)) : null,
-          architectEndDate: architectDates.length ? new Date(Math.max(...architectDates)) : null,
-          siteStartDate: siteDates.length ? new Date(Math.min(...siteDates)) : null,
-          siteEndDate: siteDates.length ? new Date(Math.max(...siteDates)) : null
-        };
-        break;
+  // console.log("designConsultantIds:", designConsultantIds);
+  // console.log("normalized consultantIdSet:", [...consultantIdSet]);
+
+  // --------------------------------------------------
+  // ✅ FILTER (same logic, only safe comparison)
+  // --------------------------------------------------
+  const filteredArchitectureRfiData = consultantIdSet.size
+    ? architectureRfiData.filter(item =>
+        consultantIdSet.has(getConsultantId(item))
+      )
+    : architectureRfiData;
+
+  const filteredSiteLevelRfiData = consultantIdSet.size
+    ? siteLevelRfiData.filter(item =>
+        consultantIdSet.has(getConsultantId(item))
+      )
+    : siteLevelRfiData;
+
+  // console.log(
+  //   "filteredArchitectureRfiData length:",
+  //   filteredArchitectureRfiData.length
+  // );
+  // console.log(
+  //   "filteredSiteLevelRfiData length:",
+  //   filteredSiteLevelRfiData.length
+  // );
+
+  // --------------------------------------------------
+  // ✅ DATE RANGE (unchanged)
+  // --------------------------------------------------
+  const architectDates = filteredArchitectureRfiData.map(
+    i => new Date(i.creationDate)
+  );
+
+  const siteDates = filteredSiteLevelRfiData.map(
+    i => new Date(i.creationDate)
+  );
+
+  rfiData = {
+    architectureRequests: filteredArchitectureRfiData,
+    siteLevelRequests: filteredSiteLevelRfiData,
+    architectStartDate: architectDates.length
+      ? new Date(Math.min(...architectDates))
+      : null,
+    architectEndDate: architectDates.length
+      ? new Date(Math.max(...architectDates))
+      : null,
+    siteStartDate: siteDates.length
+      ? new Date(Math.min(...siteDates))
+      : null,
+    siteEndDate: siteDates.length
+      ? new Date(Math.max(...siteDates))
+      : null
+  };
+
+  break;
+
+
 
       default:
         return res.status(400).json({ message: 'Invalid report type' });

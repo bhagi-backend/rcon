@@ -331,8 +331,8 @@ exports.getAllCategoriesAssignments = catchAsync(async (req, res, next) => {
 
     // ===== Fetch assignments =====
     const assignments = await AssignCategoriesToDesignConsultant.find(query)
-      .populate('categories.categoryId') // Populating nested categoryId
-      .populate('categories.siteId')     // Populating nested siteId
+      .populate('categories.categoryId')
+      .populate('categories.siteId')
       .populate('designDrawingConsultant');
 
     // ===== If no designDrawingConsultantId provided =====
@@ -347,27 +347,29 @@ exports.getAllCategoriesAssignments = catchAsync(async (req, res, next) => {
 
     // ===== Filter based on siteId (if provided) =====
     let filteredAssignments = assignments;
+
     if (siteId) {
-      filteredAssignments = assignments.map(assignment => {
-        return {
-          ...assignment.toObject(),
-          categories: assignment.categories.filter(cat => {
-            // Include categories where:
-            // 1. siteId matches the given siteId
-            // 2. OR siteId is null
-            return (
-              (cat.siteId && cat.siteId._id.toString() === siteId) ||
-              cat.siteId === null
-            );
-          }),
-        };
-      }).filter(assignment => assignment.categories.length > 0);
+      filteredAssignments = assignments
+        .map(assignment => {
+          return {
+            ...assignment.toObject(),
+            categories: assignment.categories.filter(cat => {
+              return (
+                (cat.siteId && cat.siteId._id.toString() === siteId) ||
+                cat.siteId === null
+              );
+            }),
+          };
+        })
+        .filter(assignment => assignment.categories.length > 0);
     }
 
-    // ===== Extract assigned categoryIds =====
+    // ===== Extract assigned categoryIds (✅ NULL SAFE) =====
     const assignedCategoryIds = filteredAssignments.flatMap(assignment =>
       assignment.categories
-        ? assignment.categories.map(cat => cat.categoryId._id.toString())
+        ? assignment.categories
+            .filter(cat => cat.categoryId && cat.categoryId._id) // ✅ FIX
+            .map(cat => cat.categoryId._id.toString())
         : []
     );
 

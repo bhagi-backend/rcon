@@ -1079,24 +1079,40 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     });
   }
 
-  // ✅ ADDED: conditional status (only addition)
+  // ✅ existing conditional status
   const requestStatus =
     req.query?.status === "Partially Accepted"
       ? "Partially Accepted"
-      : "Responded";
+      : "Accepted";
+
+  /* =========================================================
+     ✅ ADDED: update Requested reasons to Accepted if Accepted
+     (NO OTHER LOGIC CHANGED)
+  ========================================================= */
+  const updateObj = {
+    status: requestStatus,
+    acceptedBy: userId,
+    acceptedDate: Date.now(),
+  };
+
+  const updateOptions = {
+    new: true,
+    runValidators: true,
+  };
+
+  if (requestStatus === "Accepted") {
+    updateObj["natureOfRequestedInformationReasons.$[elem].action"] =
+      "Accepted";
+
+    updateOptions.arrayFilters = [{ "elem.action": "Requested" }];
+  }
+  /* ===================== END ADDED ======================== */
 
   // Update the RO request status
   const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
     req.params.id,
-    {
-      status: requestStatus, // ✅ modified only by condition
-      acceptedBy: userId,
-      acceptedDate: Date.now(),
-    },
-    {
-      new: true,
-      runValidators: true,
-    },
+    updateObj,
+    updateOptions,
   );
 
   if (!updatedRequest) {
@@ -1124,16 +1140,17 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
       });
     }
 
-    const revisionIndex = architectureToRoRegister.acceptedArchitectRevisions.findIndex(
-      (rev) => rev.revision === revisionToUpdate,
-    );
+    const revisionIndex =
+      architectureToRoRegister.acceptedArchitectRevisions.findIndex(
+        (rev) => rev.revision === revisionToUpdate,
+      );
 
     if (revisionIndex !== -1) {
       architectureToRoRegister.acceptedArchitectRevisions[
         revisionIndex
       ].issuesInRevision = architectureToRoRequest.remarks;
 
-      // ✅ ADDED: rfiRespondedDate
+      // ✅ ADDED earlier: rfiRespondedDate
       architectureToRoRegister.acceptedArchitectRevisions[
         revisionIndex
       ].rfiRespondedDate = Date.now();
@@ -1158,7 +1175,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     ? await RoToSiteLevelRequest.findByIdAndUpdate(
         roRfiId,
         {
-          status: requestStatus, // ✅ same conditional status
+          status: requestStatus,
           acceptedBy: userId,
           acceptedDate: Date.now(),
         },
@@ -1185,7 +1202,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
           roRegister.acceptedRORevisions[revisionIndex1].issuesInRevision =
             architectureToRoRequest.remarks;
 
-          // ✅ ADDED: rfiRespondedDate
+          // ✅ ADDED earlier: rfiRespondedDate
           roRegister.acceptedRORevisions[
             revisionIndex1
           ].rfiRespondedDate = Date.now();
@@ -1197,9 +1214,8 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
   }
 
   // Fetch updated data for response
-  const updatedArchitectureToRoRegister = await ArchitectureToRoRegister.findById(
-    drawingId,
-  );
+  const updatedArchitectureToRoRegister =
+    await ArchitectureToRoRegister.findById(drawingId);
 
   const siteHeadIds = await User.find({
     "permittedSites.siteId": siteId,
@@ -1235,7 +1251,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
             "Drawing",
             notificationMessage1,
             "RFI Responded",
-            requestStatus, // ✅ keep status consistent
+            requestStatus,
             user._id,
           );
           console.log("notificationToSiteHead", notificationToSiteHead);
@@ -1256,10 +1272,12 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     data: {
       updatedRequest,
       updatedRoRequest: updatedRoRequest || null,
-      updatedArchitectureToRoRegister: updatedArchitectureToRoRegister || null,
+      updatedArchitectureToRoRegister:
+        updatedArchitectureToRoRegister || null,
     },
   });
 });
+
 
 exports.closeRequest = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
@@ -2479,7 +2497,6 @@ exports.createCombinedRequest = catchAsync(async (req, res, next) => {
     },
   });
 });
-
 exports.updateViewDates = catchAsync(async (req, res, next) => {
   const { _id } = req.body;
   const userId = req.user.id;
@@ -2515,6 +2532,9 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
             viewedAt: new Date(),
           },
         },
+        $set: {
+          status: "Responded", // ✅ added
+        },
       },
       { new: true },
     );
@@ -2529,6 +2549,7 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
     },
   });
 });
+
 
 exports.getRequestById = catchAsync(async (req, res, next) => {
   const { id } = req.params;

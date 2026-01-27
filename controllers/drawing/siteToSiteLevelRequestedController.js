@@ -860,20 +860,35 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
   const requestStatus =
     req.query?.status === "Partially Accepted"
       ? "Partially Accepted"
-      : "Responded";
+      : "Accepted";
+
+  /* =========================================================
+     ✅ ADDED LOGIC ONLY:
+     If Accepted → update all Requested reasons to Accepted
+  ========================================================= */
+  const updateObj = {
+    status: requestStatus,
+    acceptedBy: userId,
+    acceptedDate: Date.now(),
+  };
+
+  const updateOptions = {
+    new: true,
+    runValidators: true,
+  };
+
+  if (requestStatus === "Accepted") {
+    updateObj["natureOfRequestedInformationReasons.$[elem].action"] =
+      "Accepted";
+    updateOptions.arrayFilters = [{ "elem.action": "Requested" }];
+  }
+  /* ======================= END ADDED ====================== */
 
   // Step 2: Update the request status
   const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
     req.params.id,
-    {
-      status: requestStatus, // ✅ conditional
-      acceptedBy: userId,
-      acceptedDate: Date.now(),
-    },
-    {
-      new: true,
-      runValidators: true,
-    }
+    updateObj,
+    updateOptions
   );
 
   if (!updatedRequest) {
@@ -962,7 +977,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
               "Drawing",
               notificationMessage1,
               "RFI Accepted",
-              requestStatus, // ✅ keep same status
+              requestStatus,
               user._id
             );
             console.log("notificationToSiteHead", notificationToSiteHead);
@@ -987,6 +1002,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     });
   }
 });
+
 
 
 exports.closeRequest = catchAsync(async (req, res, next) => {
@@ -1665,7 +1681,6 @@ const updatedRequest = await ArchitectureToRoRequest.findOneAndUpdate(
     data: updatedRequest
   });
 });
-
 exports.updateViewDates = catchAsync(async (req, res, next) => {
   const { _id } = req.body;
   const userId = req.user.id;
@@ -1688,7 +1703,7 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
 
   // Check if user already viewed
   const alreadyViewed = rfi.viewedBy?.some(
-    (v) => v.user?.toString() === userId.toString()
+    (v) => v.user?.toString() === userId.toString(),
   );
 
   if (!alreadyViewed) {
@@ -1701,8 +1716,11 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
             viewedAt: new Date(),
           },
         },
+        $set: {
+          status: "Responded", // ✅ added
+        },
       },
-      { new: true }
+      { new: true },
     );
   }
 
@@ -1715,7 +1733,6 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
     },
   });
 });
-
 
 exports.getRequestById = catchAsync(async (req, res, next) => {
   const { id } = req.params;

@@ -632,94 +632,116 @@ exports.updateDrawingFileNameInLatestRevision = catchAsync(async (req, res, next
   });
 
   exports.rejectRequest = catchAsync(async (req, res, next) => {
-    const userId =req.user.id;
-    const architectureToRoRequest = await ArchitectureToRoRequest.findById(req.params.id).populate('drawingId');
-  
-    if (!architectureToRoRequest) {
-      return res.status(200).json({
-      
-        message: "No RO request found with that ID"
-      });
-    }
-  
-    
-    const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
-      req.params.id,
-      {
-        status: 'Rejected',
-      rejectedBy:userId,
-      rejectedDate:Date.now(),
-      reason: req.body.reason 
-      },
-      {
-        new: true,
-        runValidators: true
-      }
-    );
-  
-    if (!updatedRequest) {
-      return res.status(200).json({
-        
-        message: "Failed to update RO request"
-      });
-    }
-    const { drawingNo,siteId, revision } = updatedRequest;
-  const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-    { drawingNo, siteId }, 
-      { $set: { "acceptedRORevisions.$[elem].rfiStatus": "Not Raised" ,
-        "acceptedRORevisions.$[elem].rfiRejectStatus": "Rejected",
-        "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Not Raised"
-      } }, 
-      {
-        new: true,  
-        arrayFilters: [{ "elem.revision": revision },
-           { "arch.revision": revision }
-        ]  
-      }
-    );
-    const siteHeadIds = await User.find({
-      "permittedSites.siteId": siteId
-    }).select('permittedSites _id');
-    if (siteHeadIds.length > 0) {
-      for (let user of siteHeadIds) {
-        //console.log(`User ${user._id} permittedSites:`, JSON.stringify(user.permittedSites, null, 2));
-        const site = user?.permittedSites?.find(site => {
-          console.log("Checking site:", site?.siteId, "against input:", siteId);
-          return site?.siteId?.toString() === siteId.toString();
-        });
-    
-        if (!site) {
-          console.warn(`No matching site found for user ${user._id} and siteId ${siteId}`);
-          continue;
-        }
-    
-        const rfiAccessEnabled = site?.enableModules?.drawingDetails?.siteHeadDetails?.rfiRaisedAccess;
-        console.log(`RFI Access Enabled for site ${site?.siteId}:`, rfiAccessEnabled);
-    
-        if (rfiAccessEnabled) {
-            const notificationMessage1 = `A RFI has been Rejected for drawing number ${drawingNo} with  revision ${revision}.`;
-    
-            try {
-              const notificationToSiteHead = await sendNotification(
-                'Drawing', 
-                notificationMessage1, 
-                'RFI Rejected', 
-                'Rejected', 
-                user._id
-              );
-              console.log("notificationToSiteHead", notificationToSiteHead);
-            } catch (error) {
-              console.error("Error sending notification to SiteHeadId ", user._id, ": ", error);
-            
-          }
-        } 
-      }
-    } 
-    res.status(200).json({
-      status: "success",
-      data: updatedRequest
+  const userId = req.user.id;
+
+  const architectureToRoRequest = await ArchitectureToRoRequest.findById(
+    req.params.id
+  ).populate("drawingId");
+
+  if (!architectureToRoRequest) {
+    return res.status(200).json({
+      message: "No RO request found with that ID",
     });
+  }
+
+  const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
+    req.params.id,
+    {
+      status: "Rejected",
+      rejectedBy: userId,
+      rejectedDate: Date.now(),
+      reason: req.body.reason,
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  if (!updatedRequest) {
+    return res.status(200).json({
+      message: "Failed to update RO request",
+    });
+  }
+
+  const { drawingNo, siteId, revision } = updatedRequest;
+
+  // ✅ Updated register queries for Rejected state
+  const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+    { drawingNo, siteId },
+    {
+      $set: {
+        "acceptedRORevisions.$[elem].rfiStatus": "Not Raised",
+        "acceptedRORevisions.$[elem].rfiRejectStatus": "Rejected",
+        "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Not Raised",
+        "acceptedArchitectRevisions.$[arch].rfiRejectStatus": "Rejected",
+      },
+    },
+    {
+      new: true,
+      arrayFilters: [
+        { "elem.revision": revision },
+        { "arch.revision": revision },
+      ],
+    }
+  );
+
+  const siteHeadIds = await User.find({
+    "permittedSites.siteId": siteId,
+  }).select("permittedSites _id");
+
+  if (siteHeadIds.length > 0) {
+    for (let user of siteHeadIds) {
+      const site = user?.permittedSites?.find((site) => {
+        console.log("Checking site:", site?.siteId, "against input:", siteId);
+        return site?.siteId?.toString() === siteId.toString();
+      });
+
+      if (!site) {
+        console.warn(
+          `No matching site found for user ${user._id} and siteId ${siteId}`
+        );
+        continue;
+      }
+
+      const rfiAccessEnabled =
+        site?.enableModules?.drawingDetails?.siteHeadDetails?.rfiRaisedAccess;
+
+      console.log(
+        `RFI Access Enabled for site ${site?.siteId}:`,
+        rfiAccessEnabled
+      );
+
+      if (rfiAccessEnabled) {
+        const notificationMessage1 = `A RFI has been Rejected for drawing number ${drawingNo} with  revision ${revision}.`;
+
+        try {
+          const notificationToSiteHead = await sendNotification(
+            "Drawing",
+            notificationMessage1,
+            "RFI Rejected",
+            "Rejected",
+            user._id
+          );
+          console.log("notificationToSiteHead", notificationToSiteHead);
+        } catch (error) {
+          console.error(
+            "Error sending notification to SiteHeadId ",
+            user._id,
+            ": ",
+            error
+          );
+        }
+      }
+    }
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: updatedRequest,
   });
+});
+
   exports.uploadRejectedFile = upload.single('rejectedFile');
   exports.updateRejectedFile = catchAsync(async (req, res, next) => {
     if (!req.file) {

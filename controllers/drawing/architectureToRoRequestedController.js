@@ -681,7 +681,6 @@ exports.updateDrawingFileNameInLatestRevision = catchAsync(
     });
   },
 );
-
 exports.rejectRequest = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
 
@@ -694,19 +693,31 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
     return next(new AppError("No RO request found with that ID", 404));
   }
 
+  /* =========================================================
+     ✅ ADDED LOGIC ONLY:
+     When Rejected → update all Requested reasons to Rejected
+  ========================================================= */
+  const updateObj = {
+    status: "Rejected",
+    rejectedBy: userId,
+    rejectedDate: Date.now(),
+    reason: req.body.reason,
+  };
+
+  const updateOptions = {
+    new: true,
+    runValidators: true,
+  };
+
+  updateObj["natureOfRequestedInformationReasons.$[elem].action"] = "Rejected";
+  updateOptions.arrayFilters = [{ "elem.action": "Requested" }];
+  /* ======================= END ADDED ====================== */
+
   // Update the RO request to Rejected
   const updatedRequest = await ArchitectureToRoRequest.findByIdAndUpdate(
     req.params.id,
-    {
-      status: "Rejected",
-      rejectedBy: userId,
-      rejectedDate: Date.now(),
-      reason: req.body.reason,
-    },
-    {
-      new: true,
-      runValidators: true,
-    },
+    updateObj,
+    updateOptions,
   );
 
   if (!updatedRequest) {
@@ -736,12 +747,13 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
         new AppError("Failed to update ArchitectureToRoRegister", 400),
       );
     }
+
     const siteHeadIds = await User.find({
       "permittedSites.siteId": siteId,
     }).select("permittedSites _id");
+
     if (siteHeadIds.length > 0) {
       for (let user of siteHeadIds) {
-        //console.log(`User ${user._id} permittedSites:`, JSON.stringify(user.permittedSites, null, 2));
         const site = user?.permittedSites?.find((site) => {
           console.log("Checking site:", site?.siteId, "against input:", siteId);
           return site?.siteId?.toString() === siteId.toString();
@@ -756,6 +768,7 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
 
         const rfiAccessEnabled =
           site?.enableModules?.drawingDetails?.roDetails?.rfiRaisedAccess;
+
         console.log(
           `RFI Access Enabled for site ${site?.siteId}:`,
           rfiAccessEnabled,
@@ -820,7 +833,9 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
         new AppError("Failed to update RO-to-Site Level Request", 400),
       );
     }
+
     const roRevision = updatedRoRequest.revision;
+
     // Proceed to update the register for forwarded case if necessary
     const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
       { drawingNo, siteId },
@@ -833,8 +848,8 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
       {
         new: true,
         arrayFilters: [
-          { "architectElem.revision": revision }, // Filter for acceptedArchitectRevisions
-          { "roElem.revision": roRevision }, // Filter for acceptedRORevisions
+          { "architectElem.revision": revision },
+          { "roElem.revision": roRevision },
         ],
       },
     );
@@ -842,9 +857,9 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
     const siteHeadIds = await User.find({
       "permittedSites.siteId": siteId,
     }).select("permittedSites _id");
+
     if (siteHeadIds.length > 0) {
       for (let user of siteHeadIds) {
-        //console.log(`User ${user._id} permittedSites:`, JSON.stringify(user.permittedSites, null, 2));
         const site = user?.permittedSites?.find((site) => {
           console.log("Checking site:", site?.siteId, "against input:", siteId);
           return site?.siteId?.toString() === siteId.toString();
@@ -859,6 +874,7 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
 
         const rfiAccessEnabled =
           site?.enableModules?.drawingDetails?.roDetails?.rfiRaisedAccess;
+
         console.log(
           `RFI Access Enabled for site ${site?.siteId}:`,
           rfiAccessEnabled,
@@ -887,6 +903,7 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
         }
       }
     }
+
     res.status(200).json({
       status: "success",
       data: updatedRequest,
@@ -897,6 +914,7 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
     return next(new AppError("Invalid rfiType value", 400));
   }
 });
+
 
 exports.uploadRejectedFile = upload.single("rejectedFile");
 

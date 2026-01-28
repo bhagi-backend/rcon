@@ -1223,6 +1223,7 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
   return prefix ? `${prefix}-R${nextNumber}` : `R${nextNumber}`;
 };
 
+
 // exports.updateRevisions = catchAsync(async (req, res, next) => {
 //   const { id } = req.params;
 //   const userId = req.user.id;
@@ -1246,6 +1247,7 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //       message: "revisionType is required",
 //     });
 //   }
+
 //   if (
 //     (revisionType === "acceptedRORevisions" ||
 //       revisionType === "acceptedSiteHeadRevisions") &&
@@ -1258,8 +1260,6 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //   }
 
 //   const existingRegister = await ArchitectureToRoRegister.findById(id);
-//   const siteId = existingRegister.siteId;
-//   const drawingNo = existingRegister.drawingNo;
 //   if (!existingRegister) {
 //     return res.status(404).json({
 //       status: "fail",
@@ -1267,6 +1267,9 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //       message: "No register found with that ID",
 //     });
 //   }
+
+//   const siteId = existingRegister.siteId;
+//   const drawingNo = existingRegister.drawingNo;
 
 //   if (!existingRegister[revisionType]) {
 //     return res.status(400).json({
@@ -1291,9 +1294,6 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //       pdfDrawingFileName || pdfDrawingFileNameFromBody || null;
 
 //     const isArchitectRevision = revisionType === "acceptedArchitectRevisions";
-//     // const revisionToUse = isArchitectRevision
-//     //   ? getNextRevisionNumber(revisionArray)
-//     //   : newRevision.revision;
 //     const revisionToUse = isArchitectRevision
 //       ? getNextRevisionNumber(revisionArray, newRevision.typeOfDrawing)
 //       : newRevision.revision;
@@ -1327,17 +1327,8 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //     const latestRevision =
 //       existingRegister[revisionType][existingRegister[revisionType].length - 1];
 //     console.log("Latest Revision:", latestRevision);
-//     // if (latestRevision && latestRevision.typeOfDrawing === typeOfDrawing) {
-//     //   if (latestRevision.rfiStatus === "Not Raised") {
-//     //     return res.status(200).json({
-//     //       status: "fail",
-//     //       success: false,
-//     //       message:
-//     //         "Cannot update revision because RFI has not been raised on the latest revision",
-//     //     });
-//     //   }
-//     // }
 //   }
+
 //   try {
 //     let drawingFileName = null;
 //     let pdfDrawingFileName = null;
@@ -1349,9 +1340,7 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //       drawingFileName = `drawing-ArchitectureToRoRegister-${
 //         existingRegister._id
 //       }-${Date.now()}${fileExtension}`;
-//       drawingFileName1 = `drawing-ArchitectureToRoRegister-${
-//         existingRegister._id
-//       }-${Date.now()}${fileExtension}`;
+//       drawingFileName1 = drawingFileName;
 //       const companyId = req.user.companyId;
 
 //       const result = getUploadPath(
@@ -1362,7 +1351,6 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //       );
 //       drawingFullPath = result.fullPath;
 //       drawingFileName = result.relativePath;
-//       console.log("-----------------", result.fullPath);
 //       const uploadToS3 = result.uploadToS3;
 //       await uploadToS3(drawingFile.buffer, drawingFile.mimetype);
 //     }
@@ -1386,6 +1374,9 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //       await uploadToS3(pdfDrawingFile.buffer, pdfDrawingFile.mimetype);
 //     }
 
+//     // =====================================================
+//     // ✅ PROCESS REVISION
+//     // =====================================================
 //     const newRevision = req.body;
 //     processRevision(
 //       existingRegister[revisionType],
@@ -1394,7 +1385,62 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //       pdfDrawingFileName
 //     );
 
-//     // Update revision status based on architectRef and roRef
+//     // =====================================================
+//     // ✅ LATEST & PREVIOUS REVISION TRACKING
+//     // =====================================================
+//     const latestIndex = existingRegister[revisionType].length - 1;
+
+//     const latestUploadedRevision =
+//       existingRegister[revisionType][latestIndex]?.revision;
+
+//     const previousRevision =
+//       latestIndex > 0
+//         ? existingRegister[revisionType][latestIndex - 1]?.revision
+//         : null;
+
+//     if (revisionType === "acceptedArchitectRevisions") {
+//       existingRegister.latestConsultantUploadedRevision = latestUploadedRevision;
+//     }
+
+//     if (revisionType === "acceptedRORevisions") {
+//       existingRegister.latestRoForwardedRevision = latestUploadedRevision;
+//     }
+
+//     // =====================================================
+//     // ✅ SUSPEND PREVIOUS REVISION RFIs
+//     // =====================================================
+//     if (revisionType === "acceptedArchitectRevisions" && previousRevision) {
+//       const baseQuery = {
+//         drawingId: existingRegister._id,
+//         architectRevision: previousRevision,
+//       };
+
+//       // If status = Requested → change to suspended
+//       await RoToSiteLevelRequest.updateMany(
+//         { ...baseQuery, status: "Requested" },
+//         { $set: { status: "suspended", isSuspended: true } }
+//       );
+
+//       await SiteToSiteLevelRequest.updateMany(
+//         { ...baseQuery, status: "Requested" },
+//         { $set: { status: "suspended", isSuspended: true } }
+//       );
+
+//       // For all other statuses → only set isSuspended = true
+//       await RoToSiteLevelRequest.updateMany(
+//         { ...baseQuery, status: { $ne: "Requested" } },
+//         { $set: { isSuspended: true } }
+//       );
+
+//       await SiteToSiteLevelRequest.updateMany(
+//         { ...baseQuery, status: { $ne: "Requested" } },
+//         { $set: { isSuspended: true } }
+//       );
+//     }
+
+//     // =====================================================
+//     // ✅ UPDATE REVISION STATUS BASED ON REFERENCES
+//     // =====================================================
 //     if (req.body.architectRef) {
 //       const architectRevision = existingRegister.acceptedArchitectRevisions.find(
 //         (rev) => rev._id.toString() === req.body.architectRef
@@ -1412,24 +1458,19 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //         roRevision.roRevisionStatus = "Forwarded";
 //       }
 //     }
+
 //     if (revisionType === "acceptedArchitectRevisions") {
 //       existingRegister.regState = "Drawing";
 //     }
+
 //     const updatedRegister = await existingRegister.save();
 
-//     // Process DWG file if exists
+//     // =====================================================
+//     // ✅ PROCESS DWG FILE
+//     // =====================================================
 //     if (drawingFile && drawingFullPath) {
 //       try {
-//         // console.log('Starting DWG file processing...');
-//         // console.log("drawingFile",drawingFile)
-//         // console.log("drawingFullPath",drawingFullPath)
-//         // console.log("drawingFileName",drawingFileName1)
-
-//         const result = await processDWGFile(
-//           drawingFileName1,
-//           drawingFile.buffer
-//         );
-//         console.log("DWG processing result:", result);
+//         const result = await processDWGFile(drawingFileName1, drawingFile.buffer);
 
 //         const latestRevisionIndex = existingRegister[revisionType].length - 1;
 //         const latestRevision =
@@ -1438,8 +1479,7 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //         if (result.urn) {
 //           latestRevision.urn = result.urn;
 //           latestRevision.drawingFileName = drawingFileName;
-//           console.log("hiiiiiiiiiiiiiiiiiiiii");
-//           // Set expiration to 28 days from now
+
 //           const expirationDate = new Date();
 //           expirationDate.setDate(expirationDate.getDate() + 28);
 //           latestRevision.urnExpiration = expirationDate;
@@ -1457,112 +1497,79 @@ const getNextRevisionNumber = (revisions, typeOfDrawing) => {
 //       }
 //     }
 
+//     // =====================================================
+//     // ✅ SEND NOTIFICATIONS TO SITE HEADS / RO
+//     // =====================================================
 //     const siteHeadIds = await User.find({
 //       "permittedSites.siteId": siteId,
 //     }).select("permittedSites _id");
-//     const latestRevision =
+
+//     const latestRevisionFinal =
 //       updatedRegister[revisionType][updatedRegister[revisionType].length - 1];
-//     const revision = latestRevision?.revision;
-//     if (revisionType === "acceptedArchitectRevisions") {
-//       // console.log("architect")
-//       if (siteHeadIds.length > 0) {
-//         for (let user of siteHeadIds) {
-//           const site = user?.permittedSites?.find((site) => {
-//             return site?.siteId?.toString() === siteId.toString();
-//           });
+//     const revision = latestRevisionFinal?.revision;
 
-//           if (!site) {
-//             console.warn(
-//               `No matching site found for user ${user._id} and siteId ${siteId}`
-//             );
-//             continue;
-//           }
+//     if (revisionType === "acceptedArchitectRevisions" && siteHeadIds.length > 0) {
+//       for (let user of siteHeadIds) {
+//         const site = user?.permittedSites?.find(
+//           (site) => site?.siteId?.toString() === siteId.toString()
+//         );
+//         if (!site) continue;
 
-//           const rfiAccessEnabled =
-//             site?.enableModules?.drawingDetails?.roDetails?.forwardAccess;
-//           //   console.log(`RFI Access Enabled for site ${site?.siteId}:`, rfiAccessEnabled);
-
-//           if (rfiAccessEnabled) {
-//             const notificationToSiteHead = await sendNotification(
-//               "Drawing",
-//               `A soft copy has been submitted for drawing number ${drawingNo}, accepted architect revision ${revision}.`,
-//               "Soft Copy Submitted",
-//               "Submitted",
-//               user._id
-//             );
-//             //  console.log("notificationToSiteHead", notificationToSiteHead);
-//           }
-//         }
-//       }
-//     }
-
-//     if (revisionType === "acceptedRORevisions") {
-//       // console.log("ro");
-//       if (siteHeadIds.length > 0) {
-//         for (let user of siteHeadIds) {
-//           const site = user?.permittedSites?.find((site) => {
-//             return site?.siteId?.toString() === siteId.toString();
-//           });
-
-//           if (!site) {
-//             console.warn(
-//               `No matching site found for user ${user._id} and siteId ${siteId}`
-//             );
-//             continue;
-//           }
-
-//           const rfiAccessEnabled =
-//             site?.enableModules?.drawingDetails?.siteHeadDetails?.forwardAccess;
-//           // console.log(`RFI Access Enabled for site ${site?.siteId}:`, rfiAccessEnabled);
-
-//           if (rfiAccessEnabled) {
-//             const notificationToSiteHead = await sendNotification(
-//               "Drawing",
-//               `A soft copy has been submitted for drawing number ${drawingNo}, accepted ro revision ${revision}.`,
-//               "Soft Copy Submitted",
-//               "Submitted",
-//               user._id
-//             );
-//             console.log("notificationToSiteHead", notificationToSiteHead);
-//           }
-//         }
-//       }
-//     }
-//     if (revisionType === "acceptedSiteHeadRevisions") {
-//       console.log("siteHead");
-//       if (siteHeadIds.length > 0) {
-//         for (let user of siteHeadIds) {
-//           const site = user?.permittedSites?.find((site) => {
-//             return site?.siteId?.toString() === siteId.toString();
-//           });
-
-//           if (!site) {
-//             console.warn(
-//               `No matching site found for user ${user._id} and siteId ${siteId}`
-//             );
-//             continue;
-//           }
-
-//           const rfiAccessEnabled =
-//             site?.enableModules?.drawingDetails?.siteToSite;
-//           console.log(
-//             `RFI Access Enabled for site ${site?.siteId}:`,
-//             rfiAccessEnabled
+//         const rfiAccessEnabled =
+//           site?.enableModules?.drawingDetails?.roDetails?.forwardAccess;
+//         if (rfiAccessEnabled) {
+//           await sendNotification(
+//             "Drawing",
+//             `A soft copy has been submitted for drawing number ${drawingNo}, accepted architect revision ${revision}.`,
+//             "Soft Copy Submitted",
+//             "Submitted",
+//             user._id
 //           );
-
-//           if (rfiAccessEnabled) {
-//             const notificationToSiteHead = await sendNotification(
-//               "Drawing",
-//               `A soft copy has been submitted for drawing number ${drawingNo}, accepted siteHead revision ${revision}.`,
-//               "Soft Copy Submitted",
-//               "Submitted",
-//               user._id
-//             );
-//             console.log("notificationToSiteHead", notificationToSiteHead);
-//           }
 //         }
 //       }
 //     }
+
+//     if (revisionType === "acceptedRORevisions" && siteHeadIds.length > 0) {
+//       for (let user of siteHeadIds) {
+//         const site = user?.permittedSites?.find(
+//           (site) => site?.siteId?.toString() === siteId.toString()
+//         );
+//         if (!site) continue;
+
+//         const rfiAccessEnabled =
+//           site?.enableModules?.drawingDetails?.siteHeadDetails?.forwardAccess;
+//         if (rfiAccessEnabled) {
+//           await sendNotification(
+//             "Drawing",
+//             `A soft copy has been submitted for drawing number ${drawingNo}, accepted ro revision ${revision}.`,
+//             "Soft Copy Submitted",
+//             "Submitted",
+//             user._id
+//           );
+//         }
+//       }
+//     }
+
+//     if (revisionType === "acceptedSiteHeadRevisions" && siteHeadIds.length > 0) {
+//       for (let user of siteHeadIds) {
+//         const site = user?.permittedSites?.find(
+//           (site) => site?.siteId?.toString() === siteId.toString()
+//         );
+//         if (!site) continue;
+
+//         const rfiAccessEnabled = site?.enableModules?.drawingDetails?.siteToSite;
+//         if (rfiAccessEnabled) {
+//           await sendNotification(
+//             "Drawing",
+//             `A soft copy has been submitted for drawing number ${drawingNo}, accepted siteHead revision ${revision}.`,
+//             "Soft Copy Submitted",
+//             "Submitted",
+//             user._id
+//           );
+//         }
+//       }
+//     }
+
 //     res.status(200).json({
 //       status: "success",
 //       success: true,
@@ -1581,6 +1588,14 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const userId = req.user.id;
   const { revisionType } = req.query;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      status: "fail",
+      success: false,
+      message: "Invalid register id",
+    });
+  }
 
   const drawingFile = req.files?.drawingFileName
     ? req.files.drawingFileName[0]
@@ -1641,6 +1656,7 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
     const existingIndex = existingRegister[revisionType].findIndex(
       (r) => r.revision === newRevision.revision
     );
+
     const finalDrawingFileName =
       drawingFileName || drawingFileNameFromBody || null;
     const finalPdfDrawingFileName =
@@ -1675,12 +1691,6 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
       revisionArray.push(newRevisionData);
     }
   };
-
-  if (revisionType === "acceptedArchitectRevisions") {
-    const latestRevision =
-      existingRegister[revisionType][existingRegister[revisionType].length - 1];
-    console.log("Latest Revision:", latestRevision);
-  }
 
   try {
     let drawingFileName = null;
@@ -1727,9 +1737,6 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
       await uploadToS3(pdfDrawingFile.buffer, pdfDrawingFile.mimetype);
     }
 
-    // =====================================================
-    // ✅ PROCESS REVISION
-    // =====================================================
     const newRevision = req.body;
     processRevision(
       existingRegister[revisionType],
@@ -1738,9 +1745,6 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
       pdfDrawingFileName
     );
 
-    // =====================================================
-    // ✅ LATEST & PREVIOUS REVISION TRACKING
-    // =====================================================
     const latestIndex = existingRegister[revisionType].length - 1;
 
     const latestUploadedRevision =
@@ -1752,23 +1756,20 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
         : null;
 
     if (revisionType === "acceptedArchitectRevisions") {
-      existingRegister.latestConsultantUploadedRevision = latestUploadedRevision;
+      existingRegister.latestConsultantUploadedRevision =
+        latestUploadedRevision;
     }
 
     if (revisionType === "acceptedRORevisions") {
       existingRegister.latestRoForwardedRevision = latestUploadedRevision;
     }
 
-    // =====================================================
-    // ✅ SUSPEND PREVIOUS REVISION RFIs
-    // =====================================================
     if (revisionType === "acceptedArchitectRevisions" && previousRevision) {
       const baseQuery = {
         drawingId: existingRegister._id,
         architectRevision: previousRevision,
       };
 
-      // If status = Requested → change to suspended
       await RoToSiteLevelRequest.updateMany(
         { ...baseQuery, status: "Requested" },
         { $set: { status: "suspended", isSuspended: true } }
@@ -1779,7 +1780,6 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
         { $set: { status: "suspended", isSuspended: true } }
       );
 
-      // For all other statuses → only set isSuspended = true
       await RoToSiteLevelRequest.updateMany(
         { ...baseQuery, status: { $ne: "Requested" } },
         { $set: { isSuspended: true } }
@@ -1791,13 +1791,13 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
       );
     }
 
-    // =====================================================
-    // ✅ UPDATE REVISION STATUS BASED ON REFERENCES
-    // =====================================================
     if (req.body.architectRef) {
-      const architectRevision = existingRegister.acceptedArchitectRevisions.find(
-        (rev) => rev._id.toString() === req.body.architectRef
-      );
+      const architectRevision =
+        existingRegister.acceptedArchitectRevisions.find(
+          (rev) =>
+            rev._id &&
+            rev._id.toString() === req.body.architectRef.toString()
+        );
       if (architectRevision) {
         architectRevision.architectRevisionStatus = "Forwarded";
       }
@@ -1805,7 +1805,8 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
 
     if (req.body.roRef) {
       const roRevision = existingRegister.acceptedRORevisions.find(
-        (rev) => rev._id.toString() === req.body.roRef
+        (rev) =>
+          rev._id && rev._id.toString() === req.body.roRef.toString()
       );
       if (roRevision) {
         roRevision.roRevisionStatus = "Forwarded";
@@ -1818,14 +1819,15 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
 
     const updatedRegister = await existingRegister.save();
 
-    // =====================================================
-    // ✅ PROCESS DWG FILE
-    // =====================================================
     if (drawingFile && drawingFullPath) {
       try {
-        const result = await processDWGFile(drawingFileName1, drawingFile.buffer);
+        const result = await processDWGFile(
+          drawingFileName1,
+          drawingFile.buffer
+        );
 
-        const latestRevisionIndex = existingRegister[revisionType].length - 1;
+        const latestRevisionIndex =
+          existingRegister[revisionType].length - 1;
         const latestRevision =
           existingRegister[revisionType][latestRevisionIndex];
 
@@ -1850,9 +1852,6 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
       }
     }
 
-    // =====================================================
-    // ✅ SEND NOTIFICATIONS TO SITE HEADS / RO
-    // =====================================================
     const siteHeadIds = await User.find({
       "permittedSites.siteId": siteId,
     }).select("permittedSites _id");
@@ -1929,7 +1928,7 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
       data: updatedRegister,
     });
   } catch (error) {
-    console.error("Error updating revisions:", error.message);
+    console.error("Error updating revisions:", error);
     res.status(400).json({
       status: "fail",
       success: false,

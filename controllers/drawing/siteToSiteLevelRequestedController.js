@@ -1705,6 +1705,7 @@ const updatedRequest = await ArchitectureToRoRequest.findOneAndUpdate(
 });
 exports.updateViewDates = catchAsync(async (req, res, next) => {
   const { _id } = req.body;
+  const { status } = req.query; // 👈 coming from query
   const userId = req.user.id;
 
   if (!_id) {
@@ -1714,7 +1715,6 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Check document exists
   const rfi = await ArchitectureToRoRequest.findById(_id);
   if (!rfi) {
     return res.status(404).json({
@@ -1723,25 +1723,28 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Check if user already viewed
   const alreadyViewed = rfi.viewedBy?.some(
     (v) => v.user?.toString() === userId.toString(),
   );
 
   if (!alreadyViewed) {
-    await ArchitectureToRoRequest.findOneAndUpdate(
-      { _id },
-      {
-        $push: {
-          viewedBy: {
-            user: userId,
-            viewedAt: new Date(),
-          },
-        },
-        $set: {
-          status: "Responded", // ✅ added
+    const updateData = {
+      $push: {
+        viewedBy: {
+          user: userId,
+          viewedAt: new Date(),
         },
       },
+    };
+
+    // ✅ update status ONLY if status=Responded
+    if (status === "Responded") {
+      updateData.$set = { status: "Responded" };
+    }
+
+    await ArchitectureToRoRequest.findByIdAndUpdate(
+      _id,
+      updateData,
       { new: true },
     );
   }

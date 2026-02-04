@@ -864,7 +864,7 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
     ? user.permittedSites.find((site) => site.siteId.toString() === siteId)
         .enableModules.customizedView
     : false;
-
+console.log("customizedView", customizedView);
   // Fetch design consultants for the user's department
   const consultantsInDepartment = await assignDesignConsultantsToDepartment
     .findOne({
@@ -893,7 +893,7 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
   // Step 2: Construct base query
   let query = {
     siteId,
-    drawingStatus: "Approval",
+    // drawingStatus: "Approval",
   };
   if (selectTimePeriod) {
     query.creationDate = { $gte: startDate, $lt: endDate };
@@ -924,7 +924,8 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
   }
   // By default, show all consultants data (no department-based filtering)
 
-  // Step 4: Fetch data with consultant population
+  // Step 4: Fetch data with consultant population/
+  console.log("Final Query:", query);
   const data = await ArchitectureToRoRegister.find(query)
     .populate({
       path: "designDrawingConsultant",
@@ -1004,10 +1005,11 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
       ) {
         totalDrawingCount++;
         consultantData[consultantId].drawing.approved++;
-      } else {
-        totalPendingDrawings++;
-        consultantData[consultantId].drawing.pending++;
-      }
+      } 
+      // else {
+      //   totalPendingDrawings++;
+      //   consultantData[consultantId].drawing.pending++;
+      // }
     }
   });
 

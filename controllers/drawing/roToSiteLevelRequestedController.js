@@ -631,7 +631,7 @@ exports.updateDrawingFileNameInLatestRevision = catchAsync(async (req, res, next
     });
   });
 
-  exports.rejectRequest = catchAsync(async (req, res, next) => {
+ exports.rejectRequest = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
 
   const architectureToRoRequest = await ArchitectureToRoRequest.findById(
@@ -675,6 +675,7 @@ exports.updateDrawingFileNameInLatestRevision = catchAsync(async (req, res, next
         "acceptedRORevisions.$[elem].rfiRejectStatus": "Rejected",
         "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Not Raised",
         "acceptedArchitectRevisions.$[arch].rfiRejectStatus": "Rejected",
+        regState: "Drawing", // ✅ ADDED (same as closeRequest)
       },
     },
     {
@@ -713,7 +714,7 @@ exports.updateDrawingFileNameInLatestRevision = catchAsync(async (req, res, next
       );
 
       if (rfiAccessEnabled) {
-        const notificationMessage1 = `A RFI has been Rejected for drawing number ${drawingNo} with  revision ${revision}.`;
+        const notificationMessage1 = `A RFI has been Rejected for drawing number ${drawingNo} with revision ${revision}.`;
 
         try {
           const notificationToSiteHead = await sendNotification(

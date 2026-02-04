@@ -251,7 +251,7 @@ console.log("userId",userId);
     };
     console.log("query2");
   }
-  
+  console.log("Final query:", query);
     const data = await ArchitectureToRoRegister.find(query)
     .populate({
       path: 'designDrawingConsultant',

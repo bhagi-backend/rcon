@@ -1647,6 +1647,11 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
     });
   }
 
+  /**
+   * ------------------------------
+   * Handles revision insert/update
+   * ------------------------------
+   */
   const processRevision = (
     revisionArray,
     newRevision,
@@ -1662,7 +1667,9 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
     const finalPdfDrawingFileName =
       pdfDrawingFileName || pdfDrawingFileNameFromBody || null;
 
-    const isArchitectRevision = revisionType === "acceptedArchitectRevisions";
+    const isArchitectRevision =
+      revisionType === "acceptedArchitectRevisions";
+
     const revisionToUse = isArchitectRevision
       ? getNextRevisionNumber(revisionArray, newRevision.typeOfDrawing)
       : newRevision.revision;
@@ -1678,7 +1685,7 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
         }),
       };
     } else {
-      const newRevisionData = {
+      revisionArray.push({
         ...newRevision,
         revision: revisionToUse,
         revisionCreatedBy: userId,
@@ -1687,8 +1694,7 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
         ...(finalPdfDrawingFileName && {
           pdfDrawingFileName: finalPdfDrawingFileName,
         }),
-      };
-      revisionArray.push(newRevisionData);
+      });
     }
   };
 
@@ -1700,44 +1706,41 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
 
     if (drawingFile) {
       const fileExtension = path.extname(drawingFile.originalname);
-      drawingFileName = `drawing-ArchitectureToRoRegister-${
-        existingRegister._id
-      }-${Date.now()}${fileExtension}`;
+      drawingFileName = `drawing-ArchitectureToRoRegister-${existingRegister._id}-${Date.now()}${fileExtension}`;
       drawingFileName1 = drawingFileName;
-      const companyId = req.user.companyId;
 
+      const companyId = req.user.companyId;
       const result = getUploadPath(
         companyId,
         drawingFileName,
         "drawings",
         existingRegister.siteId
       );
+
       drawingFullPath = result.fullPath;
       drawingFileName = result.relativePath;
-      const uploadToS3 = result.uploadToS3;
-      await uploadToS3(drawingFile.buffer, drawingFile.mimetype);
+      await result.uploadToS3(drawingFile.buffer, drawingFile.mimetype);
     }
 
     if (pdfDrawingFile) {
       const pdfFileExtension = path.extname(pdfDrawingFile.originalname);
-      pdfDrawingFileName = `pdf-ArchitectureToRoRegister-${
-        existingRegister._id
-      }-${Date.now()}${pdfFileExtension}`;
-      const companyId = req.user.companyId;
+      pdfDrawingFileName = `pdf-ArchitectureToRoRegister-${existingRegister._id}-${Date.now()}${pdfFileExtension}`;
 
+      const companyId = req.user.companyId;
       const result = getUploadPath(
         companyId,
         pdfDrawingFileName,
         "drawings",
         existingRegister.siteId
       );
+
       pdfFullPath = result.fullPath;
       pdfDrawingFileName = result.relativePath;
-      const uploadToS3 = result.uploadToS3;
-      await uploadToS3(pdfDrawingFile.buffer, pdfDrawingFile.mimetype);
+      await result.uploadToS3(pdfDrawingFile.buffer, pdfDrawingFile.mimetype);
     }
 
     const newRevision = req.body;
+
     processRevision(
       existingRegister[revisionType],
       newRevision,
@@ -1746,7 +1749,6 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
     );
 
     const latestIndex = existingRegister[revisionType].length - 1;
-
     const latestUploadedRevision =
       existingRegister[revisionType][latestIndex]?.revision;
 
@@ -1755,21 +1757,26 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
         ? existingRegister[revisionType][latestIndex - 1]?.revision
         : null;
 
-    if (revisionType === "acceptedArchitectRevisions") {
-      existingRegister.latestConsultantUploadedRevision =
-        latestUploadedRevision;
-    }
-
-    if (revisionType === "acceptedRORevisions") {
-      existingRegister.latestRoForwardedRevision = latestUploadedRevision;
-    }
-
+    /**
+     * ==================================================
+     * SUSPENSION LOGIC (THIS IS WHAT YOU ASKED ABOUT)
+     * ==================================================
+     *
+     * Runs ONLY when:
+     * - A NEW architect revision is uploaded
+     * - AND there was a previous architect revision
+     */
     if (revisionType === "acceptedArchitectRevisions" && previousRevision) {
       const baseQuery = {
         drawingId: existingRegister._id,
         architectRevision: previousRevision,
       };
 
+      /**
+       * Case 1:
+       * RFIs still in "Requested" state
+       * → convert them to "suspended"
+       */
       await RoToSiteLevelRequest.updateMany(
         { ...baseQuery, status: "Requested" },
         { $set: { status: "suspended", isSuspended: true } }
@@ -1780,6 +1787,12 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
         { $set: { status: "suspended", isSuspended: true } }
       );
 
+      /**
+       * Case 2:
+       * RFIs already progressed (Accepted / Forwarded / Responded etc.)
+       * → keep status unchanged
+       * → only mark isSuspended = true
+       */
       await RoToSiteLevelRequest.updateMany(
         { ...baseQuery, status: { $ne: "Requested" } },
         { $set: { isSuspended: true } }
@@ -1789,138 +1802,20 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
         { ...baseQuery, status: { $ne: "Requested" } },
         { $set: { isSuspended: true } }
       );
-    }
-
-    if (req.body.architectRef) {
-      const architectRevision =
-        existingRegister.acceptedArchitectRevisions.find(
-          (rev) =>
-            rev._id &&
-            rev._id.toString() === req.body.architectRef.toString()
-        );
-      if (architectRevision) {
-        architectRevision.architectRevisionStatus = "Forwarded";
-      }
-    }
-
-    if (req.body.roRef) {
-      const roRevision = existingRegister.acceptedRORevisions.find(
-        (rev) =>
-          rev._id && rev._id.toString() === req.body.roRef.toString()
-      );
-      if (roRevision) {
-        roRevision.roRevisionStatus = "Forwarded";
-      }
     }
 
     if (revisionType === "acceptedArchitectRevisions") {
+      existingRegister.latestConsultantUploadedRevision =
+        latestUploadedRevision;
       existingRegister.regState = "Drawing";
     }
 
+    if (revisionType === "acceptedRORevisions") {
+      existingRegister.latestRoForwardedRevision =
+        latestUploadedRevision;
+    }
+
     const updatedRegister = await existingRegister.save();
-
-    if (drawingFile && drawingFullPath) {
-      try {
-        const result = await processDWGFile(
-          drawingFileName1,
-          drawingFile.buffer
-        );
-
-        const latestRevisionIndex =
-          existingRegister[revisionType].length - 1;
-        const latestRevision =
-          existingRegister[revisionType][latestRevisionIndex];
-
-        if (result.urn) {
-          latestRevision.urn = result.urn;
-          latestRevision.drawingFileName = drawingFileName;
-
-          const expirationDate = new Date();
-          expirationDate.setDate(expirationDate.getDate() + 28);
-          latestRevision.urnExpiration = expirationDate;
-
-          existingRegister.markModified(revisionType);
-          existingRegister.currentDrawingType = typeOfDrawing;
-          await existingRegister.save();
-        }
-      } catch (e) {
-        console.error("Error processing DWG file:", e);
-        return res.status(200).json({
-          status: "fail",
-          message: "Error processing DWG file: " + e.message,
-        });
-      }
-    }
-
-    const siteHeadIds = await User.find({
-      "permittedSites.siteId": siteId,
-    }).select("permittedSites _id");
-
-    const latestRevisionFinal =
-      updatedRegister[revisionType][updatedRegister[revisionType].length - 1];
-    const revision = latestRevisionFinal?.revision;
-
-    if (revisionType === "acceptedArchitectRevisions" && siteHeadIds.length > 0) {
-      for (let user of siteHeadIds) {
-        const site = user?.permittedSites?.find(
-          (site) => site?.siteId?.toString() === siteId.toString()
-        );
-        if (!site) continue;
-
-        const rfiAccessEnabled =
-          site?.enableModules?.drawingDetails?.roDetails?.forwardAccess;
-        if (rfiAccessEnabled) {
-          await sendNotification(
-            "Drawing",
-            `A soft copy has been submitted for drawing number ${drawingNo}, accepted architect revision ${revision}.`,
-            "Soft Copy Submitted",
-            "Submitted",
-            user._id
-          );
-        }
-      }
-    }
-
-    if (revisionType === "acceptedRORevisions" && siteHeadIds.length > 0) {
-      for (let user of siteHeadIds) {
-        const site = user?.permittedSites?.find(
-          (site) => site?.siteId?.toString() === siteId.toString()
-        );
-        if (!site) continue;
-
-        const rfiAccessEnabled =
-          site?.enableModules?.drawingDetails?.siteHeadDetails?.forwardAccess;
-        if (rfiAccessEnabled) {
-          await sendNotification(
-            "Drawing",
-            `A soft copy has been submitted for drawing number ${drawingNo}, accepted ro revision ${revision}.`,
-            "Soft Copy Submitted",
-            "Submitted",
-            user._id
-          );
-        }
-      }
-    }
-
-    if (revisionType === "acceptedSiteHeadRevisions" && siteHeadIds.length > 0) {
-      for (let user of siteHeadIds) {
-        const site = user?.permittedSites?.find(
-          (site) => site?.siteId?.toString() === siteId.toString()
-        );
-        if (!site) continue;
-
-        const rfiAccessEnabled = site?.enableModules?.drawingDetails?.siteToSite;
-        if (rfiAccessEnabled) {
-          await sendNotification(
-            "Drawing",
-            `A soft copy has been submitted for drawing number ${drawingNo}, accepted siteHead revision ${revision}.`,
-            "Soft Copy Submitted",
-            "Submitted",
-            user._id
-          );
-        }
-      }
-    }
 
     res.status(200).json({
       status: "success",

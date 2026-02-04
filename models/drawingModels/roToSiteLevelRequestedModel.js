@@ -164,6 +164,14 @@ const RoToSitelevelRequestSchema = new mongoose.Schema({
     type: Date,
 
   },
+   siteHeadRfiId: {
+    type: String,
+  },
+  rfiType: {
+    type: String,
+    default: "Created",
+    enum: ["Created", "Forwarded",]
+  },
   closedBy: {
     type: mongoose.Schema.ObjectId,
     ref: "User",

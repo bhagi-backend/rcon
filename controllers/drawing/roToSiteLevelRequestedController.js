@@ -157,6 +157,7 @@ exports.createRequest = catchAsync(async (req, res, next) => {
   // rfiType logic (does NOT affect existing flow)
   if (siteHeadRfiId) {
     req.body.rfiType = "Forwarded";
+    req.body.status = "Forwarded";
   } else {
     req.body.rfiType = "Created";
   }

@@ -1411,10 +1411,11 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
     // =====================================================
     // ✅ SUSPEND PREVIOUS REVISION RFIs
     // =====================================================
-    if (revisionType === "acceptedArchitectRevisions" && previousRevision) {
+    // if (revisionType === "acceptedArchitectRevisions" && previousRevision) {
+    if (revisionType === "acceptedRORevisions") {
       const baseQuery = {
         drawingId: existingRegister._id,
-        architectRevision: previousRevision,
+        // architectRevision: previousRevision,
       };
 
       // If status = Requested → change to suspended

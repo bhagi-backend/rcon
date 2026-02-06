@@ -1,5 +1,6 @@
 const ArchitectureToRoRegister = require("../../models/drawingModels/architectureToRoRegisterModel");
 const ArchitectureToRoRequest = require("../../models/drawingModels/roToSiteLevelRequestedModel");
+const siteToSiteLevelRequest= require("../../models/drawingModels/siteToSiteLevelRequestedModel");
 const Architecture = require("../../models/drawingModels/architectureToRoRequestedModel");
 const { catchAsync } = require("../../utils/catchAsync");
 const multer = require("multer");
@@ -282,6 +283,17 @@ exports.createRequest = catchAsync(async (req, res, next) => {
         }
       }
     }
+if (siteHeadRfiId) {
+  await siteToSiteLevelRequest.findByIdAndUpdate(
+    siteHeadRfiId,
+    {
+      $set: {
+        status: "Forwarded",
+      },
+    },
+    { new: true }
+  );
+}
 
     const note = roToSiteLevelRequest
       ? "Architect RFI created"

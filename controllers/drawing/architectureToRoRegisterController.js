@@ -1419,10 +1419,19 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
       };
 
       // If status = Requested → change to suspended
-      await RoToSiteLevelRequest.updateMany(
-        { ...baseQuery, status: "Requested" },
-        { $set: { status: "suspended", isSuspended: true } },
-      );
+    await RoToSiteLevelRequest.updateMany(
+  {
+    ...baseQuery,
+    status: { $in: ["Requested", "reopened", "forwarded"] }
+  },
+  {
+    $set: {
+      status: "suspended",
+      isSuspended: true
+    }
+  }
+);
+
 
       await SiteToSiteLevelRequest.updateMany(
         { ...baseQuery, status: "Requested" },

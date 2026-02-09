@@ -107,7 +107,7 @@ const RoToSitelevelRequestSchema = new mongoose.Schema({
   status: {
     type: String,
     default: "Requested",
-    enum: ["Requested", "Accepted", "Rejected","Submitted","Forwarded","Closed","ReOpened","Not Responded","Responded","Completed","suspended"]
+        enum: ["Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded","Partially Accepted" ],
   },
   isSuspended: { type: Boolean, default: false },
   natureOfRequestedInformationReasons : {

@@ -130,6 +130,113 @@ exports.getAcceptedArchitectRevisions = catchAsync(async (req, res, next) => {
   });
 });
 
+// exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
+//   async (req, res, next) => {
+//     const { siteId } = req.params;
+//     const { selectTimePeriod, month, year, folderId } = req.query;
+
+//     const userId = req.user.id;
+
+//     // Get user role
+//     const user = await User.findById(userId).select("role").exec();
+//     if (!user) {
+//       return next(new Error("User not found."));
+//     }
+//     const userRole = user.role;
+
+//     // Base query
+//     const baseQuery = {
+//       siteId,
+//       designDrawingConsultant: userId,
+//       drawingStatus: "Approval",
+//     };
+
+//     // Apply time period filter
+//     if (selectTimePeriod) {
+//       const { startDate, endDate } = calculateDateRange(
+//         selectTimePeriod,
+//         parseInt(month),
+//         parseInt(year)
+//       );
+//       baseQuery.creationDate = { $gte: startDate, $lt: endDate };
+//     }
+
+//     // Folder filter
+//     if (folderId) {
+//       baseQuery.folderId = folderId;
+//     }
+
+//     const data = await ArchitectureToRoRegister.find(baseQuery)
+//       .populate({
+//         path: "designDrawingConsultant",
+//         match: { role: userRole },
+//         select: "role",
+//       })
+//       .lean()
+//       .exec();
+
+//     // ---------------------------------------------------
+//     // NEW COUNTERS (AS PER YOUR REQUIREMENT)
+//     // ---------------------------------------------------
+//     let PendingSoftCoyCount = 0; // pending (only empty revisions)
+
+//     let approvedDrawingCount = 0; // drawing → approved
+//     let pendingDrawingCount = 0; // drawing → pending (with revisions)
+
+//     // ---------------------------------------------------
+//     // UPDATED COUNTING LOGIC
+//     // ---------------------------------------------------
+//     data.forEach((record) => {
+//       const revisions = record.acceptedArchitectRevisions || [];
+
+//       const latestRevision =
+//         revisions.length > 0 ? revisions[revisions.length - 1] : null;
+
+//       // 1️⃣ Pending → Only Empty Revisions
+//       if (revisions.length === 0) {
+//         PendingSoftCoyCount++;
+//       }
+
+//       // 2️⃣ Drawing → Approved Type (Forwarded + Not Raised)
+//       if (
+//         latestRevision &&
+//         latestRevision.architectRevisionStatus === "Forwarded" &&
+//         latestRevision.rfiStatus === "Not Raised"
+//       ) {
+//         approvedDrawingCount++;
+//       }
+
+//       // // 3️⃣ Drawing → Pending Type (Not Forwarded + Raised)
+//       // if (
+//       //   latestRevision &&
+//       //   latestRevision.architectRevisionStatus === "Not Forwarded" &&
+//       //   latestRevision.rfiStatus === "Raised"
+//       // )
+//       else {
+//         pendingDrawingCount++;
+//       }
+//     });
+
+//     // ---------------------------------------------------
+//     // FINAL RESPONSE
+//     // ---------------------------------------------------
+//     return res.status(200).json({
+//       status: "success",
+//       data: {
+//         totalApprovalCount: data.length,
+ 
+//         drawing: {
+//           approved: approvedDrawingCount,
+//           pending: pendingDrawingCount,
+//         },
+//         // Pending (empty revision only)
+//         PendingSoftCoyCount: PendingSoftCoyCount,
+
+       
+//       },
+//     });
+//   }
+// );
 exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
   async (req, res, next) => {
     const { siteId } = req.params;
@@ -151,7 +258,7 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
       drawingStatus: "Approval",
     };
 
-    // Apply time period filter
+    // Time filter
     if (selectTimePeriod) {
       const { startDate, endDate } = calculateDateRange(
         selectTimePeriod,
@@ -166,6 +273,7 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
       baseQuery.folderId = folderId;
     }
 
+    // Fetch records
     const data = await ArchitectureToRoRegister.find(baseQuery)
       .populate({
         path: "designDrawingConsultant",
@@ -175,68 +283,62 @@ exports.getAcceptedArchitectRevisionsAnalysisCount = catchAsync(
       .lean()
       .exec();
 
-    // ---------------------------------------------------
-    // NEW COUNTERS (AS PER YOUR REQUIREMENT)
-    // ---------------------------------------------------
-    let PendingSoftCoyCount = 0; // pending (only empty revisions)
+    // Counters
+    let pendingCount = 0;
+    let approvedCount = 0;
+    let notApprovedCount = 0;
 
-    let approvedDrawingCount = 0; // drawing → approved
-    let pendingDrawingCount = 0; // drawing → pending (with revisions)
-
-    // ---------------------------------------------------
-    // UPDATED COUNTING LOGIC
-    // ---------------------------------------------------
+    // Loop through each record
     data.forEach((record) => {
-      const revisions = record.acceptedArchitectRevisions || [];
+      const architectRevisions = record.acceptedArchitectRevisions || [];
+      const roRevisions = record.acceptedRORevisions || [];
 
-      const latestRevision =
-        revisions.length > 0 ? revisions[revisions.length - 1] : null;
+      const latestArchitectRevision =
+        architectRevisions.length > 0
+          ? architectRevisions[architectRevisions.length - 1]
+          : null;
 
-      // 1️⃣ Pending → Only Empty Revisions
-      if (revisions.length === 0) {
-        PendingSoftCoyCount++;
-      }
+      // Condition 1: Pending → No architect revision
+      if (!latestArchitectRevision) {
+        pendingCount++;
 
-      // 2️⃣ Drawing → Approved Type (Forwarded + Not Raised)
-      if (
-        latestRevision &&
-        latestRevision.architectRevisionStatus === "Forwarded" &&
-        latestRevision.rfiStatus === "Not Raised"
+      // Condition 2: Pending → RFI Raised
+      } else if (latestArchitectRevision.rfiStatus === "Raised") {
+        pendingCount++;
+
+      // Condition 3: Approved → Revision exists in RO revisions
+      } else if (
+        latestArchitectRevision.rfiStatus === "Not Raised" &&
+        roRevisions.some(
+          (roRevision) =>
+            roRevision.revision === latestArchitectRevision.revision
+        )
       ) {
-        approvedDrawingCount++;
-      }
+        approvedCount++;
 
-      // // 3️⃣ Drawing → Pending Type (Not Forwarded + Raised)
-      // if (
-      //   latestRevision &&
-      //   latestRevision.architectRevisionStatus === "Not Forwarded" &&
-      //   latestRevision.rfiStatus === "Raised"
-      // )
-      else {
-        pendingDrawingCount++;
+      // Condition 4: Not Approved → RFI Not Raised but revision not in RO
+      } else if (latestArchitectRevision.rfiStatus === "Not Raised") {
+        notApprovedCount++;
+
+      // Safety fallback
+      } else {
+        pendingCount++;
       }
     });
 
-    // ---------------------------------------------------
-    // FINAL RESPONSE
-    // ---------------------------------------------------
+    // Response
     return res.status(200).json({
       status: "success",
       data: {
-        totalApprovalCount: data.length,
- 
-        drawing: {
-          approved: approvedDrawingCount,
-          pending: pendingDrawingCount,
-        },
-        // Pending (empty revision only)
-        PendingSoftCoyCount: PendingSoftCoyCount,
-
-       
+        totalCount: data.length,
+        pending: pendingCount,
+        approved: approvedCount,
+        notApproved: notApprovedCount,
       },
     });
   }
 );
+
 
 // exports.getRfiAnalysisCountForConsultant = catchAsync(
 //   async (req, res, next) => {

@@ -77,14 +77,14 @@ exports.createRequest = catchAsync(async (req, res, next) => {
     designDrawingConsultant,
   );
 
-  const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-    { drawingNo, siteId: req.body.siteId },
-    { $set: { "acceptedArchitectRevisions.$[elem].rfiStatus": "Raised" } },
-    {
-      new: true,
-      arrayFilters: [{ "elem.revision": revision }],
-    },
-  );
+  // const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+  //   { drawingNo, siteId: req.body.siteId },
+  //   { $set: { "acceptedArchitectRevisions.$[elem].rfiStatus": "Raised" } },
+  //   {
+  //     new: true,
+  //     arrayFilters: [{ "elem.revision": revision }],
+  //   },
+  // );
 
   const siteHeadIds = await User.find({
     "permittedSites.siteId": siteId,

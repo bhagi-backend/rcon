@@ -205,25 +205,25 @@ exports.createRequest = catchAsync(async (req, res, next) => {
 
     const { designDrawingConsultant } = populatedRequest.drawingId;
 
-    await ArchitectureToRoRegister.findOneAndUpdate(
-      {
-        drawingNo,
-        siteId: req.body.siteId,
-      },
-      {
-        $set: {
-          "acceptedRORevisions.$[ro].rfiStatus": "Raised",
-          "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Raised",
-        },
-      },
-      {
-        new: true,
-        arrayFilters: [
-          { "ro.revision": revision },
-          { "arch.revision": revision },
-        ],
-      }
-    );
+    // await ArchitectureToRoRegister.findOneAndUpdate(
+    //   {
+    //     drawingNo,
+    //     siteId: req.body.siteId,
+    //   },
+    //   {
+    //     $set: {
+    //       "acceptedRORevisions.$[ro].rfiStatus": "Raised",
+    //       "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Raised",
+    //     },
+    //   },
+    //   {
+    //     new: true,
+    //     arrayFilters: [
+    //       { "ro.revision": revision },
+    //       { "arch.revision": revision },
+    //     ],
+    //   }
+    // );
 
     const registerData = await ArchitectureToRoRegister.findOne({
       _id: req.body.drawingId,

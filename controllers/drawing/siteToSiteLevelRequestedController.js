@@ -88,13 +88,13 @@ exports.createRequest = catchAsync(async (req, res, next) => {
     //     ]  
     //   }
     // );
-     if (!updatedRegister) {
-        // Return a response with status code 200 if the revision already exists
-        return res.status(200).json({
-          status: "error",
-          message: `Revision Not found`,
-        });
-      }
+    //  if (!updatedRegister) {
+    //     // Return a response with status code 200 if the revision already exists
+    //     return res.status(200).json({
+    //       status: "error",
+    //       message: `Revision Not found`,
+    //     });
+    //   }
     const registerData = await ArchitectureToRoRegister.findOne({ _id: req.body.drawingId }).lean();
 
     if (!registerData ) {
@@ -104,7 +104,14 @@ exports.createRequest = catchAsync(async (req, res, next) => {
       });
     }
 
-    const latestRevision = registerData.acceptedArchitectRevisions.slice(-1)[0].revision;
+    // const latestRevision = registerData.acceptedArchitectRevisions.slice(-1)[0].revision;
+    const latestRevision =
+  registerData.acceptedArchitectRevisions?.length > 0
+    ? registerData.acceptedArchitectRevisions[
+        registerData.acceptedArchitectRevisions.length - 1
+      ].revision
+    : null;
+
 
     // Check the roToSitelevelRequestModel for this drawingId and latest revision
     // const roToSiteLevelRequest = await Architecture.findOne({

@@ -139,7 +139,7 @@ exports.createRequest = catchAsync(async (req, res, next) => {
     status: "success",
     data: newRequest,
     notification,
-    updatedRegister,
+    // updatedRegister,
   });
 });
 

@@ -23,159 +23,200 @@ const upload = multerWrapper();
 exports.uploadDrawingFile = upload.single("drawingFileName");
 exports.uploadRejectDrawingFile = upload.single("rejectDwgFile");
 
-// Create a new request
+
 // exports.createRequest = catchAsync(async (req, res, next) => {
-//   const {drawingId, drawingNo, revision } = req.body;
+//   const { drawingId, drawingNo, revision, siteHeadRfiId } = req.body;
 //   const userId = req.user.id;
-//   req.body.createdBy =userId;
+
+//   // ---------------- ADDITION (SAFE) ----------------
+//   // rfiType logic (does NOT affect existing flow)
+//   if (siteHeadRfiId) {
+//     req.body.rfiType = "Forwarded";
+//     req.body.status = "Forwarded";
+//   } else {
+//     req.body.rfiType = "Created";
+//   }
+//   // ------------------------------------------------
+
+//   req.body.createdBy = userId;
+
 //   try {
 //     const registerData1 = await ArchitectureToRoRegister.findOne({ _id: drawingId });
-//     req.body.designDrawingConsultant =registerData1.designDrawingConsultant;
-//     req.body.folderId =registerData1.folderId;
+
+//     req.body.designDrawingConsultant = registerData1.designDrawingConsultant;
+//     req.body.folderId = registerData1.folderId;
+
 //     if (drawingNo && revision) {
 //       const existingRequest = await ArchitectureToRoRequest.findOne({
 //         drawingNo: drawingNo,
 //         revision: revision,
 //       });
+
 //       if (existingRequest) {
-//         // Return a response with status code 200 if the revision already exists
 //         return res.status(200).json({
 //           status: "error",
 //           message: `Revision ${revision} already requested from drawing No ${drawingNo}`,
 //         });
 //       }
 //     }
+
 //     if (drawingNo) {
-//       const parts = drawingNo.split('-'); // Split by dashes
-//   const lastPart = parts[parts.length - 1]; // Get last segment
-//   const number = lastPart.replace(/\D/g, ''); 
-//   if (number) {
-//     req.body.roRfiNo = number.padStart(3, '0'); // Always 3 digits
-//   } else {
-//         req.body.roRfiNo = "000"; 
+//       const parts = drawingNo.split("-");
+//       const lastPart = parts[parts.length - 1];
+//       const number = lastPart.replace(/\D/g, "");
+
+//       if (number) {
+//         req.body.roRfiNo = number.padStart(3, "0");
+//       } else {
+//         req.body.roRfiNo = "000";
 //       }
 //     }
+
 //     const newRequest = await ArchitectureToRoRequest.create(req.body);
+
 //     const populatedRequest = await ArchitectureToRoRequest.findById(newRequest._id)
-//     .populate('drawingId', 'designDrawingConsultant'); 
+//       .populate("drawingId", "designDrawingConsultant");
 
 //     const { designDrawingConsultant } = populatedRequest.drawingId;
-//     // const notificationMessage = `A new Ro to site level RFI has been raised for drawing number ${drawingNo} with revision ${revision}.`;
 
-//     // const notification = await sendNotification('Drawing', notificationMessage, 'New Request Created', 'Requested', designDrawingConsultant);
-//    const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-//   {
-//     drawingNo,
-//     siteId: req.body.siteId
-//   },
-//   {
-//     $set: {
-//       "acceptedRORevisions.$[ro].rfiStatus": "Raised",
-//       "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Raised"
-//     }
-//   },
-//   {
-//     new: true,
-//     arrayFilters: [
-//       { "ro.revision": revision },
-//       { "arch.revision": revision }
-//     ]
-//   }
-// );
+//     // await ArchitectureToRoRegister.findOneAndUpdate(
+//     //   {
+//     //     drawingNo,
+//     //     siteId: req.body.siteId,
+//     //   },
+//     //   {
+//     //     $set: {
+//     //       "acceptedRORevisions.$[ro].rfiStatus": "Raised",
+//     //       "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Raised",
+//     //     },
+//     //   },
+//     //   {
+//     //     new: true,
+//     //     arrayFilters: [
+//     //       { "ro.revision": revision },
+//     //       { "arch.revision": revision },
+//     //     ],
+//     //   }
+//     // );
 
-//     const registerData = await ArchitectureToRoRegister.findOne({ _id: req.body.drawingId }).lean();
+//     const registerData = await ArchitectureToRoRegister.findOne({
+//       _id: req.body.drawingId,
+//     }).lean();
 
-//     if (!registerData ) {
+//     if (!registerData) {
 //       return res.status(400).json({
 //         status: "error",
 //         message: "No acceptedArchitectRevisions found for the provided drawingId.",
 //       });
 //     }
 
-//     const latestRevision = registerData.acceptedArchitectRevisions.slice(-1)[0].revision;
+//     const latestRevision =
+//       registerData.acceptedArchitectRevisions.slice(-1)[0].revision;
 
-//     // Check the roToSitelevelRequestModel for this drawingId and latest revision
 //     const roToSiteLevelRequest = await Architecture.findOne({
 //       drawingId: req.body.drawingId,
 //       revision: latestRevision,
 //     });
+
 //     if (roToSiteLevelRequest) {
 //       newRequest.architectRfiId = roToSiteLevelRequest._id;
-    
 //       await newRequest.save();
 //     }
 
 //     const siteHeadIds = await User.find({
-//       "permittedSites.siteId": req.body.siteId  
-//     }).select('permittedSites _id');
-//     //console.log("siteHeadIds",siteHeadIds);
+//       "permittedSites.siteId": req.body.siteId,
+//     }).select("permittedSites _id");
+
 //     if (siteHeadIds.length > 0) {
 //       for (let user of siteHeadIds) {
-//         const site = user ? user.permittedSites.find(site => site.siteId.toString() === req.body.siteId  ).enableModules.drawingDetails.roDetails.rfiRaisedAccess : false;
+//         const site = user
+//           ? user.permittedSites.find(
+//               (site) => site.siteId.toString() === req.body.siteId
+//             )?.enableModules?.drawingDetails?.roDetails?.rfiRaisedAccess
+//           : false;
+
 //         if (site) {
-//           console.log("siteHeadIds", siteHeadIds);
-    
-//             const notificationMessage1 = `A RFI has been raised for drawing number ${drawingNo} with architect revision ${revision}.`;
-    
-//             try {
-//               const notificationToSiteHead = await sendNotification(
-//                 'Drawing', 
-//                 notificationMessage1, 
-//                 'Request Raised', 
-//                 'Raised', 
-//                 user._id
-//               );
-//               console.log("notificationToSiteHead", notificationToSiteHead);
-//             } catch (error) {
-//               console.error("Error sending notification to SiteHeadId ", user._id, ": ", error);
-//             }
-          
-//         } 
+//           const notificationMessage1 = `A RFI has been raised for drawing number ${drawingNo} with architect revision ${revision}.`;
+
+//           try {
+//             await sendNotification(
+//               "Drawing",
+//               notificationMessage1,
+//               "Request Raised",
+//               "Raised",
+//               user._id
+//             );
+//           } catch (error) {
+//             console.error(
+//               "Error sending notification to SiteHeadId ",
+//               user._id,
+//               ": ",
+//               error
+//             );
+//           }
+//         }
 //       }
-//     } 
-// console.log("latestRevision",latestRevision)
-//     // Determine the note based on the existence of data
+//     }
+// if (siteHeadRfiId) {
+//   await siteToSiteLevelRequest.findByIdAndUpdate(
+//     siteHeadRfiId,
+//     {
+//       $set: {
+//         status: "Forwarded",
+//       },
+//     },
+//     { new: true }
+//   );
+// }
+
 //     const note = roToSiteLevelRequest
 //       ? "Architect RFI created"
 //       : "Architect RFI not created";
+
 //     res.status(200).json({
 //       status: "success",
 //       data: newRequest,
 //       note,
-//       //notification
 //     });
 //   } catch (error) {
-   
-//     console.error('Error creating request:', error);
-//     return next(new AppError('Failed to create request', 400));
+//     console.error("Error creating request:", error);
+//     return next(new AppError("Failed to create request", 400));
 //   }
 // });
 exports.createRequest = catchAsync(async (req, res, next) => {
   const { drawingId, drawingNo, revision, siteHeadRfiId } = req.body;
   const userId = req.user.id;
 
-  // ---------------- ADDITION (SAFE) ----------------
-  // rfiType logic (does NOT affect existing flow)
+  // SAFE rfiType logic
   if (siteHeadRfiId) {
     req.body.rfiType = "Forwarded";
     req.body.status = "Forwarded";
   } else {
     req.body.rfiType = "Created";
   }
-  // ------------------------------------------------
 
   req.body.createdBy = userId;
 
   try {
-    const registerData1 = await ArchitectureToRoRegister.findOne({ _id: drawingId });
+    // SAFE register fetch
+    const registerData1 = await ArchitectureToRoRegister.findById(drawingId);
 
-    req.body.designDrawingConsultant = registerData1.designDrawingConsultant;
+    if (!registerData1) {
+      return res.status(200).json({
+        status: "error",
+        message: "Drawing register not found",
+      });
+    }
+
+    req.body.designDrawingConsultant =
+      registerData1.designDrawingConsultant;
     req.body.folderId = registerData1.folderId;
 
+    // prevent duplicate revision
     if (drawingNo && revision) {
       const existingRequest = await ArchitectureToRoRequest.findOne({
-        drawingNo: drawingNo,
-        revision: revision,
+        drawingNo,
+        revision,
       });
 
       if (existingRequest) {
@@ -186,114 +227,107 @@ exports.createRequest = catchAsync(async (req, res, next) => {
       }
     }
 
+    // generate roRfiNo
     if (drawingNo) {
       const parts = drawingNo.split("-");
       const lastPart = parts[parts.length - 1];
       const number = lastPart.replace(/\D/g, "");
 
-      if (number) {
-        req.body.roRfiNo = number.padStart(3, "0");
-      } else {
-        req.body.roRfiNo = "000";
-      }
+      req.body.roRfiNo = number ? number.padStart(3, "0") : "000";
     }
 
+    // create request
     const newRequest = await ArchitectureToRoRequest.create(req.body);
 
-    const populatedRequest = await ArchitectureToRoRequest.findById(newRequest._id)
-      .populate("drawingId", "designDrawingConsultant");
+    // populate safely
+    const populatedRequest = await ArchitectureToRoRequest.findById(
+      newRequest._id
+    ).populate("drawingId", "designDrawingConsultant");
 
-    const { designDrawingConsultant } = populatedRequest.drawingId;
+    const designDrawingConsultant =
+      populatedRequest?.drawingId?.designDrawingConsultant || null;
 
-    // await ArchitectureToRoRegister.findOneAndUpdate(
-    //   {
-    //     drawingNo,
-    //     siteId: req.body.siteId,
-    //   },
-    //   {
-    //     $set: {
-    //       "acceptedRORevisions.$[ro].rfiStatus": "Raised",
-    //       "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Raised",
-    //     },
-    //   },
-    //   {
-    //     new: true,
-    //     arrayFilters: [
-    //       { "ro.revision": revision },
-    //       { "arch.revision": revision },
-    //     ],
-    //   }
-    // );
-
-    const registerData = await ArchitectureToRoRegister.findOne({
-      _id: req.body.drawingId,
-    }).lean();
+    // fetch register safely
+    const registerData = await ArchitectureToRoRegister.findById(
+      drawingId
+    ).lean();
 
     if (!registerData) {
       return res.status(400).json({
         status: "error",
-        message: "No acceptedArchitectRevisions found for the provided drawingId.",
+        message: "Register not found",
       });
     }
 
+    // SAFE latest revision fetch
     const latestRevision =
-      registerData.acceptedArchitectRevisions.slice(-1)[0].revision;
+      registerData.acceptedArchitectRevisions?.length > 0
+        ? registerData.acceptedArchitectRevisions[
+            registerData.acceptedArchitectRevisions.length - 1
+          ].revision
+        : null;
 
-    const roToSiteLevelRequest = await Architecture.findOne({
-      drawingId: req.body.drawingId,
-      revision: latestRevision,
-    });
+    // SAFE architect lookup
+    let roToSiteLevelRequest = null;
+
+    if (latestRevision) {
+      roToSiteLevelRequest = await Architecture.findOne({
+        drawingId,
+        revision: latestRevision,
+      });
+    }
 
     if (roToSiteLevelRequest) {
       newRequest.architectRfiId = roToSiteLevelRequest._id;
       await newRequest.save();
     }
 
+    // notify site heads safely
     const siteHeadIds = await User.find({
       "permittedSites.siteId": req.body.siteId,
     }).select("permittedSites _id");
 
-    if (siteHeadIds.length > 0) {
+    if (siteHeadIds?.length > 0) {
       for (let user of siteHeadIds) {
-        const site = user
-          ? user.permittedSites.find(
-              (site) => site.siteId.toString() === req.body.siteId
-            )?.enableModules?.drawingDetails?.roDetails?.rfiRaisedAccess
-          : false;
+        const sitePermission = user?.permittedSites?.find(
+          (site) => site.siteId.toString() === req.body.siteId
+        );
 
-        if (site) {
-          const notificationMessage1 = `A RFI has been raised for drawing number ${drawingNo} with architect revision ${revision}.`;
+        const access =
+          sitePermission?.enableModules?.drawingDetails?.roDetails
+            ?.rfiRaisedAccess || false;
+
+        if (access) {
+          const notificationMessage =
+            `A RFI has been raised for drawing number ${drawingNo} with architect revision ${revision}.`;
 
           try {
             await sendNotification(
               "Drawing",
-              notificationMessage1,
+              notificationMessage,
               "Request Raised",
               "Raised",
               user._id
             );
           } catch (error) {
             console.error(
-              "Error sending notification to SiteHeadId ",
+              "Error sending notification to user:",
               user._id,
-              ": ",
               error
             );
           }
         }
       }
     }
-if (siteHeadRfiId) {
-  await siteToSiteLevelRequest.findByIdAndUpdate(
-    siteHeadRfiId,
-    {
-      $set: {
-        status: "Forwarded",
-      },
-    },
-    { new: true }
-  );
-}
+
+    // update forwarded request safely
+    if (siteHeadRfiId) {
+      await siteToSiteLevelRequest.findByIdAndUpdate(
+        siteHeadRfiId,
+        { $set: { status: "Forwarded" } },
+        { new: true }
+      );
+    }
 
     const note = roToSiteLevelRequest
       ? "Architect RFI created"
@@ -304,11 +338,13 @@ if (siteHeadRfiId) {
       data: newRequest,
       note,
     });
+
   } catch (error) {
     console.error("Error creating request:", error);
     return next(new AppError("Failed to create request", 400));
   }
 });
+
 exports.resizeDrawingFile = catchAsync(async (req, res, next) => {
   if (!req.file) return next();
 

@@ -122,7 +122,7 @@ const SiteHeadSoftrevisionSchema = new mongoose.Schema({
   },
   rfiStatus: {
     type: String,
-    enum: ["Raised", "Not Raised"],
+    enum: ["Raised", "Not Raised","Requested"],
     default: "Not Raised",
   },
   rfiRejectStatus :{
@@ -194,7 +194,7 @@ const RoSoftrevisionSchema = new mongoose.Schema({
   },
   rfiStatus: {
     type: String,
-    enum: ["Raised", "Not Raised"],
+    enum: ["Raised", "Not Raised","Requested"],
     default: "Not Raised",
   },
   rfiRejectStatus :{
@@ -215,7 +215,7 @@ const RoSoftrevisionSchema = new mongoose.Schema({
   },
    siteLevelRfiStatus: {
     type: String,
-    enum: ["Raised", "Not Raised"],
+    enum: ["Raised", "Not Raised","Requested"],
     default: "Not Raised",
   },
 });
@@ -277,7 +277,7 @@ const architectSoftRevisionSchema = new mongoose.Schema({
   },
   rfiStatus: {
     type: String,
-    enum: ["Raised", "Not Raised"],
+    enum: ["Raised", "Not Raised","Requested"],
     default: "Not Raised",
   },
   rfiRejectStatus :{
@@ -293,12 +293,12 @@ const architectSoftRevisionSchema = new mongoose.Schema({
   },
    siteHeadRfiStatus: {
     type: String,
-    enum: ["Raised", "Not Raised"],
+    enum: ["Raised", "Not Raised","Requested"],
     default: "Not Raised",
   },
    siteLevelRfiStatus: {
     type: String,
-    enum: ["Raised", "Not Raised"],
+    enum: ["Raised", "Not Raised","Requested"],
     default: "Not Raised",
   },
 });

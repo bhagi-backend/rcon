@@ -14,6 +14,9 @@ const reasonSchema = new mongoose.Schema({
    reasonFile: {
     type: String,
   },
+  typeOfDrawing: {
+    type: String,
+  },
   createdBy: {
       type: mongoose.Schema.ObjectId,
       ref: "User",

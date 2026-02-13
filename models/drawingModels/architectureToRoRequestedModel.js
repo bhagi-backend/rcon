@@ -19,6 +19,9 @@ const reasonSchema = new mongoose.Schema({
     type: mongoose.Schema.ObjectId,
     ref: "User",
   },
+  typeOfDrawing: {
+    type: String,
+  },
   isHistory: { type: Boolean, default: false },
 });
 

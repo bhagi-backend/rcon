@@ -73,28 +73,28 @@ exports.createRequest = catchAsync(async (req, res, next) => {
     // const notificationMessage = `A new Ro to site level RFI has been raised for drawing number ${drawingNo} with revision ${revision}.`;
 
     // const notification = await sendNotification('Drawing', notificationMessage, 'New Request Created', 'Requested', designDrawingConsultant);
-    // const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-    //   { drawingNo,siteId: req.body.siteId  },  // Find the register by drawingNo
-    //   { 
-    //     $set: {
-    //       "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised",
-    //       "acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "Raised"
-    //     }
-    //   },
-    //   {
-    //     new: true,  
-    //     arrayFilters: [{ "elem.revision": revision },
-    //        { "arch.revision": revision }
-    //     ]  
-    //   }
-    // );
-    //  if (!updatedRegister) {
-    //     // Return a response with status code 200 if the revision already exists
-    //     return res.status(200).json({
-    //       status: "error",
-    //       message: `Revision Not found`,
-    //     });
-    //   }
+    const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+      { drawingNo,siteId: req.body.siteId  },  // Find the register by drawingNo
+      { 
+        $set: {
+          "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Requested",
+          "acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "Requested"
+        }
+      },
+      {
+        new: true,  
+        arrayFilters: [{ "elem.revision": revision },
+           { "arch.revision": revision }
+        ]  
+      }
+    );
+     if (!updatedRegister) {
+        // Return a response with status code 200 if the revision already exists
+        return res.status(200).json({
+          status: "error",
+          message: `Revision Not found`,
+        });
+      }
     const registerData = await ArchitectureToRoRegister.findOne({ _id: req.body.drawingId }).lean();
 
     if (!registerData ) {

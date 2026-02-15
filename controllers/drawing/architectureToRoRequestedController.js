@@ -974,20 +974,33 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
      CASE 1: RFI Created
   ========================================================= */
   if (rfiType === "Created") {
-    const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-      { drawingNo, siteId },
-      {
-        $set: {
-          "acceptedArchitectRevisions.$[elem].rfiStatus": "Not Raised",
-          "acceptedArchitectRevisions.$[elem].rfiRejectStatus": "Rejected",
-          regState: "Drawing", // ✅ SAME AS closeRequest
-        },
+  const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+    { drawingNo, siteId },
+    {
+      $set: {
+        "acceptedArchitectRevisions.$[arch].rfiStatus": "Not Raised",
+        "acceptedArchitectRevisions.$[arch].rfiRejectStatus": "Rejected",
+        "acceptedArchitectRevisions.$[arch].roRfiStatus": "Rejected",
+
+        "acceptedRORevisions.$[ro].roRfiStatus": "Rejected",
+
+        "acceptedSiteHeadRevisions.$[site].roRfiStatus": "Rejected",
+
+        regState: "Drawing",
       },
-      {
-        new: true,
-        arrayFilters: [{ "elem.revision": revision }],
-      }
-    );
+    },
+    {
+      new: true,
+      runValidators: true,
+      arrayFilters: [
+        { "arch.revision": revision },
+        { "ro.revision": revision },
+        { "site.revision": revision },
+      ],
+    }
+  );
+
+
 
     if (!updatedRegister) {
       return next(
@@ -1075,15 +1088,19 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
         $set: {
           "acceptedArchitectRevisions.$[architectElem].rfiStatus": "Not Raised",
           "acceptedRORevisions.$[roElem].rfiStatus": "Not Raised",
+          "acceptedArchitectRevisions.$[architectElem].roRfiStatus": "Rejected",
+      "acceptedRORevisions.$[roElem].roRfiStatus": "Rejected",
+      "acceptedSiteHeadRevisions.$[siteElem].roRfiStatus": "Rejected",
           regState: "Drawing", // ✅ SAME AS closeRequest
         },
       },
       {
         new: true,
         arrayFilters: [
-          { "architectElem.revision": revision },
-          { "roElem.revision": roRevision },
-        ],
+      { "architectElem.revision": revision },
+      { "roElem.revision": roRevision },
+      { "siteElem.revision": revision }, // change if site uses different revision variable
+    ],
       }
     );
 

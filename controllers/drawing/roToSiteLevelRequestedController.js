@@ -246,25 +246,25 @@ exports.createRequest = catchAsync(async (req, res, next) => {
 
     const designDrawingConsultant =
       populatedRequest?.drawingId?.designDrawingConsultant || null;
-       await ArchitectureToRoRegister.findOneAndUpdate(
-      {
-        drawingNo,
-        siteId: req.body.siteId,
-      },
-      {
-        $set: {
-          "acceptedRORevisions.$[ro].rfiStatus": "Requested",
-          "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Requested",
-        },
-      },
-      {
-        new: true,
-        arrayFilters: [
-          { "ro.revision": revision },
-          { "arch.revision": revision },
-        ],
-      }
-    );
+        const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+  { drawingNo, siteId: req.body.siteId },
+  {
+    $set: {
+      "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Requested",
+      "acceptedRoRevisions.$[ro].siteHeadRfiStatus": "Requested",
+      "acceptedSiteHeadRevisions.$[site].siteHeadRfiStatus": "Requested",
+    },
+  },
+  {
+    new: true,
+    runValidators: true,
+    arrayFilters: [
+      { "arch.revision": revision },
+      { "ro.revision": revision },
+      { "site.revision": revision },
+    ],
+  }
+);
 
     // fetch register safely
     const registerData = await ArchitectureToRoRegister.findById(
@@ -1166,6 +1166,19 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     // Fetch the updated ArchitectureToRoRegister document to include in the response
     const updatedArchitectureToRoRegister =
       await ArchitectureToRoRegister.findById(drawingId);
+      await ArchitectureToRoRegister.findOneAndUpdate(
+          { drawingId, siteId },
+          {
+            $set: {
+              "acceptedRORevisions.$[elem].rfiStatus": "Raised",
+      
+            },
+          },
+          {
+            new: true,
+            arrayFilters: [{ "elem.revision": revisionToUpdate }],
+          }
+        );
 
     const siteHeadIds = await User.find({
       "permittedSites.siteId": siteId,

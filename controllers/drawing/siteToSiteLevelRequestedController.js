@@ -73,21 +73,25 @@ exports.createRequest = catchAsync(async (req, res, next) => {
     // const notificationMessage = `A new Ro to site level RFI has been raised for drawing number ${drawingNo} with revision ${revision}.`;
 
     // const notification = await sendNotification('Drawing', notificationMessage, 'New Request Created', 'Requested', designDrawingConsultant);
-    const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-      { drawingNo,siteId: req.body.siteId  },  // Find the register by drawingNo
-      { 
-        $set: {
-          "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Requested",
-          "acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "Requested"
-        }
+   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+    { drawingNo, siteId: req.body.siteId },
+    {
+      $set: {
+        "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Requested",
+        "acceptedRoRevisions.$[ro].siteHeadRfiStatus": "Requested",
+        "acceptedSiteHeadRevisions.$[site].siteHeadRfiStatus": "Requested",
       },
-      {
-        new: true,  
-        arrayFilters: [{ "elem.revision": revision },
-           { "arch.revision": revision }
-        ]  
-      }
-    );
+    },
+    {
+      new: true,
+      runValidators: true,
+      arrayFilters: [
+        { "arch.revision": revision },
+        { "ro.revision": revision },
+        { "site.revision": revision },
+      ],
+    }
+  );
      if (!updatedRegister) {
         // Return a response with status code 200 if the revision already exists
         return res.status(200).json({
@@ -972,6 +976,19 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     // Fetch the updated ArchitectureToRoRegister document to include in the response
     const updatedArchitectureToRoRegister =
       await ArchitectureToRoRegister.findById(drawingId);
+       await ArchitectureToRoRegister.findOneAndUpdate(
+                { drawingId, siteId },
+                {
+                  $set: {
+                    "acceptedSiteRevisions.$[elem].rfiStatus": "Raised",
+            
+                  },
+                },
+                {
+                  new: true,
+                  arrayFilters: [{ "elem.revision": revisionToUpdate }],
+                }
+              );
 
     const siteHeadIds = await User.find({
       "permittedSites.siteId": siteId,

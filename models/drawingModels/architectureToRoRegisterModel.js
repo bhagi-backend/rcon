@@ -133,6 +133,21 @@ const SiteHeadSoftrevisionSchema = new mongoose.Schema({
   viewDates: {
     type: [Date],
   },
+   roRfiStatus: {
+    type: String,
+    enum: ["Not Raised","Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded","Partially Accepted"],
+    default: "Not Raised",
+  },
+   siteHeadRfiStatus: {
+    type: String,
+     enum: ["Not Raised","Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded","Partially Accepted"],
+    default: "Not Raised",
+  },
+   siteLevelRfiStatus: {
+    type: String,
+     enum: ["Not Raised","Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded","Partially Accepted"],
+    default: "Not Raised",
+  },
 });
 const RoSoftrevisionSchema = new mongoose.Schema({
   typeOfDrawing: {
@@ -213,9 +228,19 @@ const RoSoftrevisionSchema = new mongoose.Schema({
   viewDates: {
     type: [Date],
   },
+   roRfiStatus: {
+    type: String,
+    enum: ["Not Raised","Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded","Partially Accepted"],
+    default: "Not Raised",
+  },
+   siteHeadRfiStatus: {
+    type: String,
+     enum: ["Not Raised","Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded","Partially Accepted"],
+    default: "Not Raised",
+  },
    siteLevelRfiStatus: {
     type: String,
-    enum: ["Raised", "Not Raised","Requested"],
+     enum: ["Not Raised","Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded","Partially Accepted"],
     default: "Not Raised",
   },
 });
@@ -291,14 +316,19 @@ const architectSoftRevisionSchema = new mongoose.Schema({
   viewDates: {
     type: [Date],
   },
+   roRfiStatus: {
+    type: String,
+    enum: ["Not Raised","Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded","Partially Accepted"],
+    default: "Not Raised",
+  },
    siteHeadRfiStatus: {
     type: String,
-    enum: ["Raised", "Not Raised","Requested"],
+     enum: ["Not Raised","Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded","Partially Accepted"],
     default: "Not Raised",
   },
    siteLevelRfiStatus: {
     type: String,
-    enum: ["Raised", "Not Raised","Requested"],
+     enum: ["Not Raised","Requested", "Accepted", "Rejected","Submitted","Closed","ReOpened","Forwarded","Not Responded","Completed","Responded","Partially Accepted"],
     default: "Not Raised",
   },
 });

@@ -1419,35 +1419,128 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
       };
 
       // If status = Requested → change to suspended
-    await RoToSiteLevelRequest.updateMany(
-  {
-    ...baseQuery,
-    status: { $in: ["Requested", "reopened", "forwarded"] }
-  },
-  {
-    $set: {
-      status: "suspended",
-      isSuspended: true
-    }
-  }
-);
+//     await RoToSiteLevelRequest.updateMany(
+//   {
+//     ...baseQuery,
+//     status: { $in: ["Requested", "reopened", "forwarded",] }
+//   },
+//   {
+//     $set: {
+//       status: "suspended",
+//       isSuspended: true
+//     }
+//   }
+// );
 
 
-      await SiteToSiteLevelRequest.updateMany(
-        { ...baseQuery, status: "Requested" },
-        { $set: { status: "suspended", isSuspended: true } },
-      );
+      // await SiteToSiteLevelRequest.updateMany(
+      //   { ...baseQuery, status: "Requested" },
+      //   { $set: { status: "suspended", isSuspended: true } },
+      // );
 
       // For all other statuses → only set isSuspended = true
-      await RoToSiteLevelRequest.updateMany(
-        { ...baseQuery, status: { $ne: "Requested" } },
-        { $set: { isSuspended: true } },
-      );
+      // await RoToSiteLevelRequest.updateMany(
+      //   { ...baseQuery, status: { $ne: "Requested" } },
+      //   { $set: { isSuspended: true } },
+      // );
 
-      await SiteToSiteLevelRequest.updateMany(
-        { ...baseQuery, status: { $ne: "Requested" } },
-        { $set: { isSuspended: true } },
-      );
+      // await SiteToSiteLevelRequest.updateMany(
+      //   { ...baseQuery, status: { $ne: "Requested" } },
+      //   { $set: { isSuspended: true } },
+      // );
+      const suspendStatuses = ["Requested", "ReOpened", "Forwarded", "Responded"];
+
+/* =====================================================
+   1. Suspend matching statuses → change status + isSuspended
+===================================================== */
+
+await Promise.all([
+
+  RoToSiteLevelRequest.updateMany(
+    {
+      ...baseQuery,
+      status: { $in: suspendStatuses },
+    },
+    {
+      $set: {
+        status: "Suspended",
+        isSuspended: true,
+      },
+    }
+  ),
+
+  SiteToSiteLevelRequest.updateMany(
+    {
+      ...baseQuery,
+      status: { $in: suspendStatuses },
+    },
+    {
+      $set: {
+        status: "Suspended",
+        isSuspended: true,
+      },
+    }
+  ),
+
+  ArchitectureToRoRequest.updateMany(
+    {
+      ...baseQuery,
+      status: { $in: suspendStatuses },
+    },
+    {
+      $set: {
+        status: "Suspended",
+        isSuspended: true,
+      },
+    }
+  )
+
+]);
+
+/* =====================================================
+   2. All other statuses → only set isSuspended = true
+===================================================== */
+
+await Promise.all([
+
+  RoToSiteLevelRequest.updateMany(
+    {
+      ...baseQuery,
+      status: { $nin: suspendStatuses },
+    },
+    {
+      $set: {
+        isSuspended: true,
+      },
+    }
+  ),
+
+  SiteToSiteLevelRequest.updateMany(
+    {
+      ...baseQuery,
+      status: { $nin: suspendStatuses },
+    },
+    {
+      $set: {
+        isSuspended: true,
+      },
+    }
+  ),
+
+  ArchitectureToRoRequest.updateMany(
+    {
+      ...baseQuery,
+      status: { $nin: suspendStatuses },
+    },
+    {
+      $set: {
+        isSuspended: true,
+      },
+    }
+  )
+
+]);
+
     }
 
     // =====================================================

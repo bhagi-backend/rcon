@@ -1470,20 +1470,43 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
   const updatedArchitectureToRoRegister =
     await ArchitectureToRoRegister.findById(drawingId);
    
-  await ArchitectureToRoRegister.findOneAndUpdate(
-    { drawingId, siteId },
-    {
-      $set: {
-        "acceptedArchitectRevisions.$[elem].rfiStatus": "Raised",
+  // await ArchitectureToRoRegister.findOneAndUpdate(
+  //   { drawingId, siteId },
+  //   {
+  //     $set: {
+  //       "acceptedArchitectRevisions.$[elem].rfiStatus": "Raised",
 
-      },
+  //     },
+  //   },
+  //   {
+  //     new: true,
+  //     arrayFilters: [{ "elem.revision": revisionToUpdate }],
+  //   }
+  // );
+await ArchitectureToRoRegister.findOneAndUpdate(
+  { drawingId, siteId },
+  {
+    $set: {
+      // Architect revisions
+      "acceptedArchitectRevisions.$[arch].roRfiStatus": requestStatus,
+
+      // RO revisions
+      "acceptedRORevisions.$[ro].roRfiStatus": requestStatus,
+
+      // SiteHead revisions
+      "acceptedSiteHeadRevisions.$[site].roRfiStatus": requestStatus,
     },
-    {
-      new: true,
-      arrayFilters: [{ "elem.revision": revisionToUpdate }],
-    }
-  );
-
+  },
+  {
+    new: true,
+    runValidators: true,
+    arrayFilters: [
+      { "arch.revision": revisionToUpdate },
+      { "ro.revision": revisionToUpdate },
+      { "site.revision": revisionToUpdate },
+    ],
+  }
+);
 
   const siteHeadIds = await User.find({
     "permittedSites.siteId": siteId,
@@ -1588,18 +1611,46 @@ exports.closeRequest = catchAsync(async (req, res, next) => {
     siteId,
     designDrawingConsultant,
   } = updatedRequest;
+  // const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+  //   { drawingNo, siteId },
+  //   {
+  //     $set: {
+  //       "acceptedArchitectRevisions.$[elem].rfiStatus": "Raised",
+  //       regState: "Drawing",
+  //     },
+  //   },
+  //   {
+  //     new: true,
+  //     arrayFilters: [{ "elem.revision": revision }],
+  //   },
+  // );
+    // Step 3: Update register (same pattern as reopenRequest)
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
     { drawingNo, siteId },
     {
       $set: {
-        "acceptedArchitectRevisions.$[elem].rfiStatus": "Raised",
+        // Architect
+        "acceptedArchitectRevisions.$[arch].roRfiStatus": "Closed",
+
+        // RO
+        "acceptedRORevisions.$[ro].roRfiStatus": "Closed",
+
+        // SiteHead
+        "acceptedSiteHeadRevisions.$[site].roRfiStatus": "Closed",
+
+        // optional state update
         regState: "Drawing",
       },
     },
     {
       new: true,
-      arrayFilters: [{ "elem.revision": revision }],
-    },
+      runValidators: true,
+      arrayFilters: [
+        { "arch.revision": revision },
+        { "ro.revision": revision },
+        { "site.revision": revision },
+      ],
+    }
   );
   const notificationMessage = `A  has been Closed for drawing number ${drawingNo} with revision ${revision}.`;
   const notification = await sendNotification(
@@ -1661,13 +1712,25 @@ exports.reopenRequest = catchAsync(async (req, res, next) => {
 
   const { drawingNo, siteId, revision } = updatedRequest;
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-    { drawingNo, siteId },
-    { $set: { "acceptedArchitectRevisions.$[elem].rfiStatus": "Raised" } },
-    {
-      new: true,
-      arrayFilters: [{ "elem.revision": revision }],
+  { drawingNo, siteId },
+  {
+    $set: {
+      "acceptedArchitectRevisions.$[arch].roRfiStatus": "ReOpened",
+      "acceptedRORevisions.$[ro].roRfiStatus": "ReOpened",
+      "acceptedSiteHeadRevisions.$[site].roRfiStatus": "ReOpened",
     },
-  );
+  },
+  {
+    new: true,
+    runValidators: true,
+    arrayFilters: [
+      { "arch.revision": revision },
+      { "ro.revision": revision },
+      { "site.revision": revision },
+    ],
+  }
+);
+
   if (roRfiId) {
     const rf = await RoToSiteLevelRequest.findByIdAndUpdate(
       roRfiId,

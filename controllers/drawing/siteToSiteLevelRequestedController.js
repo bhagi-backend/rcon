@@ -691,25 +691,58 @@ exports.updateDrawingFileNameInLatestRevision = catchAsync(async (req, res, next
   const { drawingNo, siteId, revision } = updatedRequest;
 
   // ✅ Updated register queries for Rejected state
+  // const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+  //   { drawingNo, siteId },
+  //   {
+  //     $set: {
+  //       "acceptedRORevisions.$[elem].rfiStatus": "Not Raised",
+  //       "acceptedRORevisions.$[elem].rfiRejectStatus": "Rejected",
+  //       "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Not Raised",
+  //       "acceptedArchitectRevisions.$[arch].rfiRejectStatus": "Rejected",
+  //       regState: "Drawing", // ✅ added (no logic change)
+  //     },
+  //   },
+  //   {
+  //     new: true,
+  //     arrayFilters: [
+  //       { "elem.revision": revision },
+  //       { "arch.revision": revision },
+  //     ],
+  //   }
+  // );
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-    { drawingNo, siteId },
-    {
-      $set: {
-        "acceptedRORevisions.$[elem].rfiStatus": "Not Raised",
-        "acceptedRORevisions.$[elem].rfiRejectStatus": "Rejected",
-        "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Not Raised",
-        "acceptedArchitectRevisions.$[arch].rfiRejectStatus": "Rejected",
-        regState: "Drawing", // ✅ added (no logic change)
-      },
+  { drawingNo, siteId },
+  {
+    $set: {
+      // RO revisions
+      "acceptedRORevisions.$[elem].rfiStatus": "Not Raised",
+      "acceptedRORevisions.$[elem].rfiRejectStatus": "Rejected",
+
+      // Architect revisions
+      "acceptedArchitectRevisions.$[arch].rfiRejectStatus": "Rejected",
+      "acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "Rejected",
+
+      // RO siteLevelRfiStatus
+      "acceptedRORevisions.$[ro].siteLevelRfiStatus": "Rejected",
+
+      // SiteHead revisions
+      "acceptedSiteHeadRevisions.$[site].siteLevelRfiStatus": "Rejected",
+
+      regState: "Drawing",
     },
-    {
-      new: true,
-      arrayFilters: [
-        { "elem.revision": revision },
-        { "arch.revision": revision },
-      ],
-    }
-  );
+  },
+  {
+    new: true,
+    runValidators: true,
+    arrayFilters: [
+      { "elem.revision": revision },   // for RO rfiStatus + rfiRejectStatus
+      { "arch.revision": revision },   // for Architect
+      { "ro.revision": revision },     // for RO siteLevelRfiStatus
+      { "site.revision": revision },   // for SiteHead
+    ],
+  }
+);
+
 
   const siteHeadIds = await User.find({
     "permittedSites.siteId": siteId,
@@ -976,19 +1009,48 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
     // Fetch the updated ArchitectureToRoRegister document to include in the response
     const updatedArchitectureToRoRegister =
       await ArchitectureToRoRegister.findById(drawingId);
-       await ArchitectureToRoRegister.findOneAndUpdate(
-                { drawingId, siteId },
-                {
-                  $set: {
-                    "acceptedSiteRevisions.$[elem].rfiStatus": "Raised",
+      //  await ArchitectureToRoRegister.findOneAndUpdate(
+      //           { drawingId, siteId },
+      //           {
+      //             $set: {
+      //               "acceptedSiteRevisions.$[elem].rfiStatus": "Raised",
             
-                  },
-                },
-                {
-                  new: true,
-                  arrayFilters: [{ "elem.revision": revisionToUpdate }],
-                }
-              );
+      //             },
+      //           },
+      //           {
+      //             new: true,
+      //             arrayFilters: [{ "elem.revision": revisionToUpdate }],
+      //           }
+      //         );
+/* =========================================================
+   ✅ ADDED: update siteLevelRfiStatus based on requestStatus
+   (Accepted / Partially Accepted)
+========================================================= */
+
+await ArchitectureToRoRegister.findOneAndUpdate(
+  { drawingId, siteId },
+  {
+    $set: {
+      // Architect revisions
+      "acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": requestStatus,
+
+      // RO revisions
+      "acceptedRORevisions.$[ro].siteLevelRfiStatus": requestStatus,
+
+      // SiteHead revisions
+      "acceptedSiteHeadRevisions.$[site].siteLevelRfiStatus": requestStatus,
+    },
+  },
+  {
+    new: true,
+    runValidators: true,
+    arrayFilters: [
+      { "arch.revision": revisionToUpdate },
+      { "ro.revision": revisionToUpdate },
+      { "site.revision": revisionToUpdate },
+    ],
+  }
+);
 
     const siteHeadIds = await User.find({
       "permittedSites.siteId": siteId,
@@ -1085,17 +1147,43 @@ exports.closeRequest = catchAsync(async (req, res, next) => {
     });
   }
   const { drawingNo,siteId, revision } = updatedRequest;
+  // const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+  //   { drawingNo, siteId },   // Find by drawing number
+  //   { $set: { "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised" ,
+  //     regState: "Drawing"
+  //   } }, 
+  //   {
+  //     new: true,  
+  //     arrayFilters: [{ "elem.revision": revision }]  
+  //   }
+  // );
   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
-    { drawingNo, siteId },   // Find by drawing number
-    { $set: { "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised" ,
-      regState: "Drawing"
-    } }, 
-    {
-      new: true,  
-      arrayFilters: [{ "elem.revision": revision }]  
-    }
-  );
-
+      { drawingNo, siteId },
+      {
+        $set: {
+          // Architect
+          "acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "Closed",
+  
+          // RO
+          "acceptedRORevisions.$[ro].siteLevelRfiStatus": "Closed",
+  
+          // SiteHead
+          "acceptedSiteHeadRevisions.$[site].siteLevelRfiStatus": "Closed",
+  
+          // optional state update
+          regState: "Drawing",
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+        arrayFilters: [
+          { "arch.revision": revision },
+          { "ro.revision": revision },
+          { "site.revision": revision },
+        ],
+      }
+    );
   const siteHeadIds = await User.find({
     "permittedSites.siteId": siteId
   }).select('permittedSites _id');
@@ -1174,16 +1262,36 @@ exports.reopenRequest = catchAsync(async (req, res, next) => {
     });
   }
   const { drawingNo,siteId, revision } = updatedRequest;
-  const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+  // const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+  //   { drawingNo, siteId },
+  //   { $set: { "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised","acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "Raised" } }, 
+  //   {
+  //     new: true,  
+  //     arrayFilters: [{ "elem.revision": revision },
+  //        { "arch.revision": revision }
+  //     ]  
+  //   }
+  // );
+   const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
     { drawingNo, siteId },
-    { $set: { "acceptedSiteHeadRevisions.$[elem].rfiStatus": "Raised","acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "Raised" } }, 
     {
-      new: true,  
-      arrayFilters: [{ "elem.revision": revision },
-         { "arch.revision": revision }
-      ]  
+      $set: {
+        "acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "ReOpened",
+        "acceptedRORevisions.$[ro].siteLevelRfiStatus": "ReOpened",
+        "acceptedSiteHeadRevisions.$[site].siteLevelRfiStatus": "ReOpened",
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+      arrayFilters: [
+        { "arch.revision": revision },
+        { "ro.revision": revision },
+        { "site.revision": revision },
+      ],
     }
   );
+  
   const siteHeadIds = await User.find({
     "permittedSites.siteId": siteId
   }).select('permittedSites _id');

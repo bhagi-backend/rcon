@@ -176,26 +176,41 @@ exports.getAllForArchitectforDrawingtab = catchAsync(async (req, res, next) => {
                 acceptedArchitectRevisions: item.acceptedArchitectRevisions 
               }));
           } else if (filterType === 'received') {
-            responseData = filteredData
-              .filter(item => (item.acceptedROHardCopyRevisions && item.acceptedROHardCopyRevisions.length <= 0))//||
-             // item.regState === 'Pending')
-              .map(item => ({
-                drawingId: item._id,
-                siteId: item.siteId,
-                folderId:item.folderId,
-                drawingNo: item.drawingNo,
-                regState:item.regState,
-                archRevision:item.archRevision,
-                designDrawingConsultant: item.designDrawingConsultant,
-                drawingTitle: item.drawingTitle,
-                category: item.category,
-                acceptedROSubmissionDate: item.acceptedROSubmissionDate,
-                acceptedSiteSubmissionDate: item.acceptedSiteSubmissionDate,
-                creationDate: item.creationDate,
-                createdBy: item.createdBy,
-                acceptedROHardCopyRevisions: item.acceptedROHardCopyRevisions 
-              }));
-          }
+
+    responseData = filteredData
+      .filter(item => {
+        const architectCount = item.acceptedArchitectRevisions
+          ? item.acceptedArchitectRevisions.length
+          : 0;
+
+        const roCount = item.acceptedROHardCopyRevisions
+          ? item.acceptedROHardCopyRevisions.length
+          : 0;
+
+        // ✅ Ignore if no architect revisions
+        if (architectCount === 0) return false;
+
+        // ✅ Include only if counts do NOT match
+        return architectCount !== roCount;
+      })
+      .map(item => ({
+        drawingId: item._id,
+        siteId: item.siteId,
+        folderId: item.folderId,
+        drawingNo: item.drawingNo,
+        regState: item.regState,
+        archRevision: item.archRevision,
+        designDrawingConsultant: item.designDrawingConsultant,
+        drawingTitle: item.drawingTitle,
+        category: item.category,
+        acceptedROSubmissionDate: item.acceptedROSubmissionDate,
+        acceptedSiteSubmissionDate: item.acceptedSiteSubmissionDate,
+        creationDate: item.creationDate,
+        createdBy: item.createdBy,
+        acceptedROHardCopyRevisions: item.acceptedROHardCopyRevisions
+      }));
+
+  }
           else {
             return next(new Error("Invalid filterType. Use 'upload', 'received'")); 
           }

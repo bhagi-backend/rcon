@@ -2077,13 +2077,91 @@ exports.getHardCopyAnalysisCountForConsultant = catchAsync(
 
 
 
+// exports.getHardCopyAnalysisCountForRo = catchAsync(async (req, res, next) => {
+//   const { siteId } = req.params;
+//   const { selectTimePeriod, month, year, folderId } = req.query;
+
+//   let startDate, endDate;
+//   if (selectTimePeriod) {
+//     // Step 1: Calculate date range only if selectTimePeriod is provided
+//     ({ startDate, endDate } = calculateDateRange(
+//       selectTimePeriod,
+//       parseInt(month),
+//       parseInt(year)
+//     ));
+//   }
+
+//   const userId = req.user.id;
+
+//   // Step 2: Fetch user role
+//   const user = await User.findById(userId).select("role").exec();
+//   if (!user) return next(new Error("User not found."));
+//   const userRole = user.role;
+
+//   // Step 3: Build base query
+//   const baseQuery = {
+//     siteId,
+//     designDrawingConsultant: userId,
+//     drawingStatus: "Approval",
+//   };
+
+//   if (selectTimePeriod) {
+//     baseQuery.creationDate = { $gte: startDate, $lt: endDate };
+//   }
+
+//   if (folderId) {
+//     baseQuery.folderId = folderId;
+//   }
+
+//   // Step 4: Fetch data
+//   const data = await ArchitectureToRoRegister.find(baseQuery)
+//     .populate({
+//       path: "designDrawingConsultant",
+//       match: { role: userRole },
+//       select: "role",
+//     })
+//     .lean()
+//     .exec();
+
+//   let pendingCount = 0;
+//   let drawingCount = 0;
+
+//   // Step 5: Iterate and calculate counts
+//   data.forEach((record) => {
+//     const acceptedRORevisions = record.acceptedRORevisions || [];
+//     const acceptedSiteHeadHardCopyRevisions =
+//       record.acceptedSiteHeadHardCopyRevisions || [];
+
+//     // Skip this record if no RO revisions are present
+//     if (acceptedRORevisions.length === 0) return;
+
+//     const architectCount = acceptedRORevisions.length;
+//     const roCount = acceptedSiteHeadHardCopyRevisions.length;
+
+//     if (architectCount === roCount) {
+//       drawingCount++;
+//     } else if (architectCount > roCount) {
+//       pendingCount++;
+//     }
+//   });
+
+//   // Step 6: Send response
+//   res.status(200).json({
+//     status: "success",
+//     data: {
+//       totalApprovalCount: data.length,
+//       totalPendingDrawings: pendingCount,
+//       totalDrawingCount: drawingCount,
+//     },
+//   });
+// });
 exports.getHardCopyAnalysisCountForRo = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
   const { selectTimePeriod, month, year, folderId } = req.query;
 
   let startDate, endDate;
+
   if (selectTimePeriod) {
-    // Step 1: Calculate date range only if selectTimePeriod is provided
     ({ startDate, endDate } = calculateDateRange(
       selectTimePeriod,
       parseInt(month),
@@ -2093,12 +2171,16 @@ exports.getHardCopyAnalysisCountForRo = catchAsync(async (req, res, next) => {
 
   const userId = req.user.id;
 
-  // Step 2: Fetch user role
+  // Step 1: Fetch user role
   const user = await User.findById(userId).select("role").exec();
-  if (!user) return next(new Error("User not found."));
+
+  if (!user) {
+    return next(new Error("User not found."));
+  }
+
   const userRole = user.role;
 
-  // Step 3: Build base query
+  // Step 2: Build base query
   const baseQuery = {
     siteId,
     designDrawingConsultant: userId,
@@ -2113,7 +2195,7 @@ exports.getHardCopyAnalysisCountForRo = catchAsync(async (req, res, next) => {
     baseQuery.folderId = folderId;
   }
 
-  // Step 4: Fetch data
+  // Step 3: Fetch data
   const data = await ArchitectureToRoRegister.find(baseQuery)
     .populate({
       path: "designDrawingConsultant",
@@ -2126,26 +2208,33 @@ exports.getHardCopyAnalysisCountForRo = catchAsync(async (req, res, next) => {
   let pendingCount = 0;
   let drawingCount = 0;
 
-  // Step 5: Iterate and calculate counts
+  // Step 4: Compare RO → SiteHead HardCopy revisions
   data.forEach((record) => {
-    const acceptedRORevisions = record.acceptedRORevisions || [];
+
+    const acceptedRORevisions =
+      record.acceptedRORevisions || [];
+
     const acceptedSiteHeadHardCopyRevisions =
       record.acceptedSiteHeadHardCopyRevisions || [];
 
-    // Skip this record if no RO revisions are present
+    // ✅ Ignore records with no RO revisions
     if (acceptedRORevisions.length === 0) return;
 
-    const architectCount = acceptedRORevisions.length;
-    const roCount = acceptedSiteHeadHardCopyRevisions.length;
-
-    if (architectCount === roCount) {
+    // ✅ Match → Drawing completed
+    if (
+      acceptedRORevisions.length ===
+      acceptedSiteHeadHardCopyRevisions.length
+    ) {
       drawingCount++;
-    } else if (architectCount > roCount) {
+    }
+    // ✅ Not match → Pending
+    else {
       pendingCount++;
     }
+
   });
 
-  // Step 6: Send response
+  // Step 5: Send response
   res.status(200).json({
     status: "success",
     data: {
@@ -2154,7 +2243,9 @@ exports.getHardCopyAnalysisCountForRo = catchAsync(async (req, res, next) => {
       totalDrawingCount: drawingCount,
     },
   });
+
 });
+
 exports.getAllDrawingStatusCount = catchAsync(async (req, res, next) => {
   const { siteId, designDrawingConsultantId } = req.query;
 

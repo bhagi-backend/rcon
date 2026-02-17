@@ -25,16 +25,16 @@ exports.uploadRejectDrawingFile = upload.single("rejectDwgFile");
 
 
 exports.createRequest = catchAsync(async (req, res, next) => {
-  const { drawingId, drawingNo, revision, siteHeadRfiId } = req.body;
+  const { drawingId, drawingNo, revision, siteHeadRfiId ,} = req.body;
   const userId = req.user.id;
 
   // SAFE rfiType logic
-  if (siteHeadRfiId) {
-    req.body.rfiType = "Forwarded";
-    req.body.status = "Forwarded";
-  } else {
-    req.body.rfiType = "Created";
-  }
+  // if (siteHeadRfiId) {
+  //   req.body.rfiType = "Forwarded";
+  //   req.body.status = "Forwarded";
+  // } else {
+  //   req.body.rfiType = "Created";
+  // }
 
   req.body.createdBy = userId;
 

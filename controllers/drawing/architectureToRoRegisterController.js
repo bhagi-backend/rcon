@@ -26,6 +26,206 @@ const AssignDesignConsultantsToDepartment = require("../../models/drawingModels/
 const upload = multerWrapper();
 const hardCopyUpload = multerWrapper();
 
+// exports.createDrawing = catchAsync(async (req, res, next) => {
+//   const { siteId, drawings } = req.body;
+//   const userId = req.user.id;
+//   const user = await User.findOne({ _id: userId });
+//   const companyId = user.companyId;
+//   console.log("companyId", companyId);
+
+//   if (
+//     !siteId ||
+//     !drawings ||
+//     !Array.isArray(drawings) ||
+//     drawings.length === 0
+//   ) {
+//     return res.status(400).json({
+//       status: "error",
+//       statusCode: 400,
+//       message: "siteId and drawings array are required fields",
+//     });
+//   }
+
+//   // =====================================================
+//   // ✅ NEW: Check duplicate drawingNo inside request body
+//   // =====================================================
+//   const drawingNosInBody = drawings.map((d) => d.drawingNo);
+//   const duplicateDrawingNos = drawingNosInBody.filter(
+//     (item, index) => drawingNosInBody.indexOf(item) !== index,
+//   );
+
+//   if (duplicateDrawingNos.length > 0) {
+//     const uniqueDuplicates = [...new Set(duplicateDrawingNos)];
+
+//     return res.status(400).json({
+//       status: "error",
+//       statusCode: 400,
+//       message: `Duplicate drawing number(s) found in request body: ${uniqueDuplicates.join(
+//         ", ",
+//       )}. Each drawing number must be unique.`,
+//     });
+//   }
+
+//   const site = await Site.findOne({ _id: siteId });
+//   if (!site) {
+//     return res.status(404).json({
+//       status: "error",
+//       statusCode: 404,
+//       message: "Invalid siteId provided. Site does not exist.",
+//     });
+//   }
+
+//   const siteName = site.siteName;
+
+//   const createdRegisters = [];
+//   const notifications = [];
+//   const createdFolders = [];
+
+//   const drawingNos = drawings.map((d) => d.drawingNo); // extract all drawingNos
+//   const existingDrawings = await ArchitectureToRoRegister.find({
+//     siteId,
+//     drawingNo: { $in: drawingNos },
+//   });
+
+//   if (existingDrawings.length > 0) {
+//     const duplicateDetails = existingDrawings.map(
+//       (d) =>
+//         `Drawing No: "${d.drawingNo}", Title: "${d.drawingTitle}", Category: "${d.category}"`,
+//     );
+
+//     return res.status(200).json({
+//       status: "error",
+//       message: `The following drawings already exist for this site:\n${duplicateDetails.join(
+//         "\n",
+//       )}`,
+//       duplicates: existingDrawings,
+//     });
+//   }
+
+//   for (const drawing of drawings) {
+//     const categoryRecord = await Category.findOne({
+//       $or: [
+//         { category: drawing.category, siteId: null, companyId: null }, // Default category
+//         { category: drawing.category, siteId: siteId, companyId: companyId }, // Site & company-specific
+//       ],
+//     });
+//     console.log("categoryRecord", categoryRecord);
+
+//     if (!categoryRecord) {
+//       return res.status(200).json({
+//         status: "error",
+//         message: `category ${drawing.category} does not exist. Please create the category before assigning it to a drawing.`,
+//       });
+//     }
+
+//     let folderId = drawing.folderId;
+
+//     const {
+//       drawingNo,
+//       drawingTitle,
+//       designDrawingConsultant,
+//       category,
+//       tower,
+//       noOfRoHardCopyRevisions,
+//       noOfSiteHeadHardCopyRevisions,
+//       acceptedROSubmissionDate,
+//       acceptedSiteSubmissionDate,
+//       acceptedArchitectRevisions = [],
+//       acceptedSiteHeadHardCopyRevisions = [],
+//       acceptedRORevisions = [],
+//       acceptedROHardCopyRevisions = [],
+//     } = drawing;
+
+//     if (!folderId) {
+//       const existingFolder = await DrawingFolder.findOne({
+//         siteId,
+//         folderName: siteName,
+//       });
+
+//       if (existingFolder) {
+//         folderId = existingFolder._id;
+//       } else {
+//         try {
+//           const newFolder = await DrawingFolder.create({
+//             siteId,
+//             folderName: siteName,
+//           });
+//           createdFolders.push(newFolder);
+//           folderId = newFolder._id;
+//         } catch (error) {
+//           console.error("Error creating folder:", error);
+//           return next(
+//             new AppError(
+//               `Failed to create folder for site ${siteName}: ${error.message}`,
+//               400,
+//             ),
+//           );
+//         }
+//       }
+//     }
+
+//     if (!drawingNo || !drawingTitle || !designDrawingConsultant) {
+//       return res.status(400).json({
+//         status: "error",
+//         statusCode: 400,
+//         message:
+//           "Each drawing object must have drawingNo, drawingTitle, designDrawingConsultant, category, acceptedROSubmissionDate, and acceptedSiteSubmissionDate",
+//       });
+//     }
+
+//     const count = await ArchitectureToRoRegister.countDocuments({ siteId });
+
+//     try {
+//       const newRegister = await ArchitectureToRoRegister.create({
+//         siteId,
+//         companyId,
+//         folderId,
+//         drawingNo,
+//         drawingTitle,
+//         designDrawingConsultant,
+//         category: categoryRecord._id,
+//         tower,
+//         noOfRoHardCopyRevisions,
+//         noOfSiteHeadHardCopyRevisions,
+//         acceptedROSubmissionDate,
+//         acceptedSiteSubmissionDate,
+//         acceptedArchitectRevisions,
+//         acceptedSiteHeadHardCopyRevisions,
+//         acceptedRORevisions,
+//         acceptedROHardCopyRevisions,
+//         createdBy: req.user.id,
+//       });
+
+//       createdRegisters.push(newRegister);
+
+//       const notification = await sendNotification(
+//         "Drawing",
+//         `New drawing ${drawingNo} has been assigned.`,
+//         "New Drawing Assigned",
+//         "Assigned",
+//         designDrawingConsultant,
+//       );
+//       notifications.push(notification);
+//     } catch (error) {
+//       console.error("Error creating register:", error);
+//       return next(
+//         new AppError(
+//           `Failed to create drawing ${drawingNo}: ${error.message}`,
+//           400,
+//         ),
+//       );
+//     }
+//   }
+
+//   res.status(201).json({
+//     status: "success",
+//     data: {
+//       createdRegisters,
+//       createdFolders,
+//       notifications,
+//     },
+//   });
+// });
 exports.createDrawing = catchAsync(async (req, res, next) => {
   const { siteId, drawings } = req.body;
   const userId = req.user.id;
@@ -81,7 +281,7 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
   const notifications = [];
   const createdFolders = [];
 
-  const drawingNos = drawings.map((d) => d.drawingNo); // extract all drawingNos
+  const drawingNos = drawings.map((d) => d.drawingNo);
   const existingDrawings = await ArchitectureToRoRegister.find({
     siteId,
     drawingNo: { $in: drawingNos },
@@ -102,11 +302,35 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
     });
   }
 
+  // =====================================================
+  // ✅ NEW FUNCTION: Generate unique 3 digit drawing number
+  // =====================================================
+  const generateUniqueDrawingNo = async (baseDrawingNo, siteId) => {
+    let uniqueDrawingNo;
+    let exists = true;
+
+    while (exists) {
+      const randomNumber = Math.floor(100 + Math.random() * 900); // 100-999
+      uniqueDrawingNo = `${baseDrawingNo}-${randomNumber}`;
+
+      const existing = await ArchitectureToRoRegister.findOne({
+        siteId,
+        drawingNo: uniqueDrawingNo,
+      });
+
+      if (!existing) {
+        exists = false;
+      }
+    }
+
+    return uniqueDrawingNo;
+  };
+
   for (const drawing of drawings) {
     const categoryRecord = await Category.findOne({
       $or: [
-        { category: drawing.category, siteId: null, companyId: null }, // Default category
-        { category: drawing.category, siteId: siteId, companyId: companyId }, // Site & company-specific
+        { category: drawing.category, siteId: null, companyId: null },
+        { category: drawing.category, siteId: siteId, companyId: companyId },
       ],
     });
     console.log("categoryRecord", categoryRecord);
@@ -120,7 +344,7 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
 
     let folderId = drawing.folderId;
 
-    const {
+    let {
       drawingNo,
       drawingTitle,
       designDrawingConsultant,
@@ -135,6 +359,11 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
       acceptedRORevisions = [],
       acceptedROHardCopyRevisions = [],
     } = drawing;
+
+    // =====================================================
+    // ✅ NEW: Append unique 3 digit number to drawingNo
+    // =====================================================
+    drawingNo = await generateUniqueDrawingNo(drawingNo, siteId);
 
     if (!folderId) {
       const existingFolder = await DrawingFolder.findOne({
@@ -180,7 +409,7 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
         siteId,
         companyId,
         folderId,
-        drawingNo,
+        drawingNo, // ✅ now contains unique 3 digit suffix
         drawingTitle,
         designDrawingConsultant,
         category: categoryRecord._id,
@@ -226,6 +455,7 @@ exports.createDrawing = catchAsync(async (req, res, next) => {
     },
   });
 });
+
 
 exports.uploadDrawingPhoto = upload.single("pdfDrawingFileName");
 
@@ -1448,10 +1678,58 @@ exports.updateRevisions = catchAsync(async (req, res, next) => {
       //   { ...baseQuery, status: { $ne: "Requested" } },
       //   { $set: { isSuspended: true } },
       // );
-      const suspendStatuses = ["Requested", "ReOpened", "Forwarded", "Responded"];
+   const suspendStatuses = ["Requested", "ReOpened", "Forwarded", "Responded"];
+const closeStatuses = ["Accepted", "Partially Accepted", "Rejected"];
 
 /* =====================================================
-   1. Suspend matching statuses → change status + isSuspended
+   1. Convert Accepted / Partially Accepted / Rejected → Closed
+===================================================== */
+
+await Promise.all([
+
+  RoToSiteLevelRequest.updateMany(
+    {
+      ...baseQuery,
+      status: { $in: closeStatuses },
+    },
+    {
+      $set: {
+        status: "Closed",
+        isSuspended: true,
+      },
+    }
+  ),
+
+  SiteToSiteLevelRequest.updateMany(
+    {
+      ...baseQuery,
+      status: { $in: closeStatuses },
+    },
+    {
+      $set: {
+        status: "Closed",
+        isSuspended: true,
+      },
+    }
+  ),
+
+  ArchitectureToRoRequest.updateMany(
+    {
+      ...baseQuery,
+      status: { $in: closeStatuses },
+    },
+    {
+      $set: {
+        status: "Closed",
+        isSuspended: true,
+      },
+    }
+  )
+
+]);
+
+/* =====================================================
+   2. Suspend Requested / ReOpened / Forwarded / Responded
 ===================================================== */
 
 await Promise.all([
@@ -1498,7 +1776,7 @@ await Promise.all([
 ]);
 
 /* =====================================================
-   2. All other statuses → only set isSuspended = true
+   3. All other statuses → only isSuspended = true
 ===================================================== */
 
 await Promise.all([
@@ -1506,41 +1784,34 @@ await Promise.all([
   RoToSiteLevelRequest.updateMany(
     {
       ...baseQuery,
-      status: { $nin: suspendStatuses },
+      status: { $nin: [...suspendStatuses, ...closeStatuses] },
     },
     {
-      $set: {
-        isSuspended: true,
-      },
+      $set: { isSuspended: true },
     }
   ),
 
   SiteToSiteLevelRequest.updateMany(
     {
       ...baseQuery,
-      status: { $nin: suspendStatuses },
+      status: { $nin: [...suspendStatuses, ...closeStatuses] },
     },
     {
-      $set: {
-        isSuspended: true,
-      },
+      $set: { isSuspended: true },
     }
   ),
 
   ArchitectureToRoRequest.updateMany(
     {
       ...baseQuery,
-      status: { $nin: suspendStatuses },
+      status: { $nin: [...suspendStatuses, ...closeStatuses] },
     },
     {
-      $set: {
-        isSuspended: true,
-      },
+      $set: { isSuspended: true },
     }
   )
 
 ]);
-
     }
 
     // =====================================================

@@ -2041,28 +2041,23 @@ exports.getHardCopyAnalysisCountForConsultant = catchAsync(
     let pendingCount = 0;
     let drawingCount = 0;
 
-    // Step 5: Calculate counts
+    // Step 5: Calculate counts (ONLY Pending and Drawing)
     data.forEach((record) => {
-      const acceptedArchitectRevisions =
-        record.acceptedArchitectRevisions || [];
-      const acceptedROHardCopyRevisions =
-        record.acceptedROHardCopyRevisions || [];
+      const architectCount =
+        record.acceptedArchitectRevisions?.length || 0;
 
-      const architectCount = acceptedArchitectRevisions.length;
-      const roCount = acceptedROHardCopyRevisions.length;
+      const roCount =
+        record.acceptedROHardCopyRevisions?.length || 0;
 
-      // ✅ If architect revisions are ZERO → Pending
-      if (architectCount === 0) {
-        pendingCount++;
-        return;
-      }
+      // Ignore if no architect revisions
+      if (architectCount === 0) return;
 
-      // ✅ If counts match → Completed drawing
+      // Drawing → counts match
       if (architectCount === roCount) {
         drawingCount++;
       }
-      // ✅ If architect > RO → Pending
-      else if (architectCount > roCount) {
+      // Pending → counts do not match
+      else {
         pendingCount++;
       }
     });
@@ -2071,13 +2066,15 @@ exports.getHardCopyAnalysisCountForConsultant = catchAsync(
     res.status(200).json({
       status: "success",
       data: {
-        totalApprovalCount: data.length,
         totalPendingDrawings: pendingCount,
         totalDrawingCount: drawingCount,
       },
     });
   }
 );
+
+
+
 
 
 exports.getHardCopyAnalysisCountForRo = catchAsync(async (req, res, next) => {

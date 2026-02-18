@@ -48,7 +48,8 @@ exports.getAllForArchitectforDrawingtab = catchAsync(async (req, res, next) => {
     let responseData;
     if (filterType === 'upload') {
         responseData = filteredData
-          .filter(item => (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length > 0)&&item.regState === 'Drawing')
+          // .filter(item => (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length > 0)&&item.regState === 'Drawing')
+          .filter(item => (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length > 0))
           .map(item => ({
             drawingId: item._id,
             siteId: item.siteId,

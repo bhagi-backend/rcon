@@ -1377,6 +1377,8 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
 
   const drawingId = architectureToRoRequest.drawingId._id;
   const revisionToUpdate = architectureToRoRequest.revision;
+  console.log("Drawing ID:", drawingId);
+  console.log("Revision to Update:", revisionToUpdate);
   const siteId = architectureToRoRequest.siteId;
   const drawingNo = architectureToRoRequest.drawingNo;
 
@@ -1483,16 +1485,16 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
   //     arrayFilters: [{ "elem.revision": revisionToUpdate }],
   //   }
   // );
-await ArchitectureToRoRegister.findOneAndUpdate(
-  { drawingId, siteId },
+const updatedArchitecture=await ArchitectureToRoRegister.findOneAndUpdate(
+  { _id: drawingId, siteId },
   {
     $set: {
       // Architect revisions
       "acceptedArchitectRevisions.$[arch].roRfiStatus": requestStatus,
-
+      "acceptedArchitectRevisions.$[arch].rfiStatus": "Raised",
       // RO revisions
       "acceptedRORevisions.$[ro].roRfiStatus": requestStatus,
-      "acceptedArchitectRevisions.$[arch].rfiStatus": "Raised",
+      
 
       // SiteHead revisions
       "acceptedSiteHeadRevisions.$[site].roRfiStatus": requestStatus,
@@ -1508,7 +1510,7 @@ await ArchitectureToRoRegister.findOneAndUpdate(
     ],
   }
 );
-
+console.log("Updated ArchitectureToRoRegister after setting RFI status:", updatedArchitecture);
   const siteHeadIds = await User.find({
     "permittedSites.siteId": siteId,
   }).select("permittedSites _id");
@@ -1516,24 +1518,24 @@ await ArchitectureToRoRegister.findOneAndUpdate(
   if (siteHeadIds.length > 0) {
     for (let user of siteHeadIds) {
       const site = user?.permittedSites?.find((site) => {
-        console.log("Checking site:", site?.siteId, "against input:", siteId);
+        // console.log("Checking site:", site?.siteId, "against input:", siteId);
         return site?.siteId?.toString() === siteId.toString();
       });
 
       if (!site) {
-        console.warn(
-          `No matching site found for user ${user._id} and siteId ${siteId}`,
-        );
+        // console.warn(
+        //   `No matching site found for user ${user._id} and siteId ${siteId}`,
+        // );
         continue;
       }
 
       const rfiAccessEnabled =
         site?.enableModules?.drawingDetails?.roDetails?.rfiRaisedAccess;
 
-      console.log(
-        `RFI Access Enabled for site ${site?.siteId}:`,
-        rfiAccessEnabled,
-      );
+      // console.log(
+      //   `RFI Access Enabled for site ${site?.siteId}:`,
+      //   rfiAccessEnabled,
+      // );
 
       if (rfiAccessEnabled) {
         const notificationMessage1 = `A RFI has been Responded for drawing number ${drawingNo} with  revision ${revisionToUpdate}.`;
@@ -1546,7 +1548,7 @@ await ArchitectureToRoRegister.findOneAndUpdate(
             requestStatus,
             user._id,
           );
-          console.log("notificationToSiteHead", notificationToSiteHead);
+          // console.log("notificationToSiteHead", notificationToSiteHead);
         } catch (error) {
           console.error(
             "Error sending notification to SiteHeadId ",

@@ -78,7 +78,8 @@ console.log("userId",userId);
   if (filterType === 'upload') {
     responseData = await Promise.all(
         data
-            .filter(item => (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length > 0)&&item.regState === 'Drawing')
+            // .filter(item => (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length > 0)&&item.regState === 'Drawing')
+            .filter(item => (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length > 0))
             .map(async (item) => {
                 const architectRevisionsMap = new Map(
                     item.acceptedArchitectRevisions.map(archRevision => [

@@ -87,11 +87,16 @@ exports.getAllSiteHeadforDrawingtab = catchAsync(async (req, res, next) => {
   if (filterType === "upload") {
     responseData = await Promise.all(
       data
-        .filter(
+        // .filter(
+        //   (item) =>
+        //     item.acceptedRORevisions &&
+        //     item.acceptedRORevisions.length > 0 &&
+        //     item.regState === "Drawing"
+        // )
+         .filter(
           (item) =>
             item.acceptedRORevisions &&
-            item.acceptedRORevisions.length > 0 &&
-            item.regState === "Drawing"
+            item.acceptedRORevisions.length > 0
         )
         .map(async (item) => {
           const enrichedSiteHeadRevisions = await Promise.all(

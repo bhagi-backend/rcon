@@ -1054,7 +1054,7 @@ exports.acceptRequest = catchAsync(async (req, res, next) => {
       //     }
       //   );
 await ArchitectureToRoRegister.findOneAndUpdate(
-  { drawingId, siteId },
+  { _id:drawingId, siteId },
   {
     $set: {
       // Architect

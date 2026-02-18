@@ -76,7 +76,8 @@ exports.getAllSiteLevelforDrawingtab = catchAsync(async (req, res, next) => {
 
     if (filterType === 'upload') {
         responseData = await Promise.all(data
-            .filter(item => (item.acceptedRORevisions && item.acceptedRORevisions.length > 0)&&item.regState === 'Drawing')
+            // .filter(item => (item.acceptedRORevisions && item.acceptedRORevisions.length > 0)&&item.regState === 'Drawing')
+            .filter(item => (item.acceptedRORevisions && item.acceptedRORevisions.length > 0))
             .map(async (item) => {
                 const enrichedSiteHeadRevisions = await Promise.all(item.acceptedSiteHeadRevisions.map(async (siteHeadRevision) => {
                     if (siteHeadRevision.roRef) {

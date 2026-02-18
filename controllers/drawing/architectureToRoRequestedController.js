@@ -1492,6 +1492,7 @@ await ArchitectureToRoRegister.findOneAndUpdate(
 
       // RO revisions
       "acceptedRORevisions.$[ro].roRfiStatus": requestStatus,
+      "acceptedArchitectRevisions.$[arch].rfiStatus": "Raised",
 
       // SiteHead revisions
       "acceptedSiteHeadRevisions.$[site].roRfiStatus": requestStatus,
@@ -1631,6 +1632,7 @@ exports.closeRequest = catchAsync(async (req, res, next) => {
       $set: {
         // Architect
         "acceptedArchitectRevisions.$[arch].roRfiStatus": "Closed",
+        "acceptedArchitectRevisions.$[arch].rfiStatus": "Not Raised",
 
         // RO
         "acceptedRORevisions.$[ro].roRfiStatus": "Closed",

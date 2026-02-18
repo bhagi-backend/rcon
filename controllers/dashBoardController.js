@@ -26,9 +26,9 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
     const siteId = req.query.siteId; 
     const userDepartment = req.user.department; 
 
-    // console.log("User ID:", userId);
-    // console.log("User Department:", userDepartment);
-    // console.log("Site ID:", siteId);
+    console.log("User ID:", userId);
+    console.log("User Department:", userDepartment);
+    console.log("Site ID:", siteId);
 
     try {
         const user = await User.findById(userId).populate('permittedSites.siteId');
@@ -86,7 +86,7 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 
         } 
         // Logic for Other Departments (MEP, Drawing, Architectural, Structural)
-        else if (["MEP", "Drawing", "Architectural", "Structural"].includes(userDepartment) && roEnabled) {
+        else if (["MEP", "Drawing", "Architectural", "Structural","Admin"].includes(userDepartment) && roEnabled) {
             // Fetch design consultants from assignDesignConsultantsToDepartment
             const consultants = await assignDesignConsultantsToDepartment.find({
                 department: userDepartment,
@@ -104,39 +104,62 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 
           //  console.log("Fetched Registers for Other Departments:", registers);
 
-            for (const register of registers) {
-                const drawingTitle =`${department}-${userName}-${empCode}-${toTitleCase(register.drawingNo)} - ${register.drawingTitle}`;
-                const daysRemaining = calculateRemainingDays(register.acceptedSiteSubmissionDate);
-                acceptedSiteSubmissionDate=register.acceptedSiteSubmissionDate
-                if (register.acceptedRORevisions.length === 0) {
-                    toDay.push({ title: `${drawingTitle} - Submission Due Today`, daysRemaining , acceptedSiteSubmissionDate: acceptedSiteSubmissionDate});
-                }
-                if (register.acceptedRORevisions.length === 0 && register.acceptedSiteSubmissionDate < new Date()) {
-                    delayed.push({ title: `${drawingTitle} - Submission Delayed. You have ${daysRemaining} days to do`, acceptedSiteSubmissionDate: acceptedSiteSubmissionDate });
-                }
-                if (register.acceptedRORevisions.length === 0 && register.acceptedSiteSubmissionDate > new Date()) {
-                    inProgress.push({ title: `${drawingTitle} - Submission Due in ${daysRemaining} days`,acceptedSiteSubmissionDate: acceptedSiteSubmissionDate });
-                }
+            // for (const register of registers) {
+            //     const drawingTitle =`${department}-${userName}-${empCode}-${toTitleCase(register.drawingNo)} - ${register.drawingTitle}`;
+            //     const daysRemaining = calculateRemainingDays(register.acceptedSiteSubmissionDate);
+            //     acceptedSiteSubmissionDate=register.acceptedSiteSubmissionDate
+            //     if (register.acceptedRORevisions.length === 0) {
+            //         toDay.push({ title: `${drawingTitle} - Submission Due Today`, daysRemaining , acceptedSiteSubmissionDate: acceptedSiteSubmissionDate});
+            //     }
+            //     if (register.acceptedRORevisions.length === 0 && register.acceptedSiteSubmissionDate < new Date()) {
+            //         delayed.push({ title: `${drawingTitle} - Submission Delayed. You have ${daysRemaining} days to do`, acceptedSiteSubmissionDate: acceptedSiteSubmissionDate });
+            //     }
+            //     if (register.acceptedRORevisions.length === 0 && register.acceptedSiteSubmissionDate > new Date()) {
+            //         inProgress.push({ title: `${drawingTitle} - Submission Due in ${daysRemaining} days`,acceptedSiteSubmissionDate: acceptedSiteSubmissionDate });
+            //     }
 
-                // Check for redo requests
-                const redoRequests = await RoToSiteLevelRequest.find({ drawingId: register._id, status: { $in: ["Requested", "ReOpened"] } });
-                if (redoRequests.length > 0) {
-                    redoRequests.forEach(request => {
-                        redo.push({
-                            title: `RFI has been raised on ${drawingTitle}`,
-                            daysRemaining,
-                            status: request.status,
-                            acceptedSiteSubmissionDate: acceptedSiteSubmissionDate
-                        });
-                    });
-                }
+            //     // Check for redo requests
+            //     const redoRequests = await RoToSiteLevelRequest.find({ drawingId: register._id, status: { $in: ["Requested", "ReOpened"] } });
+            //     if (redoRequests.length > 0) {
+            //         redoRequests.forEach(request => {
+            //             redo.push({
+            //                 title: `RFI has been raised on ${drawingTitle}`,
+            //                 daysRemaining,
+            //                 status: request.status,
+            //                 acceptedSiteSubmissionDate: acceptedSiteSubmissionDate
+            //             });
+            //         });
+            //     }
 
-                if (register.acceptedRORevisions.length > 0 && await RoToSiteLevelRequest.exists({ drawingId: register._id, status: "Closed" })) {
-                    completed.push({ title: `${drawingTitle} - Submission Completed`,acceptedSiteSubmissionDate: acceptedSiteSubmissionDate });
-                }
-                // Check based on acceptedROSubmissionDate and acceptedRORevisions
+            //     if (register.acceptedRORevisions.length > 0 && await RoToSiteLevelRequest.exists({ drawingId: register._id, status: "Closed" })) {
+            //         completed.push({ title: `${drawingTitle} - Submission Completed`,acceptedSiteSubmissionDate: acceptedSiteSubmissionDate });
+            //     }
+            //     // Check based on acceptedROSubmissionDate and acceptedRORevisions
                 
-            }
+            // }
+            for (const register of registers) {
+
+    const drawingTitle =
+        `${department}-${userName}-${empCode}-${toTitleCase(register.drawingNo)} - ${register.drawingTitle}`;
+
+    const acceptedSiteSubmissionDate =
+        register.acceptedSiteSubmissionDate || null;
+
+    const daysRemaining =
+        acceptedSiteSubmissionDate
+            ? calculateRemainingDays(acceptedSiteSubmissionDate)
+            : null;
+
+    if (register.acceptedRORevisions.length === 0) {
+
+        toDay.push({
+            title: `${drawingTitle} - Submission Due Today`,
+            daysRemaining,
+            acceptedSiteSubmissionDate
+        });
+    }
+}
+
         } 
         else if (userDepartment === "SiteManagement" && siteToSiteEnabled) {
             // Fetch design consultants from assignDesignConsultantsToDepartment

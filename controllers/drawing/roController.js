@@ -330,66 +330,94 @@ console.log("userId",userId);
     }
      else if (filterType === 'received') {
 
-      const rOHardCopyRevisions = data
-        //.filter(item => (item.acceptedROHardCopyRevisions && item.acceptedROHardCopyRevisions.length <= 0))// ||
-       // item.regState === 'Pending' )
-              .filter(item => (
-  (item.acceptedROHardCopyRevisions && item.acceptedROHardCopyRevisions.length <= 0) ||(
-item.acceptedROHardCopyRevisions.length < item.acceptedArchitectRevisions.length)
-))
-        .map(item => ({
-          drawingId: item._id,
-          siteId: item.siteId,
-          folderId: item.folderId,
-          drawingNo: item.drawingNo,
-          designDrawingConsultant: item.designDrawingConsultant,
-          drawingTitle: item.drawingTitle,
-          regState:item.regState,
-                archRevision:item.archRevision,
-          category: item.category,
-          noOfRoHardCopyRevisions: item.noOfRoHardCopyRevisions,
-          noOfSiteHeadHardCopyRevisions: item.noOfSiteHeadHardCopyRevisions,
-          acceptedROSubmissionDate: item.acceptedROSubmissionDate,
-          acceptedSiteSubmissionDate: item.acceptedSiteSubmissionDate,
-          creationDate: item.creationDate,
-          createdBy: item.createdBy,
-          acceptedArchitectRevisions: item.acceptedArchitectRevisions,
-          acceptedROHardCopyRevisions: item.acceptedROHardCopyRevisions,
-          for:"architect"
-        }));
-    
-        const siteHeadHardCopyRevisions =  data
-          .filter(item => (item.acceptedSiteHeadHardCopyRevisions && item.acceptedSiteHeadHardCopyRevisions.length <= 0) ||
-          (
-item.acceptedSiteHeadHardCopyRevisions.length < item.acceptedArchitectRevisions.length)
-)
-         // item.regState === 'Pending' )
-          .map(item => ({
-                drawingId: item._id,
-                siteId: item.siteId,
-                folderId: item.folderId,
-                drawingNo: item.drawingNo,
-                designDrawingConsultant: item.designDrawingConsultant,
-                drawingTitle: item.drawingTitle,
-                regState:item.regState,
-                archRevision:item.archRevision,
-                category: item.category,
-                acceptedROSubmissionDate: item.acceptedROSubmissionDate,
-                acceptedSiteSubmissionDate: item.acceptedSiteSubmissionDate,
-                creationDate: item.creationDate,
-                createdBy: item.createdBy,
-                acceptedRORevisions: item.acceptedRORevisions,
-                acceptedSiteHeadHardCopyRevisions: item.acceptedSiteHeadHardCopyRevisions,
-                for:"siteHead"
-              }));
-     
-          responseData = {
-            rOHardCopyRevisions,
-            siteHeadHardCopyRevisions,
-      
-          
-          };
-      }
+  const rOHardCopyRevisions = data
+    .filter(item => (
+
+      // ✅ IGNORE if acceptedArchitectRevisions is 0
+      item.acceptedArchitectRevisions &&
+      item.acceptedArchitectRevisions.length > 0 &&
+
+      (
+        (item.acceptedROHardCopyRevisions &&
+          item.acceptedROHardCopyRevisions.length <= 0)
+        ||
+        (
+          item.acceptedROHardCopyRevisions &&
+          item.acceptedROHardCopyRevisions.length <
+          item.acceptedArchitectRevisions.length
+        )
+      )
+
+    ))
+    .map(item => ({
+      drawingId: item._id,
+      siteId: item.siteId,
+      folderId: item.folderId,
+      drawingNo: item.drawingNo,
+      designDrawingConsultant: item.designDrawingConsultant,
+      drawingTitle: item.drawingTitle,
+      regState: item.regState,
+      archRevision: item.archRevision,
+      category: item.category,
+      noOfRoHardCopyRevisions: item.noOfRoHardCopyRevisions,
+      noOfSiteHeadHardCopyRevisions: item.noOfSiteHeadHardCopyRevisions,
+      acceptedROSubmissionDate: item.acceptedROSubmissionDate,
+      acceptedSiteSubmissionDate: item.acceptedSiteSubmissionDate,
+      creationDate: item.creationDate,
+      createdBy: item.createdBy,
+      acceptedArchitectRevisions: item.acceptedArchitectRevisions,
+      acceptedROHardCopyRevisions: item.acceptedROHardCopyRevisions,
+      for: "architect"
+    }));
+
+
+  const siteHeadHardCopyRevisions = data
+    .filter(item => (
+
+      // ✅ IGNORE if acceptedRORevisions is 0
+      item.acceptedRORevisions &&
+      item.acceptedRORevisions.length > 0 &&
+
+      (
+        (item.acceptedSiteHeadHardCopyRevisions &&
+          item.acceptedSiteHeadHardCopyRevisions.length <= 0)
+        ||
+        (
+          item.acceptedSiteHeadHardCopyRevisions &&
+          item.acceptedSiteHeadHardCopyRevisions.length <
+          item.acceptedRORevisions.length
+        )
+      )
+
+    ))
+    .map(item => ({
+      drawingId: item._id,
+      siteId: item.siteId,
+      folderId: item.folderId,
+      drawingNo: item.drawingNo,
+      designDrawingConsultant: item.designDrawingConsultant,
+      drawingTitle: item.drawingTitle,
+      regState: item.regState,
+      archRevision: item.archRevision,
+      category: item.category,
+      acceptedROSubmissionDate: item.acceptedROSubmissionDate,
+      acceptedSiteSubmissionDate: item.acceptedSiteSubmissionDate,
+      creationDate: item.creationDate,
+      createdBy: item.createdBy,
+      acceptedRORevisions: item.acceptedRORevisions,
+      acceptedSiteHeadHardCopyRevisions:
+        item.acceptedSiteHeadHardCopyRevisions,
+      for: "siteHead"
+    }));
+
+
+  responseData = {
+    rOHardCopyRevisions,
+    siteHeadHardCopyRevisions,
+  };
+
+}
+
       else if (filterType === 'collected') {
         responseData = data
           .filter(item => (item.acceptedSiteHeadHardCopyRevisions && item.acceptedSiteHeadHardCopyRevisions.length <= 0) )//||

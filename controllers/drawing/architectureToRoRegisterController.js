@@ -1813,6 +1813,27 @@ await Promise.all([
 
 ]);
     }
+if (revisionType === "acceptedSiteHeadRevisions") {
+
+  const baseQuery = {
+    drawingId: existingRegister._id,
+  };
+
+  await RoToSiteLevelRequest.updateMany(
+{
+  ...baseQuery,
+  revision: req.body.revision,
+  status: "Rejected"
+},
+{
+  $set: {
+    status: "Closed"
+  }
+}
+);
+
+
+}
 
     // =====================================================
     // ✅ UPDATE REVISION STATUS BASED ON REFERENCES

@@ -1039,6 +1039,8 @@ await ArchitectureToRoRegister.findOneAndUpdate(
 
       // SiteHead revisions
       "acceptedSiteHeadRevisions.$[site].siteLevelRfiStatus": requestStatus,
+      "acceptedSiteHeadRevisions.$[site].rfiStatus": "Raised",
+      
     },
   },
   {
@@ -1169,6 +1171,8 @@ exports.closeRequest = catchAsync(async (req, res, next) => {
   
           // SiteHead
           "acceptedSiteHeadRevisions.$[site].siteLevelRfiStatus": "Closed",
+          "acceptedSiteHeadRevisions.$[site].rfiStatus": "Not Raised",
+  
   
           // optional state update
           regState: "Drawing",

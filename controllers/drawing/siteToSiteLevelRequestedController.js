@@ -77,9 +77,9 @@ exports.createRequest = catchAsync(async (req, res, next) => {
     { drawingNo, siteId: req.body.siteId },
     {
       $set: {
-        "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Requested",
-        "acceptedRORevisions.$[ro].siteHeadRfiStatus": "Requested",
-        "acceptedSiteHeadRevisions.$[site].siteHeadRfiStatus": "Requested",
+        "acceptedArchitectRevisions.$[arch].siteLevelRfiStatus": "Requested",
+        "acceptedRORevisions.$[ro].siteLevelRfiStatus": "Requested",
+        "acceptedSiteHeadRevisions.$[site].siteLevelRfiStatus": "Requested",
       },
     },
     {

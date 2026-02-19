@@ -1971,7 +1971,7 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
         },
       },
     };
-
+console.log("status", status);
     // ✅ update status ONLY if status=Responded
     if (status === "Responded") {
       updateData.$set = { status: "Responded" };

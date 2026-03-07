@@ -17,7 +17,7 @@ const AutodeskToken = mongoose.model('AutodeskToken', autodeskSchema);
 
 function generateRandomString() {
   const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 8);
-  return `autodesk_${timestamp}`;
+  return `mrchams_${timestamp}`;
 }
 
 async function getAccessToken() {

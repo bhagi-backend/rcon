@@ -17,7 +17,8 @@ exports.getUsersDepartmentsforRo = catchAsync(async (req, res, next) => {
               'enableModules.drawingDetails.ro': true, 
             },
           }
-        }).select('firstName department role empId permittedSites.siteId permittedSites.enableModules.drawingDetails.roDetails.rfiRaisedAccess permittedSites.enableModules.drawingDetails.roDetails.forwardAccess');
+        }).select('firstName department role empId permittedSites.siteId permittedSites.enableModules.drawingDetails.roDetails.rfiRaisedAccess permittedSites.enableModules.drawingDetails.roDetails.forwardAccess permittedSites.enableModules.drawingDetails.roDetails.drawingEditAccess permittedSites.enableModules.drawingDetails.roDetails.hardcopyUploadAccess');
+
     
         res.status(200).json({
           status: 'success',

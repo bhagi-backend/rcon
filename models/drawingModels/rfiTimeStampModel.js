@@ -33,6 +33,9 @@ const RfiTimeStampSchema = new mongoose.Schema({
   noOfSiteHeadHardCopyRevisions: {
     type: Number,
   },
+  howManyDaysToAcceptOrRejectRfi: {
+    type: String,
+  },
       drawingAddFolder: { type: Boolean,default: true  },
       customizedView: { type: Boolean,default: true  },
       rfiRaised: { type: Boolean,default: true  },

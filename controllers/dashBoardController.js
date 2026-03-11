@@ -716,10 +716,20 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 
     }
 
+    // res.status(200).json({
+    //   status: "success",
+    //   data: { toDay, delayed, inProgress, redo, completed }
+    // });
     res.status(200).json({
-      status: "success",
-      data: { toDay, delayed, inProgress, redo, completed }
-    });
+  status: "success",
+  data: {
+    toDay: toDay.length ? toDay : 0,
+    delayed: delayed.length ? delayed : 0,
+    inProgress: inProgress.length ? inProgress : 0,
+    redo: redo.length ? redo : 0,
+    completed: completed.length ? completed : 0
+  }
+});
 
   } catch (error) {
 

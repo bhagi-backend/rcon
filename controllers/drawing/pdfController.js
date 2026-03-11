@@ -130,20 +130,49 @@ exports.getArchitectReports = async (req, res) => {
         data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
         break;
 
-      case 'pending':
-        const pendingQuery = {
-          designDrawingConsultant: designDrawingConsultantId,
-          siteId: siteId,
-          // drawingStatus: "Approval",
-          $or: [
-            { acceptedArchitectRevisions: { $size: 0 } },
-           // { acceptedROHardCopyRevisions: { $size: 0 } },
-            { regState :'Pending'}
-          ],
-        };
+   case 'pending':
 
-        data = await ArchitectureToRoRegister.find(pendingQuery).populate(dataPopulateFields).lean();
-        break;
+  const pendingQuery = {
+    designDrawingConsultant: designDrawingConsultantId,
+    siteId: siteId,
+  };
+
+  if (folderId) {
+    pendingQuery.folderId = folderId;
+  }
+
+  const pendingData = await ArchitectureToRoRegister.find(pendingQuery)
+    .populate(dataPopulateFields)
+    .lean();
+
+  data = pendingData.filter(item => {
+
+    const architectCount = item.acceptedArchitectRevisions
+      ? item.acceptedArchitectRevisions.length
+      : 0;
+
+    const roCount = item.acceptedROHardCopyRevisions
+      ? item.acceptedROHardCopyRevisions.length
+      : 0;
+
+    // upload condition
+    if (
+      (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length <= 0) ||
+      item.regState === 'Pending'
+    ) {
+      return true;
+    }
+
+    // received condition
+    if (architectCount !== 0 && architectCount !== roCount) {
+      return true;
+    }
+
+    return false;
+
+  });
+
+  break;
 
       case 'register':
         data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).lean();

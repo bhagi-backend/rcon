@@ -16,10 +16,14 @@ const autodeskSchema = new mongoose.Schema({
 const AutodeskToken = mongoose.model("AutodeskToken", autodeskSchema);
 
 function generateRandomString() {
+<<<<<<< Updated upstream
   const timestamp = new Date()
     .toISOString()
     .replace(/[-:.TZ]/g, "")
     .slice(0, 8);
+=======
+  const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 8);
+>>>>>>> Stashed changes
   return `mrchams_${timestamp}`;
 }
 

@@ -716,6 +716,7 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 
     }
 
+<<<<<<< Updated upstream
     // res.status(200).json({
     //   status: "success",
     //   data: { toDay, delayed, inProgress, redo, completed }
@@ -730,6 +731,12 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
     completed: completed.length ? completed : 0
   }
 });
+=======
+    res.status(200).json({
+      status: "success",
+      data: { toDay, delayed, inProgress, redo, completed }
+    });
+>>>>>>> Stashed changes
 
   } catch (error) {
 

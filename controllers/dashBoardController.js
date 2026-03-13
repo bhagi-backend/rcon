@@ -1,4 +1,3 @@
-
 // const ArchitectureToRoRequest = require("../models/drawingModels/architectureToRoRequestedModel");
 
 // const ArchitectureToRoRegister = require("../models/drawingModels/architectureToRoRegisterModel");
@@ -16,15 +15,14 @@
 // function calculateRemainingDays(submissionDate) {
 //   const today = new Date();
 //   const timeDiff = submissionDate.getTime() - today.getTime();
-//   const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24)); 
-//   return daysRemaining > 0 ? daysRemaining : 0; 
+//   const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+//   return daysRemaining > 0 ? daysRemaining : 0;
 // }
-
 
 // exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 //     const userId = req.user._id;
-//     const siteId = req.query.siteId; 
-//     const userDepartment = req.user.department; 
+//     const siteId = req.query.siteId;
+//     const userDepartment = req.user.department;
 
 //     console.log("User ID:", userId);
 //     console.log("User Department:", userDepartment);
@@ -34,12 +32,12 @@
 //         const user = await User.findById(userId).populate('permittedSites.siteId');
 //         const permittedSite = user.permittedSites.find(site => site.siteId._id.toString() === siteId);
 //         const roEnabled = permittedSite && permittedSite.enableModules.drawingDetails.ro;
-//         const siteHeadEnabled = permittedSite && permittedSite.enableModules.drawingDetails.siteHead; 
-//         const siteToSiteEnabled = permittedSite && permittedSite.enableModules.drawingDetails.siteToSite; 
+//         const siteHeadEnabled = permittedSite && permittedSite.enableModules.drawingDetails.siteHead;
+//         const siteToSiteEnabled = permittedSite && permittedSite.enableModules.drawingDetails.siteToSite;
 //         const department = user.department;
 //         const userName = user.firstName;
 //         const empCode = user.empId;
-        
+
 //         let registers = [];
 //         let designConsultants = [];
 //         let toDay = [];
@@ -84,7 +82,7 @@
 //                 }
 //             }
 
-//         } 
+//         }
 //         // Logic for Other Departments (MEP, Drawing, Architectural, Structural)
 //         else if (["MEP", "Drawing", "Architectural", "Structural","Admin"].includes(userDepartment) && roEnabled) {
 //             // Fetch design consultants from assignDesignConsultantsToDepartment
@@ -135,7 +133,7 @@
 //             //         completed.push({ title: `${drawingTitle} - Submission Completed`,acceptedSiteSubmissionDate: acceptedSiteSubmissionDate });
 //             //     }
 //             //     // Check based on acceptedROSubmissionDate and acceptedRORevisions
-                
+
 //             // }
 //             for (const register of registers) {
 
@@ -160,7 +158,7 @@
 //     }
 // }
 
-//         } 
+//         }
 //         else if (userDepartment === "SiteManagement" && siteToSiteEnabled) {
 //             // Fetch design consultants from assignDesignConsultantsToDepartment
 //             const consultants = await assignDesignConsultantsToDepartment.find({
@@ -176,7 +174,6 @@
 //             registers = await ArchitectureToRoRegister.find({
 //                 designDrawingConsultant: { $in: designConsultants }
 //             });
-
 
 //             for (const register of registers) {
 //                 const drawingTitle =`${department}-${userName}-${empCode}-${toTitleCase(register.drawingNo)} - ${register.drawingTitle}`;
@@ -195,10 +192,10 @@
 //                     completed.push({ title: `${drawingTitle} - Submission Completed`,acceptedSiteSubmissionDate: acceptedSiteSubmissionDate });
 //                 }
 //                 // Check based on acceptedROSubmissionDate and acceptedRORevisions
-                
+
 //             }
-//         } 
-        
+//         }
+
 //         else if (["MEP", "Drawing", "Architectural", "Structural"].includes(userDepartment) && siteHeadEnabled) {
 //             // Fetch design consultants from assignDesignConsultantsToDepartment
 //             const consultants = await assignDesignConsultantsToDepartment.find({
@@ -214,7 +211,6 @@
 //             registers = await ArchitectureToRoRegister.find({
 //                 designDrawingConsultant: { $in: designConsultants }
 //             });
-
 
 //             for (const register of registers) {
 //                 const drawingTitle =`${department}-${userName}-${empCode}-${toTitleCase(register.drawingNo)} - ${register.drawingTitle}`;
@@ -233,9 +229,9 @@
 //                     completed.push({ title: `${drawingTitle} - Submission Completed`,acceptedSiteSubmissionDate: acceptedSiteSubmissionDate });
 //                 }
 //                 // Check based on acceptedROSubmissionDate and acceptedRORevisions
-                
+
 //             }
-//         } 
+//         }
 //         else if (userDepartment === "PNM") {
 //             const tasks = await Task.find({ assignTo: userId })
 //                 .populate('assignTo', 'firstName')
@@ -259,15 +255,15 @@
 //                         }
 //                     }
 //                 });
-        
+
 //             tasks.forEach(task => {
 //                 task.assignnewPnmTasksForUser.forEach(pnmTask => {
 //                     const taskStatus = pnmTask.newPnmTaskStatus;
 //                     const activity = pnmTask.assignNewPnmTasks?.assetCode?.formNo?.activity;
-        
+
 //                     if (activity) {
 //                         const title = `${department}-${userName}-${empCode}-${activity.activity} is ${taskStatus.toLowerCase()}`;
-                        
+
 //                         // Push the title into the corresponding category based on status
 //                         if (taskStatus === "Delayed") {
 //                             delayed.push({ title: title });
@@ -281,11 +277,11 @@
 //                     }
 //                 });
 //             });
-        
+
 //             // Example: Process titles if needed
 //             console.log("Titles for PNM:", { toDay, delayed, inProgress, completed });
 //         }
-        
+
 //         else {
 //             return res.status(403).json({
 //                 status: 'fail',
@@ -299,7 +295,7 @@
 //             status: 'success',
 //             data: { toDay, delayed, inProgress, redo, completed },
 //         });
-        
+
 //     } catch (error) {
 //         console.error("Error fetching design consultant data:", error);
 //         res.status(400).json({ status: 'fail', message: error.message });
@@ -314,11 +310,10 @@ const assignDesignConsultantsToDepartment = require("../models/drawingModels/ass
 const RoToSiteLevelRequest = require("../models/drawingModels/roToSiteLevelRequestedModel");
 
 function toTitleCase(str) {
-  return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+  return str.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function calculateRemainingDays(submissionDate) {
-
   if (!submissionDate) return null; // prevent crash
 
   const today = new Date();
@@ -329,7 +324,6 @@ function calculateRemainingDays(submissionDate) {
   return daysRemaining > 0 ? daysRemaining : 0;
 }
 exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
-
   const userId = req.user._id;
   const siteId = req.query.siteId;
   const userDepartment = req.user.department;
@@ -339,16 +333,18 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
   console.log("Site ID:", siteId);
 
   try {
-
     const user = await User.findById(userId).populate("permittedSites.siteId");
 
     const permittedSite = user.permittedSites.find(
-      site => site.siteId._id.toString() === siteId
+      (site) => site.siteId._id.toString() === siteId,
     );
 
-    const roEnabled = permittedSite && permittedSite.enableModules.drawingDetails.ro;
-    const siteHeadEnabled = permittedSite && permittedSite.enableModules.drawingDetails.siteHead;
-    const siteToSiteEnabled = permittedSite && permittedSite.enableModules.drawingDetails.siteToSite;
+    const roEnabled =
+      permittedSite && permittedSite.enableModules.drawingDetails.ro;
+    const siteHeadEnabled =
+      permittedSite && permittedSite.enableModules.drawingDetails.siteHead;
+    const siteToSiteEnabled =
+      permittedSite && permittedSite.enableModules.drawingDetails.siteToSite;
 
     const customizedView =
       permittedSite && permittedSite.enableModules.customizedView;
@@ -372,18 +368,18 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
     --------------------------------------------------- */
 
     if (userDepartment === "Design Consultant") {
-
       registers = await ArchitectureToRoRegister.find({
-        designDrawingConsultant: userId
+        designDrawingConsultant: userId,
       });
 
       for (const register of registers) {
+        const drawingTitle = `${department}-${userName}-${empCode}-${toTitleCase(
+          register.drawingNo,
+        )} - ${register.drawingTitle}`;
 
-        const drawingTitle =
-          `${department}-${userName}-${empCode}-${toTitleCase(register.drawingNo)} - ${register.drawingTitle}`;
-
-        const daysRemaining =
-          calculateRemainingDays(register.acceptedROSubmissionDate);
+        const daysRemaining = calculateRemainingDays(
+          register.acceptedROSubmissionDate,
+        );
 
         const acceptedROSubmissionDate = register.acceptedROSubmissionDate;
 
@@ -391,7 +387,7 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
           toDay.push({
             title: `${drawingTitle} - Submission Due Today`,
             daysRemaining,
-            acceptedROSubmissionDate
+            acceptedROSubmissionDate,
           });
         }
 
@@ -401,7 +397,7 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         ) {
           delayed.push({
             title: `${drawingTitle} - Submission Delayed. You have ${daysRemaining} days to do`,
-            acceptedROSubmissionDate
+            acceptedROSubmissionDate,
           });
         }
 
@@ -411,255 +407,219 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         ) {
           inProgress.push({
             title: `${drawingTitle} - Submission Due in ${daysRemaining} days`,
-            acceptedROSubmissionDate
+            acceptedROSubmissionDate,
           });
         }
 
         const redoRequests = await ArchitectureToRoRequest.find({
           drawingId: register._id,
-          status: { $in: ["Requested", "ReOpened"] }
+          status: { $in: ["Requested", "ReOpened"] },
         });
 
         if (redoRequests.length > 0) {
-          redoRequests.forEach(request => {
+          redoRequests.forEach((request) => {
             redo.push({
               title: `RFI has been raised on ${drawingTitle}`,
               daysRemaining,
               status: request.status,
-              acceptedROSubmissionDate
+              acceptedROSubmissionDate,
             });
           });
         }
 
         if (
           register.acceptedArchitectRevisions.length > 0 &&
-          await ArchitectureToRoRequest.exists({
+          (await ArchitectureToRoRequest.exists({
             drawingId: register._id,
-            status: "Closed"
-          })
+            status: "Closed",
+          }))
         ) {
           completed.push({
             title: `${drawingTitle} - Submission Completed`,
-            acceptedROSubmissionDate
+            acceptedROSubmissionDate,
           });
         }
       }
-
-    }
+    } else if (
 
     /* ---------------------------------------------------
        RO MODULE
     --------------------------------------------------- */
-
-    else if (
-      ["MEP", "Drawing", "Architectural", "Structural", "Admin"].includes(userDepartment) &&
+      ["MEP", "Drawing", "Architectural", "Structural", "Admin"].includes(
+        userDepartment,
+      ) &&
       roEnabled
     ) {
-
       if (customizedView) {
-
         const consultants = await assignDesignConsultantsToDepartment.find({
           department: userDepartment,
           module: "ro",
-          siteId
+          siteId,
         });
 
-        designConsultants = consultants.flatMap(c => c.designConsultants);
+        designConsultants = consultants.flatMap((c) => c.designConsultants);
 
         registers = await ArchitectureToRoRegister.find({
-          designDrawingConsultant: { $in: designConsultants }
+          designDrawingConsultant: { $in: designConsultants },
         });
-
       } else {
-
         registers = await ArchitectureToRoRegister.find({ siteId });
-
       }
 
       for (const register of registers) {
-
-        const drawingTitle =
-          `${department}-${userName}-${empCode}-${toTitleCase(register.drawingNo)} - ${register.drawingTitle}`;
+        const drawingTitle = `${department}-${userName}-${empCode}-${toTitleCase(
+          register.drawingNo,
+        )} - ${register.drawingTitle}`;
 
         const acceptedSiteSubmissionDate =
           register.acceptedSiteSubmissionDate || null;
 
-        const daysRemaining =
-          acceptedSiteSubmissionDate
-            ? calculateRemainingDays(acceptedSiteSubmissionDate)
-            : null;
+        const daysRemaining = acceptedSiteSubmissionDate
+          ? calculateRemainingDays(acceptedSiteSubmissionDate)
+          : null;
 
         if (register.acceptedRORevisions.length === 0) {
-
           toDay.push({
             title: `${drawingTitle} - Submission Due Today`,
             daysRemaining,
-            acceptedSiteSubmissionDate
+            acceptedSiteSubmissionDate,
           });
-
         }
       }
-    }
+    } else if (userDepartment === "SiteManagement" && siteToSiteEnabled) {
 
     /* ---------------------------------------------------
        SITE MANAGEMENT
     --------------------------------------------------- */
-
-    else if (userDepartment === "SiteManagement" && siteToSiteEnabled) {
-
       if (customizedView) {
-
         const consultants = await assignDesignConsultantsToDepartment.find({
           department: userDepartment,
           module: "siteLevel",
-          siteId
+          siteId,
         });
 
-        designConsultants = consultants.flatMap(c => c.designConsultants);
+        designConsultants = consultants.flatMap((c) => c.designConsultants);
 
         registers = await ArchitectureToRoRegister.find({
-          designDrawingConsultant: { $in: designConsultants }
+          designDrawingConsultant: { $in: designConsultants },
         });
-
       } else {
-
         registers = await ArchitectureToRoRegister.find({ siteId });
-
       }
 
       for (const register of registers) {
+        const drawingTitle = `${department}-${userName}-${empCode}-${toTitleCase(
+          register.drawingNo,
+        )} - ${register.drawingTitle}`;
 
-        const drawingTitle =
-          `${department}-${userName}-${empCode}-${toTitleCase(register.drawingNo)} - ${register.drawingTitle}`;
-
-        const daysRemaining =
-          calculateRemainingDays(register.acceptedSiteSubmissionDate);
+        const daysRemaining = calculateRemainingDays(
+          register.acceptedSiteSubmissionDate,
+        );
 
         const acceptedSiteSubmissionDate = register.acceptedSiteSubmissionDate;
 
         if (register.acceptedSiteRevisions.length === 0) {
-
           toDay.push({
             title: `${drawingTitle} - Submission Due Today`,
             daysRemaining,
-            acceptedSiteSubmissionDate
+            acceptedSiteSubmissionDate,
           });
-
         }
 
         if (
           register.acceptedSiteRevisions.length === 0 &&
           register.acceptedSiteSubmissionDate > new Date()
         ) {
-
           inProgress.push({
             title: `${drawingTitle} - Submission Due in ${daysRemaining} days`,
-            acceptedSiteSubmissionDate
+            acceptedSiteSubmissionDate,
           });
-
         }
 
         if (register.acceptedSiteRevisions.length > 0) {
-
           completed.push({
             title: `${drawingTitle} - Submission Completed`,
-            acceptedSiteSubmissionDate
+            acceptedSiteSubmissionDate,
           });
-
         }
       }
-    }
+    } else if (
 
     /* ---------------------------------------------------
        SITE HEAD
     --------------------------------------------------- */
-
-    else if (
-      ["MEP", "Drawing", "Architectural", "Structural"].includes(userDepartment) &&
+      ["MEP", "Drawing", "Architectural", "Structural"].includes(
+        userDepartment,
+      ) &&
       siteHeadEnabled
     ) {
-
       if (customizedView) {
-
         const consultants = await assignDesignConsultantsToDepartment.find({
           department: userDepartment,
           module: "siteHead",
-          siteId
+          siteId,
         });
 
-        designConsultants = consultants.flatMap(c => c.designConsultants);
+        designConsultants = consultants.flatMap((c) => c.designConsultants);
 
         registers = await ArchitectureToRoRegister.find({
-          designDrawingConsultant: { $in: designConsultants }
+          designDrawingConsultant: { $in: designConsultants },
         });
-
       } else {
-
         registers = await ArchitectureToRoRegister.find({ siteId });
-
       }
 
       for (const register of registers) {
+        const drawingTitle = `${department}-${userName}-${empCode}-${toTitleCase(
+          register.drawingNo,
+        )} - ${register.drawingTitle}`;
 
-        const drawingTitle =
-          `${department}-${userName}-${empCode}-${toTitleCase(register.drawingNo)} - ${register.drawingTitle}`;
-
-        const daysRemaining =
-          calculateRemainingDays(register.acceptedSiteSubmissionDate);
+        const daysRemaining = calculateRemainingDays(
+          register.acceptedSiteSubmissionDate,
+        );
 
         const acceptedSiteSubmissionDate = register.acceptedSiteSubmissionDate;
 
         if (register.acceptedSiteHeadRevisions.length === 0) {
-
           toDay.push({
             title: `${drawingTitle} - Submission Due Today`,
             daysRemaining,
-            acceptedSiteSubmissionDate
+            acceptedSiteSubmissionDate,
           });
-
         }
 
         if (
           register.acceptedSiteHeadRevisions.length === 0 &&
           register.acceptedSiteSubmissionDate < new Date()
         ) {
-
           delayed.push({
             title: `${drawingTitle} - Submission Delayed. You have ${daysRemaining} days to do`,
-            acceptedSiteSubmissionDate
+            acceptedSiteSubmissionDate,
           });
-
         }
 
         if (
           register.acceptedSiteHeadRevisions.length === 0 &&
           register.acceptedSiteSubmissionDate > new Date()
         ) {
-
           inProgress.push({
             title: `${drawingTitle} - Submission Due in ${daysRemaining} days`,
-            acceptedSiteSubmissionDate
+            acceptedSiteSubmissionDate,
           });
-
         }
 
         if (register.acceptedSiteHeadRevisions.length > 0) {
-
           completed.push({
             title: `${drawingTitle} - Submission Completed`,
-            acceptedSiteSubmissionDate
+            acceptedSiteSubmissionDate,
           });
-
         }
       }
-    }
+    } else if (userDepartment === "PNM") {
 
     /* ---------------------------------------------------
        PNM
     --------------------------------------------------- */
-
-    else if (userDepartment === "PNM") {
-
       const tasks = await Task.find({ assignTo: userId })
         .populate("assignTo", "firstName")
         .populate("siteId", "siteName")
@@ -676,77 +636,58 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
                 select: "activity",
                 populate: {
                   path: "activity",
-                  select: "activity _id"
-                }
-              }
-            }
-          }
+                  select: "activity _id",
+                },
+              },
+            },
+          },
         });
 
-      tasks.forEach(task => {
-
-        task.assignnewPnmTasksForUser.forEach(pnmTask => {
-
+      tasks.forEach((task) => {
+        task.assignnewPnmTasksForUser.forEach((pnmTask) => {
           const taskStatus = pnmTask.newPnmTaskStatus;
-          const activity = pnmTask.assignNewPnmTasks?.assetCode?.formNo?.activity;
+          const activity =
+            pnmTask.assignNewPnmTasks?.assetCode?.formNo?.activity;
 
           if (activity) {
-
-            const title =
-              `${department}-${userName}-${empCode}-${activity.activity} is ${taskStatus.toLowerCase()}`;
+            const title = `${department}-${userName}-${empCode}-${
+              activity.activity
+            } is ${taskStatus.toLowerCase()}`;
 
             if (taskStatus === "Delayed") delayed.push({ title });
             else if (taskStatus === "In Progress") inProgress.push({ title });
             else if (taskStatus === "Completed") completed.push({ title });
             else if (taskStatus === "ToDo") toDay.push({ title });
-
           }
-
         });
-
       });
-    }
-
-    else {
-
+    } else {
       return res.status(403).json({
         status: "fail",
-        message: "Access denied or no valid modules enabled."
+        message: "Access denied or no valid modules enabled.",
       });
-
     }
 
-<<<<<<< Updated upstream
     // res.status(200).json({
     //   status: "success",
     //   data: { toDay, delayed, inProgress, redo, completed }
     // });
     res.status(200).json({
-  status: "success",
-  data: {
-    toDay: toDay.length ? toDay : 0,
-    delayed: delayed.length ? delayed : 0,
-    inProgress: inProgress.length ? inProgress : 0,
-    redo: redo.length ? redo : 0,
-    completed: completed.length ? completed : 0
-  }
-});
-=======
-    res.status(200).json({
       status: "success",
-      data: { toDay, delayed, inProgress, redo, completed }
+      data: {
+        toDay: toDay.length ? toDay : 0,
+        delayed: delayed.length ? delayed : 0,
+        inProgress: inProgress.length ? inProgress : 0,
+        redo: redo.length ? redo : 0,
+        completed: completed.length ? completed : 0,
+      },
     });
->>>>>>> Stashed changes
-
   } catch (error) {
-
     console.error("Error fetching design consultant data:", error);
 
     res.status(400).json({
       status: "fail",
-      message: error.message
+      message: error.message,
     });
-
   }
-
 });

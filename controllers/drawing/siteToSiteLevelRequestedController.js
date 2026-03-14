@@ -1896,6 +1896,59 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
   });
 });
 
+// exports.getRequestById = catchAsync(async (req, res, next) => {
+//   const { id } = req.params;
+
+//   // 1️⃣ Fetch the request by ID
+//   const request = await ArchitectureToRoRequest.findById(id)
+//     .populate({
+//       path: "drawingId",
+//       select: "drawingTitle designDrawingConsultant category",
+//       populate: [
+//         { path: "designDrawingConsultant", select: "role" },
+//         { path: "category", select: "category" },
+//         { path: "folderId", select: "folderName" },
+//       ],
+//     })
+//     .populate({
+//       path: "viewedBy.user",
+//       select: "firstName email role",
+//     });
+
+//   if (!request) {
+//     return res.status(404).json({
+//       status: "fail",
+//       message: "Request not found",
+//     });
+//   }
+
+//   // 2️⃣ Fetch related requests by same drawingId (excluding current request)
+//   const relatedRequests = await ArchitectureToRoRequest.find({
+//     drawingId: request.drawingId,
+//     // _id: { $ne: request._id }, // exclude the current request
+//   })
+//     .populate({
+//       path: "drawingId",
+//       select: "drawingTitle designDrawingConsultant category",
+//       populate: [
+//         { path: "designDrawingConsultant", select: "role" },
+//         { path: "category", select: "category" },
+//         { path: "folderId", select: "folderName" },
+//       ],
+//     })
+//     .populate({
+//       path: "viewedBy.user",
+//       select: "firstName email role",
+//     });
+
+//   res.status(200).json({
+//     status: "success",
+//     data: {
+//       request,
+//       relatedRequests,
+//     },
+//   });
+// });
 exports.getRequestById = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
@@ -1922,10 +1975,9 @@ exports.getRequestById = catchAsync(async (req, res, next) => {
     });
   }
 
-  // 2️⃣ Fetch related requests by same drawingId (excluding current request)
+  // 2️⃣ Fetch related requests by same drawingId
   const relatedRequests = await ArchitectureToRoRequest.find({
     drawingId: request.drawingId,
-    // _id: { $ne: request._id }, // exclude the current request
   })
     .populate({
       path: "drawingId",
@@ -1941,11 +1993,22 @@ exports.getRequestById = catchAsync(async (req, res, next) => {
       select: "firstName email role",
     });
 
+  // ✅ Add "for" field without changing existing logic
+  const updatedRequest = {
+    ...request.toObject(),
+    for: "site",
+  };
+
+  const updatedRelatedRequests = relatedRequests.map((item) => ({
+    ...item.toObject(),
+    for: "site",
+  }));
+
   res.status(200).json({
     status: "success",
     data: {
-      request,
-      relatedRequests,
+      request: updatedRequest,
+      relatedRequests: updatedRelatedRequests,
     },
   });
 });

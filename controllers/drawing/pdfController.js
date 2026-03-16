@@ -1641,7 +1641,7 @@ case 'RFI':
 
   const cleanedData = data.map(item => {
     const obj = item.toObject ? item.toObject() : item;
-    delete obj.acceptedSiteHeadRevisions;
+    // delete obj.acceptedSiteHeadRevisions;
     delete obj.acceptedSiteRevisions;
     return obj;
   });

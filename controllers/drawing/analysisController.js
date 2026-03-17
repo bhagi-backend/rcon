@@ -945,6 +945,182 @@ exports.getRoRfi = catchAsync(async (req, res, next) => {
   });
 });
 
+// exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
+//   const { siteId } = req.params;
+//   const { selectTimePeriod, month, year, folderId, consultantId } = req.query;
+
+//   // ---------------------------------------
+//   // Date filter
+//   // ---------------------------------------
+//   let startDate, endDate;
+
+//   if (selectTimePeriod) {
+//     ({ startDate, endDate } = calculateDateRange(
+//       selectTimePeriod,
+//       parseInt(month),
+//       parseInt(year),
+//     ));
+//   }
+
+//   // ---------------------------------------
+//   // Build query
+//   // ---------------------------------------
+//   let query = { siteId };
+
+//   if (selectTimePeriod) {
+//     query.creationDate = { $gte: startDate, $lt: endDate };
+//   }
+
+//   if (folderId) {
+//     query.folderId = folderId;
+//   }
+
+//   if (consultantId && consultantId !== "all") {
+//     query.designDrawingConsultant = consultantId;
+//   }
+
+//   // ---------------------------------------
+//   // Fetch data
+//   // ---------------------------------------
+//   const data = await ArchitectureToRoRegister.find(query)
+//     .populate({
+//       path: "designDrawingConsultant",
+//       select: "firstName lastName email role",
+//     })
+//     .lean()
+//     .exec();
+
+//   // ---------------------------------------
+//   // GLOBAL COUNTERS
+//   // ---------------------------------------
+//   let totalPendingDrawings = 0;
+//   let totalApprovedDrawings = 0;
+//   let totalNotApprovedDrawings = 0;
+
+//   const consultantData = {};
+
+//   // ---------------------------------------
+//   // PROCESS RECORDS
+//   // ---------------------------------------
+//   data.forEach((record) => {
+//     const architectRevisions = record.acceptedArchitectRevisions || [];
+//     const roRevisions = record.acceptedRORevisions || [];
+
+//     const latestArchitectRevision =
+//       architectRevisions.length > 0
+//         ? architectRevisions[architectRevisions.length - 1]
+//         : null;
+
+//     // Consultant info
+//     const consultantKey = record.designDrawingConsultant
+//       ? record.designDrawingConsultant._id.toString()
+//       : "no-consultant";
+
+//     const consultantName = record.designDrawingConsultant
+//       ? `${record.designDrawingConsultant.firstName || ""} ${record
+//           .designDrawingConsultant.lastName || ""}`.trim() || "Unknown"
+//       : "No Consultant";
+
+//     const consultantRole = record.designDrawingConsultant
+//       ? record.designDrawingConsultant.role || null
+//       : null;
+
+//     // Initialize consultant structure
+//     if (!consultantData[consultantKey]) {
+//       consultantData[consultantKey] = {
+//         consultantId: consultantKey === "no-consultant" ? null : consultantKey,
+
+//         consultantName,
+
+//         consultantRole,
+
+//         approved: 0,
+
+//         pending: 0,
+
+//         notApproved: 0,
+//       };
+//     }
+
+//     // ---------------------------------------
+//     // FINAL STATUS LOGIC
+//     // ---------------------------------------
+//     let counted = false;
+
+//     // Case 1: No architect revision → Pending
+//     if (!latestArchitectRevision) {
+//       totalPendingDrawings++;
+//       consultantData[consultantKey].pending++;
+
+//       counted = true;
+//     }
+
+//     // Case 2: Architect RFI Raised → Pending
+//     else if (latestArchitectRevision.rfiStatus === "Raised") {
+//       totalPendingDrawings++;
+//       consultantData[consultantKey].pending++;
+
+//       counted = true;
+//     }
+
+//     // Case 3: Architect Not Raised
+//     else if (latestArchitectRevision.rfiStatus === "Not Raised") {
+//       const matchingRoRevision = roRevisions.find(
+//         (roRev) => roRev.revision === latestArchitectRevision.revision,
+//       );
+
+//       // Not Approved → revision not exists in RO
+//       if (!matchingRoRevision) {
+//         totalNotApprovedDrawings++;
+//         consultantData[consultantKey].notApproved++;
+
+//         counted = true;
+//       }
+
+//       // Approved → both Not Raised
+//       else if (matchingRoRevision.rfiStatus === "Not Raised") {
+//         totalApprovedDrawings++;
+//         consultantData[consultantKey].approved++;
+
+//         counted = true;
+//       }
+
+//       // Not Approved → RO Raised
+//       else {
+//         totalNotApprovedDrawings++;
+//         consultantData[consultantKey].notApproved++;
+
+//         counted = true;
+//       }
+//     }
+
+//     // fallback
+//     if (!counted) {
+//       totalPendingDrawings++;
+//       consultantData[consultantKey].pending++;
+//     }
+//   });
+
+//   const consultants = Object.values(consultantData);
+
+//   // ---------------------------------------
+//   // FINAL RESPONSE
+//   // ---------------------------------------
+//   res.status(200).json({
+//     status: "success",
+
+//     data: {
+//       approved: totalApprovedDrawings,
+
+//       pending: totalPendingDrawings,
+
+//       notApproved: totalNotApprovedDrawings,
+
+//       consultants,
+//     },
+//   });
+// });
+
 exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
   const { siteId } = req.params;
   const { selectTimePeriod, month, year, folderId, consultantId } = req.query;
@@ -1056,43 +1232,73 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
     }
 
     // Case 2: Architect RFI Raised → Pending
+    // else if (latestArchitectRevision.rfiStatus === "Raised") {
+    //   totalPendingDrawings++;
+    //   consultantData[consultantKey].pending++;
+
+    //   counted = true;
+    // }
     else if (latestArchitectRevision.rfiStatus === "Raised") {
-      totalPendingDrawings++;
-      consultantData[consultantKey].pending++;
 
-      counted = true;
-    }
+  // NEW CONDITION → RO RFI Status not Forwarded
+  if (record.roRfiStatus !== "Forwarded") {
+    totalPendingDrawings++;
+    consultantData[consultantKey].pending++;
 
+    counted = true;
+  }
+
+}
+else if (latestArchitectRevision.rfiStatus === "Raised") {
+
+  if (record.roRfiStatus === "Forwarded") {
+    totalApprovedDrawings++;
+    consultantData[consultantKey].approved++;
+
+    counted = true;
+  } 
+  // else {
+  //   totalPendingDrawings++;
+  //   consultantData[consultantKey].pending++;
+
+  //   counted = true;
+  // }
+
+}
     // Case 3: Architect Not Raised
-    else if (latestArchitectRevision.rfiStatus === "Not Raised") {
-      const matchingRoRevision = roRevisions.find(
-        (roRev) => roRev.revision === latestArchitectRevision.revision,
-      );
+    // Case 3: Architect Not Raised
+else if (latestArchitectRevision.rfiStatus === "Not Raised") {
+  const matchingRoRevision = roRevisions.find(
+    (roRev) => roRev.revision === latestArchitectRevision.revision,
+  );
 
-      // Not Approved → revision not exists in RO
-      if (!matchingRoRevision) {
-        totalNotApprovedDrawings++;
-        consultantData[consultantKey].notApproved++;
+  // Not Approved → revision not exists in RO
+  if (!matchingRoRevision) {
+    totalNotApprovedDrawings++;
+    consultantData[consultantKey].notApproved++;
 
-        counted = true;
-      }
+    counted = true;
+  }
 
-      // Approved → both Not Raised
-      else if (matchingRoRevision.rfiStatus === "Not Raised") {
-        totalApprovedDrawings++;
-        consultantData[consultantKey].approved++;
+  // Approved → Not Raised OR Forwarded
+  else if (
+    matchingRoRevision.rfiStatus === "Not Raised" ||
+    matchingRoRevision.rfiStatus === "Forwarded"
+  ) {
+    totalApprovedDrawings++;
+    consultantData[consultantKey].approved++;
 
-        counted = true;
-      }
+    counted = true;
+  }
 
-      // Not Approved → RO Raised
-      else {
-        totalNotApprovedDrawings++;
-        consultantData[consultantKey].notApproved++;
+  // Not Approved → RO Raised
+  else {
+    totalNotApprovedDrawings++;
+    consultantData[consultantKey].notApproved++;
 
-        counted = true;
-      }
-    }
+    counted = true;
+  }
+}
 
     // fallback
     if (!counted) {
@@ -1120,7 +1326,6 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
     },
   });
 });
-
 // exports.getRfiAnalysisCountForRoAndSiteHead = catchAsync(async (req, res, next) => {
 //   const { siteId } = req.params;
 //   const { selectTimePeriod, month, year, folderId } = req.query;
@@ -2092,11 +2297,21 @@ exports.getHardCopyAnalysisCountForRo = catchAsync(async (req, res, next) => {
   const userRole = user.role;
 
   // Step 2: Build base query
-  const baseQuery = {
-    siteId,
-    designDrawingConsultant: userId,
-    drawingStatus: "Approval",
-  };
+  // const baseQuery = {
+  //   siteId,
+  //   designDrawingConsultant: userId,
+  //   drawingStatus: "Approval",
+  // };
+  const { consultantId } = req.query;
+
+const baseQuery = {
+  siteId,
+  drawingStatus: "Approval",
+};
+
+if (consultantId && consultantId !== "all") {
+  baseQuery.designDrawingConsultant = consultantId;
+} 
 
   if (selectTimePeriod) {
     baseQuery.creationDate = { $gte: startDate, $lt: endDate };

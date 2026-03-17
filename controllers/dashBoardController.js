@@ -486,7 +486,8 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
           });
         }
       }
-    } else if (userDepartment === "SiteManagement" && siteToSiteEnabled) {
+    // } else if (userDepartment === "SiteManagement" && siteToSiteEnabled) {
+     } else if (userDepartment === "SiteManagement" ) {
 
     /* ---------------------------------------------------
        SITE MANAGEMENT
@@ -508,41 +509,72 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
       }
 
       for (const register of registers) {
-        const drawingTitle = `${department}-${userName}-${empCode}-${toTitleCase(
-          register.drawingNo,
-        )} - ${register.drawingTitle}`;
+  const drawingTitle = `${department}-${userName}-${empCode}-${toTitleCase(
+    register.drawingNo,
+  )} - ${register.drawingTitle}`;
 
-        const daysRemaining = calculateRemainingDays(
-          register.acceptedSiteSubmissionDate,
-        );
+  const daysRemaining = calculateRemainingDays(
+    register.acceptedSiteSubmissionDate,
+  );
 
-        const acceptedSiteSubmissionDate = register.acceptedSiteSubmissionDate;
+  const acceptedSiteSubmissionDate = register.acceptedSiteSubmissionDate;
 
-        if (register.acceptedSiteRevisions.length === 0) {
-          toDay.push({
-            title: `${drawingTitle} - Submission Due Today`,
-            daysRemaining,
-            acceptedSiteSubmissionDate,
-          });
-        }
+  /* -------------------- TODAYS -------------------- */
+  if (register.acceptedSiteRevisions.length === 0) {
+    toDay.push({
+      title: `${drawingTitle} - Submission Due Today`,
+      daysRemaining,
+      acceptedSiteSubmissionDate,
+    });
+  }
 
-        if (
-          register.acceptedSiteRevisions.length === 0 &&
-          register.acceptedSiteSubmissionDate > new Date()
-        ) {
-          inProgress.push({
-            title: `${drawingTitle} - Submission Due in ${daysRemaining} days`,
-            acceptedSiteSubmissionDate,
-          });
-        }
+  /* -------------------- DELAYED (ADD THIS) -------------------- */
+  if (
+    register.acceptedSiteRevisions.length === 0 &&
+    register.acceptedSiteSubmissionDate < new Date()
+  ) {
+    delayed.push({
+      title: `${drawingTitle} - Submission Delayed. You have ${daysRemaining} days to do`,
+      acceptedSiteSubmissionDate,
+    });
+  }
 
-        if (register.acceptedSiteRevisions.length > 0) {
-          completed.push({
-            title: `${drawingTitle} - Submission Completed`,
-            acceptedSiteSubmissionDate,
-          });
-        }
-      }
+  /* -------------------- IN PROGRESS -------------------- */
+  if (
+    register.acceptedSiteRevisions.length === 0 &&
+    register.acceptedSiteSubmissionDate > new Date()
+  ) {
+    inProgress.push({
+      title: `${drawingTitle} - Submission Due in ${daysRemaining} days`,
+      acceptedSiteSubmissionDate,
+    });
+  }
+
+  /* -------------------- REDO (ADD THIS) -------------------- */
+  const redoRequests = await ArchitectureToRoRequest.find({
+    drawingId: register._id,
+    status: { $in: ["Requested", "ReOpened"] },
+  });
+
+  if (redoRequests.length > 0) {
+    redoRequests.forEach((request) => {
+      redo.push({
+        title: `RFI has been raised on ${drawingTitle}`,
+        daysRemaining,
+        status: request.status,
+        acceptedSiteSubmissionDate,
+      });
+    });
+  }
+
+  /* -------------------- COMPLETED -------------------- */
+  if (register.acceptedSiteRevisions.length > 0) {
+    completed.push({
+      title: `${drawingTitle} - Submission Completed`,
+      acceptedSiteSubmissionDate,
+    });
+  }
+}
     } else if (
 
     /* ---------------------------------------------------

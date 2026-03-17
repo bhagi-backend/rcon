@@ -87,14 +87,42 @@ exports.createRequest = catchAsync(async (req, res, next) => {
 
     const designDrawingConsultant =
       populatedRequest?.drawingId?.designDrawingConsultant || null;
-        const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+//         const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
+//   { drawingNo, siteId: req.body.siteId },
+//   {
+//     $set: {
+//       "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Requested",
+//       "acceptedRORevisions.$[ro].siteHeadRfiStatus": "Requested",
+//       "acceptedSiteHeadRevisions.$[site].siteHeadRfiStatus": "Requested",
+//     },
+//   },
+//   {
+//     new: true,
+//     runValidators: true,
+//     arrayFilters: [
+//       { "arch.revision": revision },
+//       { "ro.revision": revision },
+//       { "site.revision": revision },
+//     ],
+//   }
+// );
+const updateFields = {
+  "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Requested",
+  "acceptedRORevisions.$[ro].siteHeadRfiStatus": "Requested",
+  "acceptedSiteHeadRevisions.$[site].siteHeadRfiStatus": "Requested",
+};
+
+// 👉 ADD THIS CONDITION (no logic change, just extension)
+if (req.body.rfiType === "Forwarded") {
+  updateFields["acceptedArchitectRevisions.$[arch].siteLevelRfiStatus"] = "Forwarded";
+  updateFields["acceptedRORevisions.$[ro].siteLevelRfiStatus"] = "Forwarded";
+  updateFields["acceptedSiteHeadRevisions.$[site].siteLevelRfiStatus"] = "Forwarded";
+}
+
+const updatedRegister = await ArchitectureToRoRegister.findOneAndUpdate(
   { drawingNo, siteId: req.body.siteId },
   {
-    $set: {
-      "acceptedArchitectRevisions.$[arch].siteHeadRfiStatus": "Requested",
-      "acceptedRORevisions.$[ro].siteHeadRfiStatus": "Requested",
-      "acceptedSiteHeadRevisions.$[site].siteHeadRfiStatus": "Requested",
-    },
+    $set: updateFields,
   },
   {
     new: true,

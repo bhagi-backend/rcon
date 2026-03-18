@@ -1001,22 +1001,62 @@ exports.getAllRoReports = async (req, res) => {
 
         break;
 
+      // case 'pending':
+
+      //   query.$or = [
+      //     { acceptedArchitectRevisions: { $size: 0 } },
+      //     { acceptedRORevisions: { $size: 0 } },
+      //     { acceptedSiteHeadHardCopyRevisions: { $size: 0 } },
+      //     { acceptedROHardCopyRevisions: { $size: 0 } },
+      //     { regState: 'Pending' }
+      //   ];
+
+      //   data = await ArchitectureToRoRegister
+      //     .find(query)
+      //     .populate(dataPopulateFields)
+      //     .lean();
+
+      //   break;
       case 'pending':
 
-        query.$or = [
-          { acceptedArchitectRevisions: { $size: 0 } },
-          { acceptedRORevisions: { $size: 0 } },
-          { acceptedSiteHeadHardCopyRevisions: { $size: 0 } },
-          { acceptedROHardCopyRevisions: { $size: 0 } },
-          { regState: 'Pending' }
-        ];
+  query.$or = [
+    { acceptedArchitectRevisions: { $size: 0 } },
+    { acceptedRORevisions: { $size: 0 } },
+    { acceptedSiteHeadHardCopyRevisions: { $size: 0 } },
+    { acceptedROHardCopyRevisions: { $size: 0 } },
+    { regState: 'Pending' }
+  ];
 
-        data = await ArchitectureToRoRegister
-          .find(query)
-          .populate(dataPopulateFields)
-          .lean();
+  data = await ArchitectureToRoRegister
+    .find(query)
+    .populate(dataPopulateFields)
+    .lean();
 
-        break;
+  // ✅ KEEP ONLY PENDING REVISIONS
+  data = data.map(item => {
+    const cleaned = { ...item };
+
+    // Remove completed revisions, keep only pending ones
+    if (item.acceptedArchitectRevisions?.length > 0) {
+      delete cleaned.acceptedArchitectRevisions;
+    }
+
+    if (item.acceptedRORevisions?.length > 0) {
+      delete cleaned.acceptedRORevisions;
+    }
+
+    if (item.acceptedSiteHeadHardCopyRevisions?.length > 0) {
+      delete cleaned.acceptedSiteHeadHardCopyRevisions;
+    }
+
+    if (item.acceptedROHardCopyRevisions?.length > 0) {
+      delete cleaned.acceptedROHardCopyRevisions;
+    }
+
+    return cleaned;
+  });
+
+  break;
 
       case 'register':
 

@@ -2111,7 +2111,7 @@ console.log("userDepartment", userDepartment);
 exports.getHardCopyAnalysisCountForConsultant = catchAsync(
   async (req, res, next) => {
     const { siteId } = req.params;
-    const { selectTimePeriod, month, year, folderId } = req.query;
+    const { selectTimePeriod, month, year, folderId, designConsultant } = req.query;
     const userId = req.user.id;
 
     // Step 1: Calculate date range if provided
@@ -2124,19 +2124,9 @@ exports.getHardCopyAnalysisCountForConsultant = catchAsync(
       ));
     }
 
-    // Step 2: Fetch user role
-    const user = await User.findById(userId)
-      .select("role")
-      .exec();
-    if (!user) {
-      return next(new Error("User not found."));
-    }
-    const userRole = user.role;
-
-    // Step 3: Build base query
+    // Step 2: Build base query
     const baseQuery = {
       siteId,
-      designDrawingConsultant: userId,
       drawingStatus: "Approval",
     };
 
@@ -2148,11 +2138,15 @@ exports.getHardCopyAnalysisCountForConsultant = catchAsync(
       baseQuery.folderId = folderId;
     }
 
-    // Step 4: Fetch data
+    // ✅ Apply consultant filter ONLY if provided
+    if (designConsultant) {
+      baseQuery.designDrawingConsultant = designConsultant;
+    }
+
+    // Step 3: Fetch data (NO match in populate)
     const data = await ArchitectureToRoRegister.find(baseQuery)
       .populate({
         path: "designDrawingConsultant",
-        match: { role: userRole },
         select: "role",
       })
       .lean()
@@ -2161,10 +2155,9 @@ exports.getHardCopyAnalysisCountForConsultant = catchAsync(
     let pendingCount = 0;
     let drawingCount = 0;
 
-    // Step 5: Calculate counts (ONLY Pending and Drawing)
+    // Step 4: Calculate counts
     data.forEach((record) => {
       const architectCount = record.acceptedArchitectRevisions?.length || 0;
-
       const roCount = record.acceptedROHardCopyRevisions?.length || 0;
 
       // Ignore if no architect revisions
@@ -2180,7 +2173,7 @@ exports.getHardCopyAnalysisCountForConsultant = catchAsync(
       }
     });
 
-    // Step 6: Send response
+    // Step 5: Response
     res.status(200).json({
       status: "success",
       data: {

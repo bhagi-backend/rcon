@@ -2895,9 +2895,13 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
     };
 
     // ✅ update status ONLY if status=Responded
-    if (status === "Responded") {
-      updateData.$set = { status: "Responded" };
-    }
+    // if (status === "Responded") {
+    //   updateData.$set = { status: "Responded" };
+    // }
+    // ✅ update status ONLY if specific statuses come from query
+if (["Responded", "Requested", "Forwarded","ReOpened"].includes(status)) {
+  updateData.$set = { status };
+}
 
     await ArchitectureToRoRequest.findByIdAndUpdate(
       _id,

@@ -2860,10 +2860,72 @@ exports.createCombinedRequest = catchAsync(async (req, res, next) => {
     },
   });
 });
+// exports.updateViewDates = catchAsync(async (req, res, next) => {
+//   const { _id } = req.body;
+//   // const  status  = req.query.status; // 👈 coming from query
+//   const status = req.body.status || req.params.status;
+//   const userId = req.user.id;
+
+//   if (!_id) {
+//     return res.status(400).json({
+//       status: "fail",
+//       message: "_id is required",
+//     });
+//   }
+
+//   const rfi = await ArchitectureToRoRequest.findById(_id);
+//   if (!rfi) {
+//     return res.status(404).json({
+//       status: "fail",
+//       message: "No matching document found",
+//     });
+//   }
+
+//   const alreadyViewed = rfi.viewedBy?.some(
+//     (v) => v.user?.toString() === userId.toString(),
+//   );
+
+//   if (!alreadyViewed) {
+//     const updateData = {
+//       $push: {
+//         viewedBy: {
+//           user: userId,
+//           viewedAt: new Date(),
+//         },
+//       },
+//     };
+// console.log("status:", status);
+//     // ✅ update status ONLY if status=Responded
+//     if (status === "Responded") {
+//       updateData.$set = { status: "Responded" };
+//     }
+//     // ✅ update status ONLY if specific statuses come from query
+// // if (["Responded", "Requested", "Forwarded","ReOpened"].includes(status)) {
+// //   updateData.$set = { status };
+// // }
+
+//     await ArchitectureToRoRequest.findByIdAndUpdate(
+//       _id,
+//       updateData,
+//       { new: true },
+//     );
+//   }
+
+//   const updatedRfi = await ArchitectureToRoRequest.findById(_id);
+
+//   res.status(200).json({
+//     status: "success",
+//     data: {
+//       rfi: updatedRfi,
+//     },
+//   });
+// });
 exports.updateViewDates = catchAsync(async (req, res, next) => {
   const { _id } = req.body;
-  const { status } = req.query; // 👈 coming from query
+  const status = req.query.status || req.body.status || req.params.status;
   const userId = req.user.id;
+
+  console.log("👉 status:", status);
 
   if (!_id) {
     return res.status(400).json({
@@ -2873,6 +2935,7 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
   }
 
   const rfi = await ArchitectureToRoRequest.findById(_id);
+
   if (!rfi) {
     return res.status(404).json({
       status: "fail",
@@ -2881,36 +2944,35 @@ exports.updateViewDates = catchAsync(async (req, res, next) => {
   }
 
   const alreadyViewed = rfi.viewedBy?.some(
-    (v) => v.user?.toString() === userId.toString(),
+    (v) => v.user?.toString() === userId.toString()
   );
 
+  const updateData = {};
+
+  // ✅ ALWAYS allow status update (IMPORTANT FIX)
+ if (status === "Responded") {
+      updateData.$set = { status: "Responded" };
+    }
+
+  // ✅ Only push view if not viewed
   if (!alreadyViewed) {
-    const updateData = {
-      $push: {
-        viewedBy: {
-          user: userId,
-          viewedAt: new Date(),
-        },
+    updateData.$push = {
+      viewedBy: {
+        user: userId,
+        viewedAt: new Date(),
       },
     };
-
-    // ✅ update status ONLY if status=Responded
-    // if (status === "Responded") {
-    //   updateData.$set = { status: "Responded" };
-    // }
-    // ✅ update status ONLY if specific statuses come from query
-if (["Responded", "Requested", "Forwarded","ReOpened"].includes(status)) {
-  updateData.$set = { status };
-}
-
-    await ArchitectureToRoRequest.findByIdAndUpdate(
-      _id,
-      updateData,
-      { new: true },
-    );
   }
 
+  console.log("👉 updateData:", updateData);
+
+  await ArchitectureToRoRequest.findByIdAndUpdate(_id, updateData, {
+    new: true,
+  });
+
   const updatedRfi = await ArchitectureToRoRequest.findById(_id);
+
+  console.log("👉 Final Status:", updatedRfi.status);
 
   res.status(200).json({
     status: "success",
@@ -2919,7 +2981,6 @@ if (["Responded", "Requested", "Forwarded","ReOpened"].includes(status)) {
     },
   });
 });
-
 
 exports.getRequestById = catchAsync(async (req, res, next) => {
   const { id } = req.params;

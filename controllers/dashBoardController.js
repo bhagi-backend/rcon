@@ -808,7 +808,6 @@ function calculateRemainingDays(submissionDate) {
 //   }
 // });
 
-
 exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
   const siteId = req.query.siteId;
@@ -826,7 +825,7 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
     const siteHeadEnabled =
       permittedSite && permittedSite.enableModules.drawingDetails.siteHead;
 
-    // ✅ COUNTERS (NO ARRAYS)
+    // ✅ COUNTERS
     let toDay = 0;
     let delayed = 0;
     let inProgress = 0;
@@ -882,7 +881,7 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         else if (latest.rfiStatus === "Not Raised") drawingCounts.notApproved++;
         else drawingCounts.pending++;
 
-        // 👉 DATE LOGIC (same style)
+        // DATE LOGIC
         let submissionDate = record.acceptedROSubmissionDate
           ? new Date(record.acceptedROSubmissionDate)
           : null;
@@ -1018,6 +1017,71 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
       });
 
       hardCopyCounts = { approved: approvedHC, pending: pendingHC };
+    }
+
+    /* ===================================================
+       OTHER DEPARTMENTS (NEW - SAME COUNTERS)
+    =================================================== */
+    else {
+
+      const registers = await ArchitectureToRoRegister.find({
+        siteId: new mongoose.Types.ObjectId(siteId),
+      }).lean();
+
+      registers.forEach((record) => {
+
+        const arch = record.acceptedArchitectRevisions || [];
+        const ro = record.acceptedRORevisions || [];
+        const site = record.acceptedSiteRevisions || [];
+
+        const latestArch = arch.at(-1);
+        const latestRo = ro.at(-1);
+        const latestSite = site.at(-1);
+
+        if (!latestArch) {
+          inProgress++;
+        } 
+        else if (latestArch.rfiStatus === "Raised") {
+          redo++;
+        } 
+        else if (
+          latestRo &&
+          latestSite &&
+          latestRo.revision === latestSite.revision &&
+          latestRo.rfiStatus === "Not Raised" &&
+          latestSite.rfiStatus === "Not Raised"
+        ) {
+          completed++;
+        } 
+        else {
+          inProgress++;
+        }
+
+        let submissionDate = null;
+
+        if (record.acceptedSiteSubmissionDate) {
+          submissionDate = new Date(record.acceptedSiteSubmissionDate);
+        } 
+        else if (latestRo?.revisionCreationDate) {
+          submissionDate = new Date(latestRo.revisionCreationDate);
+        }
+
+        const today = new Date();
+
+        if (submissionDate) {
+          if (submissionDate.toDateString() === today.toDateString()) {
+            toDay++;
+          } 
+          else if (submissionDate < today) {
+            delayed++;
+          } 
+          else {
+            inProgress++;
+          }
+        } else {
+          inProgress++;
+        }
+      });
     }
 
     /* ===================================================

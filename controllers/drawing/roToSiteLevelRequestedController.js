@@ -1829,6 +1829,7 @@ exports.updateNatureOfReasons = catchAsync(async (req, res, next) => {
   if (req.body.natureOfRequest) newReason.natureOfRequest = req.body.natureOfRequest || null;
   if (req.body.reason) newReason.reason = req.body.reason || null;
   if (req.body.action) newReason.action = req.body.action || null;
+  if (req.body.typeOfDrawing) newReason.typeOfDrawing = req.body.typeOfDrawing || null;
 
   // createdBy
   newReason.createdBy = req.user.id;

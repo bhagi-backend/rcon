@@ -807,7 +807,6 @@ function calculateRemainingDays(submissionDate) {
 //     });
 //   }
 // });
-
 exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
   const siteId = req.query.siteId;
@@ -831,6 +830,13 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
     let inProgress = 0;
     let redo = 0;
     let completed = 0;
+
+    // ✅ RECORD ARRAYS (NEW)
+    let toDayRecords = [];
+    let delayedRecords = [];
+    let inProgressRecords = [];
+    let redoRecords = [];
+    let completedRecords = [];
 
     let rfiCounts = {};
     let drawingCounts = {};
@@ -869,17 +875,30 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         const ro = record.acceptedRORevisions || [];
         const latest = arch.length ? arch[arch.length - 1] : null;
 
-        if (!latest) drawingCounts.pending++;
-        else if (latest.rfiStatus === "Raised") drawingCounts.pending++;
+        if (!latest) {
+          drawingCounts.pending++;
+          inProgressRecords.push(record);
+        }
+        else if (latest.rfiStatus === "Raised") {
+          drawingCounts.pending++;
+          inProgressRecords.push(record);
+        }
         else if (
           latest.rfiStatus === "Not Raised" &&
           ro.some((r) => r.revision === latest.revision)
         ) {
           drawingCounts.approved++;
           completed++;
+          completedRecords.push(record);
         }
-        else if (latest.rfiStatus === "Not Raised") drawingCounts.notApproved++;
-        else drawingCounts.pending++;
+        else if (latest.rfiStatus === "Not Raised") {
+          drawingCounts.notApproved++;
+          inProgressRecords.push(record);
+        }
+        else {
+          drawingCounts.pending++;
+          inProgressRecords.push(record);
+        }
 
         // DATE LOGIC
         let submissionDate = record.acceptedROSubmissionDate
@@ -889,11 +908,21 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         const today = new Date();
 
         if (submissionDate) {
-          if (submissionDate.toDateString() === today.toDateString()) toDay++;
-          else if (submissionDate < today) delayed++;
-          else inProgress++;
+          if (submissionDate.toDateString() === today.toDateString()) {
+            toDay++;
+            toDayRecords.push(record);
+          }
+          else if (submissionDate < today) {
+            delayed++;
+            delayedRecords.push(record);
+          }
+          else {
+            inProgress++;
+            inProgressRecords.push(record);
+          }
         } else {
           inProgress++;
+          inProgressRecords.push(record);
         }
 
         if (submissionDate > today) drawingCounts.upcoming++;
@@ -955,17 +984,20 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 
         if (!arch.length && !ro.length && !site.length) {
           inProgress++;
+          inProgressRecords.push(record);
           return;
         }
 
         if (!latestArch || latestArch.rfiStatus === "Raised") {
           drawingCounts.pending++;
+          inProgressRecords.push(record);
         } 
         else if (
           latestRo &&
           (!latestSite || latestRo.revision !== latestSite.revision)
         ) {
           drawingCounts.notApproved++;
+          inProgressRecords.push(record);
         } 
         else if (
           latestRo &&
@@ -976,9 +1008,11 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         ) {
           drawingCounts.approved++;
           completed++;
+          completedRecords.push(record);
         } 
         else {
           drawingCounts.pending++;
+          inProgressRecords.push(record);
         }
 
         let submissionDate = null;
@@ -994,14 +1028,22 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         const today = new Date();
 
         if (submissionDate) {
-          if (submissionDate.toDateString() === today.toDateString()) toDay++;
-          else if (submissionDate < today) delayed++;
+          if (submissionDate.toDateString() === today.toDateString()) {
+            toDay++;
+            toDayRecords.push(record);
+          } 
+          else if (submissionDate < today) {
+            delayed++;
+            delayedRecords.push(record);
+          } 
           else {
             inProgress++;
             drawingCounts.upcoming++;
+            inProgressRecords.push(record);
           }
         } else {
           inProgress++;
+          inProgressRecords.push(record);
         }
       });
 
@@ -1020,7 +1062,7 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
     }
 
     /* ===================================================
-       OTHER DEPARTMENTS (NEW - SAME COUNTERS)
+       OTHER DEPARTMENTS
     =================================================== */
     else {
 
@@ -1040,9 +1082,11 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 
         if (!latestArch) {
           inProgress++;
+          inProgressRecords.push(record);
         } 
         else if (latestArch.rfiStatus === "Raised") {
           redo++;
+          redoRecords.push(record);
         } 
         else if (
           latestRo &&
@@ -1052,9 +1096,11 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
           latestSite.rfiStatus === "Not Raised"
         ) {
           completed++;
+          completedRecords.push(record);
         } 
         else {
           inProgress++;
+          inProgressRecords.push(record);
         }
 
         let submissionDate = null;
@@ -1071,15 +1117,19 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         if (submissionDate) {
           if (submissionDate.toDateString() === today.toDateString()) {
             toDay++;
+            toDayRecords.push(record);
           } 
           else if (submissionDate < today) {
             delayed++;
+            delayedRecords.push(record);
           } 
           else {
             inProgress++;
+            inProgressRecords.push(record);
           }
         } else {
           inProgress++;
+          inProgressRecords.push(record);
         }
       });
     }
@@ -1095,6 +1145,13 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         inProgress,
         redo,
         completed,
+
+        toDayRecords,
+        delayedRecords,
+        inProgressRecords,
+        redoRecords,
+        completedRecords,
+
         rfi: rfiCounts,
         drawing: drawingCounts,
         hardCopy: hardCopyCounts,

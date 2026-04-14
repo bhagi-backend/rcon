@@ -1393,7 +1393,7 @@ exports.getAllRoReports = async (req, res) => {
   pendingType = 'upload';
   pendingStage = 'architect';
 }
-            else if (
+            if (
   fromtoType === "siteHead" &&
   (
     (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
@@ -1403,7 +1403,7 @@ exports.getAllRoReports = async (req, res) => {
   pendingType = 'upload';
   pendingStage = 'siteHead';
 }
-            else if (
+             if (
                fromtoType === "architect" &&
               architectCount > 0 &&
               (roHardCopyCount === 0 || roHardCopyCount < architectCount)
@@ -1411,7 +1411,7 @@ exports.getAllRoReports = async (req, res) => {
               pendingType = 'received';
               pendingStage = 'architect';
             }
-          else if (
+           if (
   fromtoType === "siteHead" &&
   roCount > 0 &&
   (siteHeadHardCopyCount === 0 || siteHeadHardCopyCount < roCount)

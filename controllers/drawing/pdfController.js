@@ -1195,71 +1195,141 @@ exports.getRoReports = async (req, res) => {
           .lean();
         break;
 
-      case 'RFI':
+      // case 'RFI':
 
-        const architectureRfiData = await ArchitectureToRoRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' },
-            ],
-          })
-          .exec();
+      //   const architectureRfiData = await ArchitectureToRoRequest.find(query)
+      //     .populate({
+      //       path: 'drawingId',
+      //       select: 'drawingTitle designDrawingConsultant category',
+      //       populate: [
+      //         { path: 'designDrawingConsultant', select: 'role' },
+      //         { path: 'category', select: 'category' },
+      //         { path: 'folderId', select: 'folderName' },
+      //       ],
+      //     })
+      //     .exec();
 
-        const siteLevelRfiData = await RoToSiteLevelRoRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' },
-            ],
-          })
-          .exec();
+      //   const siteLevelRfiData = await RoToSiteLevelRoRequest.find(query)
+      //     .populate({
+      //       path: 'drawingId',
+      //       select: 'drawingTitle designDrawingConsultant category',
+      //       populate: [
+      //         { path: 'designDrawingConsultant', select: 'role' },
+      //         { path: 'category', select: 'category' },
+      //         { path: 'folderId', select: 'folderName' },
+      //       ],
+      //     })
+      //     .exec();
 
-        const filteredArchitectureRfiData = architectureRfiData.filter(item =>
-          item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId
-        );
+      //   const filteredArchitectureRfiData = architectureRfiData.filter(item =>
+      //     item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId
+      //   );
 
-        const filteredSiteLevelRfiData = siteLevelRfiData.filter(item =>
-          item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId
-        );
+      //   const filteredSiteLevelRfiData = siteLevelRfiData.filter(item =>
+      //     item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId
+      //   );
 
-        const architectDates = filteredArchitectureRfiData.map(i => new Date(i.creationDate));
-        const siteDates = filteredSiteLevelRfiData.map(i => new Date(i.creationDate));
+      //   const architectDates = filteredArchitectureRfiData.map(i => new Date(i.creationDate));
+      //   const siteDates = filteredSiteLevelRfiData.map(i => new Date(i.creationDate));
 
-        rfiData = {
-          architectureRequests: filteredArchitectureRfiData,
-          siteLevelRequests: filteredSiteLevelRfiData,
-          architectStartDate: architectDates.length ? new Date(Math.min(...architectDates)) : null,
-          architectEndDate: architectDates.length ? new Date(Math.max(...architectDates)) : null,
-          siteStartDate: siteDates.length ? new Date(Math.min(...siteDates)) : null,
-          siteEndDate: siteDates.length ? new Date(Math.max(...siteDates)) : null
-        };
+      //   rfiData = {
+      //     architectureRequests: filteredArchitectureRfiData,
+      //     siteLevelRequests: filteredSiteLevelRfiData,
+      //     architectStartDate: architectDates.length ? new Date(Math.min(...architectDates)) : null,
+      //     architectEndDate: architectDates.length ? new Date(Math.max(...architectDates)) : null,
+      //     siteStartDate: siteDates.length ? new Date(Math.min(...siteDates)) : null,
+      //     siteEndDate: siteDates.length ? new Date(Math.max(...siteDates)) : null
+      //   };
 
-        // ✅ RFI TYPE FILTER
-        if (rfiType === "architecture") {
-          return res.status(200).json({
-            architectureRequests: rfiData.architectureRequests,
-            architectStartDate: rfiData.architectStartDate,
-            architectEndDate: rfiData.architectEndDate
-          });
-        }
+      //   // ✅ RFI TYPE FILTER
+      //   if (rfiType === "architecture") {
+      //     return res.status(200).json({
+      //       architectureRequests: rfiData.architectureRequests,
+      //       architectStartDate: rfiData.architectStartDate,
+      //       architectEndDate: rfiData.architectEndDate
+      //     });
+      //   }
 
-        if (rfiType === "siteHead") {
-          return res.status(200).json({
-            siteLevelRequests: rfiData.siteLevelRequests,
-            siteStartDate: rfiData.siteStartDate,
-            siteEndDate: rfiData.siteEndDate
-          });
-        }
+      //   if (rfiType === "siteHead") {
+      //     return res.status(200).json({
+      //       siteLevelRequests: rfiData.siteLevelRequests,
+      //       siteStartDate: rfiData.siteStartDate,
+      //       siteEndDate: rfiData.siteEndDate
+      //     });
+      //   }
 
-        break;
+      //   break;
+case 'RFI': {
 
+  const siteToSiteRequests = await SiteToSiteLevelRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category folderId',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' },
+      ],
+    })
+    .lean();
+
+  const siteLevelRequests = await RoToSiteLevelRoRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category folderId',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' },
+      ],
+    })
+    .lean();
+
+  const filterFn = (item) =>
+    item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId;
+
+  let filteredSiteToSite = siteToSiteRequests.filter(filterFn);
+  let filteredSiteLevel = siteLevelRequests.filter(filterFn);
+
+  // ✅ APPLY TIME FILTER
+  filteredSiteToSite = applyTimePeriodFilter(
+    filteredSiteToSite,
+    selectTimePeriod,
+    fromDate,
+    toDate,
+    month,
+    year
+  );
+
+  filteredSiteLevel = applyTimePeriodFilter(
+    filteredSiteLevel,
+    selectTimePeriod,
+    fromDate,
+    toDate,
+    month,
+    year
+  );
+
+  // ✅ MERGE
+  let finalData = [...filteredSiteToSite, ...filteredSiteLevel];
+
+  // ✅ DATE CALCULATION
+  const creationDates = finalData.map(item => new Date(item.creationDate));
+
+  const startDate = creationDates.length
+    ? new Date(Math.min(...creationDates))
+    : null;
+
+  const endDate = creationDates.length
+    ? new Date(Math.max(...creationDates))
+    : null;
+
+  return res.status(200).json({
+    cleanedData: finalData,
+    startDate,
+    endDate
+  });
+}
       default:
         return res.status(400).json({ message: 'Invalid report type' });
     }
@@ -1595,75 +1665,180 @@ exports.getAllRoReports = async (req, res) => {
           .lean();
         break;
 
-      case 'RFI':
+      // case 'RFI':
 
-        const architectureRfiData =
-          await ArchitectureToRoRequest.find(query)
-            .populate({
-              path: 'drawingId',
-              select: 'drawingTitle designDrawingConsultant category folderId',
-              populate: [
-                { path: 'designDrawingConsultant', select: 'role' },
-                { path: 'category', select: 'category' },
-                { path: 'folderId', select: 'folderName' }
-              ]
-            })
-            .exec();
+      //   const architectureRfiData =
+      //     await ArchitectureToRoRequest.find(query)
+      //       .populate({
+      //         path: 'drawingId',
+      //         select: 'drawingTitle designDrawingConsultant category folderId',
+      //         populate: [
+      //           { path: 'designDrawingConsultant', select: 'role' },
+      //           { path: 'category', select: 'category' },
+      //           { path: 'folderId', select: 'folderName' }
+      //         ]
+      //       })
+      //       .exec();
 
-        const siteLevelRfiData =
-          await RoToSiteLevelRoRequest.find(query)
-            .populate({
-              path: 'drawingId',
-              select: 'drawingTitle designDrawingConsultant category folderId',
-              populate: [
-                { path: 'designDrawingConsultant', select: 'role' },
-                { path: 'category', select: 'category' },
-                { path: 'folderId', select: 'folderName' }
-              ]
-            })
-            .exec();
+      //   const siteLevelRfiData =
+      //     await RoToSiteLevelRoRequest.find(query)
+      //       .populate({
+      //         path: 'drawingId',
+      //         select: 'drawingTitle designDrawingConsultant category folderId',
+      //         populate: [
+      //           { path: 'designDrawingConsultant', select: 'role' },
+      //           { path: 'category', select: 'category' },
+      //           { path: 'folderId', select: 'folderName' }
+      //         ]
+      //       })
+      //       .exec();
 
-        const getConsultantId = (item) =>
-          item?.drawingId?.designDrawingConsultant?._id?.toString() ||
-          item?.designDrawingConsultant?.toString() ||
-          null;
+      //   const getConsultantId = (item) =>
+      //     item?.drawingId?.designDrawingConsultant?._id?.toString() ||
+      //     item?.designDrawingConsultant?.toString() ||
+      //     null;
 
-        const consultantIdSet = new Set(
-          (designConsultantIds || []).map(id => id.toString())
-        );
+      //   const consultantIdSet = new Set(
+      //     (designConsultantIds || []).map(id => id.toString())
+      //   );
 
-        const filteredArchitectureRfiData = consultantIdSet.size
-          ? architectureRfiData.filter(item =>
-              consultantIdSet.has(getConsultantId(item))
-            )
-          : architectureRfiData;
+      //   const filteredArchitectureRfiData = consultantIdSet.size
+      //     ? architectureRfiData.filter(item =>
+      //         consultantIdSet.has(getConsultantId(item))
+      //       )
+      //     : architectureRfiData;
 
-        const filteredSiteLevelRfiData = consultantIdSet.size
-          ? siteLevelRfiData.filter(item =>
-              consultantIdSet.has(getConsultantId(item))
-            )
-          : siteLevelRfiData;
+      //   const filteredSiteLevelRfiData = consultantIdSet.size
+      //     ? siteLevelRfiData.filter(item =>
+      //         consultantIdSet.has(getConsultantId(item))
+      //       )
+      //     : siteLevelRfiData;
 
-        rfiData = {
-          architectureRequests: filteredArchitectureRfiData,
-          siteLevelRequests: filteredSiteLevelRfiData
-        };
+      //   rfiData = {
+      //     architectureRequests: filteredArchitectureRfiData,
+      //     siteLevelRequests: filteredSiteLevelRfiData
+      //   };
 
-        // ✅ NEW: RFI TYPE FILTER (NO EXISTING LOGIC CHANGED)
-        if (rfiType === "architecture") {
-          return res.status(200).json({
-            architectureRequests: rfiData.architectureRequests
-          });
-        }
+      //   // ✅ NEW: RFI TYPE FILTER (NO EXISTING LOGIC CHANGED)
+      //   if (rfiType === "architecture") {
+      //     return res.status(200).json({
+      //       architectureRequests: rfiData.architectureRequests
+      //     });
+      //   }
 
-        if (rfiType === "siteHead") {
-          return res.status(200).json({
-            siteLevelRequests: rfiData.siteLevelRequests
-          });
-        }
+      //   if (rfiType === "siteHead") {
+      //     return res.status(200).json({
+      //       siteLevelRequests: rfiData.siteLevelRequests
+      //     });
+      //   }
 
-        return res.status(200).json(rfiData);
+      //   return res.status(200).json(rfiData);
+case 'RFI':
 
+  const architectureRfiData =
+    await ArchitectureToRoRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
+
+  const siteLevelRfiData =
+    await RoToSiteLevelRoRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
+
+  const getConsultantId = (item) =>
+    item?.drawingId?.designDrawingConsultant?._id?.toString() ||
+    item?.designDrawingConsultant?.toString() ||
+    null;
+
+  const consultantIdSet = new Set(
+    (designConsultantIds || []).map(id => id.toString())
+  );
+
+  const filteredArchitectureRfiData = consultantIdSet.size
+    ? architectureRfiData.filter(item =>
+        consultantIdSet.has(getConsultantId(item))
+      )
+    : architectureRfiData;
+
+  const filteredSiteLevelRfiData = consultantIdSet.size
+    ? siteLevelRfiData.filter(item =>
+        consultantIdSet.has(getConsultantId(item))
+      )
+    : siteLevelRfiData;
+
+  rfiData = {
+    architectureRequests: filteredArchitectureRfiData,
+    siteLevelRequests: filteredSiteLevelRfiData
+  };
+
+  // ✅ APPLY TIME FILTER (ADDED ONLY)
+  if (selectTimePeriod) {
+    rfiData.architectureRequests = applyTimePeriodFilter(
+      rfiData.architectureRequests,
+      selectTimePeriod,
+      fromDate,
+      toDate,
+      month,
+      year
+    );
+
+    rfiData.siteLevelRequests = applyTimePeriodFilter(
+      rfiData.siteLevelRequests,
+      selectTimePeriod,
+      fromDate,
+      toDate,
+      month,
+      year
+    );
+  }
+
+  // ✅ HANDLE rfiType FILTER
+  let finalData = [
+    ...rfiData.architectureRequests,
+    ...rfiData.siteLevelRequests
+  ];
+
+  if (rfiType === "architecture") {
+    finalData = rfiData.architectureRequests;
+  }
+
+  if (rfiType === "siteHead") {
+    finalData = rfiData.siteLevelRequests;
+  }
+
+  // ✅ CALCULATE START & END DATE
+  const dates = finalData.map(i => new Date(i.creationDate));
+
+  const startDate = dates.length
+    ? new Date(Math.min(...dates))
+    : null;
+
+  const endDate = dates.length
+    ? new Date(Math.max(...dates))
+    : null;
+
+  // ✅ FINAL RESPONSE (SAME AS OTHER CASES)
+  return res.status(200).json({
+    cleanedData: finalData,
+    startDate,
+    endDate
+  });
       default:
         return res.status(400).json({ message: 'Invalid report type' });
     }
@@ -2811,184 +2986,284 @@ exports.getsiteHeadReports = async (req, res) => {
         data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
         break;
 
+  //     case 'pending':
+  //       data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).lean();
+
+  //       // data = data.map(item => {
+  //       //   const roCount = item.acceptedRORevisions?.length || 0;
+  //       //   const siteHeadCount = item.acceptedSiteHeadRevisions?.length || 0;
+  //       //   const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
+  //       //   const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
+  //       //   const architectCount = item.acceptedArchitectRevisions?.length || 0;
+
+  //       //   let pendingType = null;
+  //       //   let pendingStage = null;
+
+  //       //   if (
+  //       //     (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+  //       //     item.regState === 'Pending'
+  //       //   ) {
+  //       //     pendingType = 'upload';
+  //       //     pendingStage = 'ro';
+  //       //   }
+  //       //   else if (
+  //       //     (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
+  //       //     item.regState === 'Pending'
+  //       //   ) {
+  //       //     pendingType = 'upload';
+  //       //     pendingStage = 'siteLevel';
+  //       //   }
+  //       //   else if (roHardCopyCount < architectCount) {
+  //       //     pendingType = 'collected';
+  //       //     pendingStage = 'ro';
+  //       //   }
+  //       //   else if (siteHeadHardCopyCount < roCount) {
+  //       //     pendingType = 'collected';
+  //       //     pendingStage = 'siteLevel';
+  //       //   }
+  //       //   else if (
+  //       //     (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+  //       //     item.regState === 'Pending'
+  //       //   ) {
+  //       //     pendingType = 'issued';
+  //       //     pendingStage = 'ro';
+  //       //   }
+
+  //       //   if (!pendingType) return null;
+  //       //   return { ...item, pendingType, pendingStage };
+  //       // }).filter(Boolean);
+  //       data = data
+  // .flatMap(item => {
+
+  //   const roCount = item.acceptedRORevisions?.length || 0;
+  //   const siteHeadCount = item.acceptedSiteHeadRevisions?.length || 0;
+  //   const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
+  //   const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
+  //   const architectCount = item.acceptedArchitectRevisions?.length || 0;
+
+  //   const results = [];
+
+  //   // ✅ upload - ro
+  //   if (
+  //     (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+  //     item.regState === 'Pending'
+  //   ) {
+  //     results.push({
+  //       ...item,
+  //       pendingType: 'upload',
+  //       pendingStage: 'ro'
+  //     });
+  //   }
+
+  //   // ✅ upload - siteLevel
+  //   if (
+  //     (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
+  //     item.regState === 'Pending'
+  //   ) {
+  //     results.push({
+  //       ...item,
+  //       pendingType: 'upload',
+  //       pendingStage: 'siteLevel'
+  //     });
+  //   }
+
+  //   // ✅ collected - ro
+  //   if (roHardCopyCount < architectCount) {
+  //     results.push({
+  //       ...item,
+  //       pendingType: 'collected',
+  //       pendingStage: 'ro'
+  //     });
+  //   }
+
+  //   // ✅ collected - siteLevel
+  //   if (siteHeadHardCopyCount < roCount) {
+  //     results.push({
+  //       ...item,
+  //       pendingType: 'collected',
+  //       pendingStage: 'siteLevel'
+  //     });
+  //   }
+
+  //   // ✅ issued - ro (same condition as your original last block)
+  //   if (
+  //     (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+  //     item.regState === 'Pending'
+  //   ) {
+  //     results.push({
+  //       ...item,
+  //       pendingType: 'issued',
+  //       pendingStage: 'ro'
+  //     });
+  //   }
+
+  //   return results;
+  // })
+  // .filter(Boolean);
+
+  //       break;
+
       case 'pending':
-        data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).lean();
+  data = await ArchitectureToRoRegister
+    .find(query)
+    .populate(dataPopulateFields)
+    .lean();
 
-        // data = data.map(item => {
-        //   const roCount = item.acceptedRORevisions?.length || 0;
-        //   const siteHeadCount = item.acceptedSiteHeadRevisions?.length || 0;
-        //   const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
-        //   const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
-        //   const architectCount = item.acceptedArchitectRevisions?.length || 0;
+  data = data
+    .flatMap(item => {
 
-        //   let pendingType = null;
-        //   let pendingStage = null;
+      const roCount = item.acceptedRORevisions?.length || 0;
+      const siteHeadCount = item.acceptedSiteHeadRevisions?.length || 0;
+      const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
+      const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
+      const architectCount = item.acceptedArchitectRevisions?.length || 0;
 
-        //   if (
-        //     (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-        //     item.regState === 'Pending'
-        //   ) {
-        //     pendingType = 'upload';
-        //     pendingStage = 'ro';
-        //   }
-        //   else if (
-        //     (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
-        //     item.regState === 'Pending'
-        //   ) {
-        //     pendingType = 'upload';
-        //     pendingStage = 'siteLevel';
-        //   }
-        //   else if (roHardCopyCount < architectCount) {
-        //     pendingType = 'collected';
-        //     pendingStage = 'ro';
-        //   }
-        //   else if (siteHeadHardCopyCount < roCount) {
-        //     pendingType = 'collected';
-        //     pendingStage = 'siteLevel';
-        //   }
-        //   else if (
-        //     (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-        //     item.regState === 'Pending'
-        //   ) {
-        //     pendingType = 'issued';
-        //     pendingStage = 'ro';
-        //   }
+      const results = [];
 
-        //   if (!pendingType) return null;
-        //   return { ...item, pendingType, pendingStage };
-        // }).filter(Boolean);
-        data = data
-  .flatMap(item => {
+      // ✅ upload - ro
+      if (
+        fromtoType === "ro" &&
+        (
+          (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+          item.regState === 'Pending'
+        )
+      ) {
+        results.push({
+          ...item,
+          pendingType: 'upload',
+          pendingStage: 'ro'
+        });
+      }
 
-    const roCount = item.acceptedRORevisions?.length || 0;
-    const siteHeadCount = item.acceptedSiteHeadRevisions?.length || 0;
-    const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
-    const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
-    const architectCount = item.acceptedArchitectRevisions?.length || 0;
+      // ✅ upload - siteLevel
+      if (
+        fromtoType === "siteLevel" &&
+        (
+          (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
+          item.regState === 'Pending'
+        )
+      ) {
+        results.push({
+          ...item,
+          pendingType: 'upload',
+          pendingStage: 'siteLevel'
+        });
+      }
 
-    const results = [];
+      // ✅ collected / received - siteLevel
+      if (
+        fromtoType === "ro" &&
+        (siteHeadHardCopyCount < roCount)
+      ) {
+        results.push({
+          ...item,
+          pendingType: 'received',
+          pendingStage: 'siteLevel'
+        });
+      }
 
-    // ✅ upload - ro
-    if (
-      (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-      item.regState === 'Pending'
-    ) {
-      results.push({
-        ...item,
-        pendingType: 'upload',
-        pendingStage: 'ro'
-      });
-    }
+      return results;
+    })
+    .filter(Boolean);
 
-    // ✅ upload - siteLevel
-    if (
-      (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
-      item.regState === 'Pending'
-    ) {
-      results.push({
-        ...item,
-        pendingType: 'upload',
-        pendingStage: 'siteLevel'
-      });
-    }
-
-    // ✅ collected - ro
-    if (roHardCopyCount < architectCount) {
-      results.push({
-        ...item,
-        pendingType: 'collected',
-        pendingStage: 'ro'
-      });
-    }
-
-    // ✅ collected - siteLevel
-    if (siteHeadHardCopyCount < roCount) {
-      results.push({
-        ...item,
-        pendingType: 'collected',
-        pendingStage: 'siteLevel'
-      });
-    }
-
-    // ✅ issued - ro (same condition as your original last block)
-    if (
-      (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-      item.regState === 'Pending'
-    ) {
-      results.push({
-        ...item,
-        pendingType: 'issued',
-        pendingStage: 'ro'
-      });
-    }
-
-    return results;
-  })
-  .filter(Boolean);
-
-        break;
-
-      case 'register':
+  break;
+  case 'register':
         data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).lean();
         break;
 
       // =========================
       // ✅ UPDATED RFI
       // =========================
-      case 'RFI':
+    case 'RFI':
 
-        const siteToSiteRequests = await SiteToSiteLevelRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category folderId',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' },
-            ],
-          })
-          .exec();
+  const siteToSiteRequests = await SiteToSiteLevelRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category folderId',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' },
+      ],
+    })
+    .exec();
 
-        const siteLevelRequests = await RoToSiteLevelRoRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category folderId',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' },
-            ],
-          })
-          .exec();
+  const siteLevelRequests = await RoToSiteLevelRoRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category folderId',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' },
+      ],
+    })
+    .exec();
 
-        const filterFn = (item) =>
-          item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId;
+  const filterFn = (item) =>
+    item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId;
 
-        rfiData = {
-          siteToSiteRequests: siteToSiteRequests.filter(filterFn),
-          siteLevelRequests: siteLevelRequests.filter(filterFn)
-        };
+  let filteredSiteToSite = siteToSiteRequests.filter(filterFn);
+  let filteredSiteLevel = siteLevelRequests.filter(filterFn);
 
-        // ✅ RFI SPLIT FILTER
-        if (rfiType === "siteToSite") {
-          return res.status(200).json({
-            siteToSiteRequests: rfiData.siteToSiteRequests
-          });
-        }
+  // ✅ APPLY TIME FILTER
+  if (selectTimePeriod) {
+    filteredSiteToSite = applyTimePeriodFilter(
+      filteredSiteToSite,
+      selectTimePeriod,
+      fromDate,
+      toDate,
+      month,
+      year
+    );
 
-        if (rfiType === "siteHead") {
-          return res.status(200).json({
-            siteLevelRequests: rfiData.siteLevelRequests
-          });
-        }
+    filteredSiteLevel = applyTimePeriodFilter(
+      filteredSiteLevel,
+      selectTimePeriod,
+      fromDate,
+      toDate,
+      month,
+      year
+    );
+  }
 
-        return res.status(200).json(rfiData);
-    }
+  // ✅ HANDLE rfiType
+  let finalData = [
+    ...filteredSiteToSite,
+    ...filteredSiteLevel
+  ];
+
+  if (rfiType === "siteToSite") {
+    finalData = filteredSiteToSite;
+  }
+
+  if (rfiType === "siteHead") {
+    finalData = filteredSiteLevel;
+  }
+
+  // ✅ DATE CALCULATION (SAFE — NO DUPLICATE VAR ERROR)
+  const dates = finalData.map(i => new Date(i.creationDate));
+
+  const startDate = dates.length
+    ? new Date(Math.min(...dates))
+    : null;
+
+  const endDate = dates.length
+    ? new Date(Math.max(...dates))
+    : null;
+
+  // ✅ FINAL RESPONSE (MATCHES ALL OTHER CASES)
+  return res.status(200).json({
+    cleanedData: finalData,
+    startDate,
+    endDate
+  });
+  default: return res.status(400).json({ message: 'Invalid report type' }); }
 
     // =========================
     // ✅ NON-RFI FLOW
     // =========================
-
+if (reportType !== 'RFI') {
     data = applyTimePeriodFilter(data, selectTimePeriod, fromDate, toDate, month, year);
 
     const creationDates = data.map(item =>
@@ -3051,7 +3326,7 @@ exports.getsiteHeadReports = async (req, res) => {
       startDate,
       endDate,
     });
-
+  }
   } catch (error) {
     console.error('Error fetching Site Head reports:', error);
     return res.status(400).json({
@@ -3216,60 +3491,48 @@ exports.getAllSiteHeadReports = async (req, res) => {
     const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
 
     const results = [];
+// ✅ upload - ro
+if (
+  fromtoType === "ro" &&
+  (
+    (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+    item.regState === 'Pending'
+  )
+) {
+  results.push({
+    ...item,
+    pendingType: 'upload',
+    pendingStage: 'ro'
+  });
+}
 
-    // ✅ upload - ro
-    if (
-      (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-      item.regState === 'Pending'
-    ) {
-      results.push({
-        ...item,
-        pendingType: 'upload',
-        pendingStage: 'ro'
-      });
-    }
+// ✅ upload - siteLevel
+if (
+  fromtoType === "siteLevel" &&
+  (
+    (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
+    item.regState === 'Pending'
+  )
+) {
+  results.push({
+    ...item,
+    pendingType: 'upload',
+    pendingStage: 'siteLevel'
+  });
+}
 
-    // ✅ upload - siteLevel
-    if (
-      (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
-      item.regState === 'Pending'
-    ) {
-      results.push({
-        ...item,
-        pendingType: 'upload',
-        pendingStage: 'siteLevel'
-      });
-    }
-
-    // ✅ collected - ro
-    if (roHardCopyCount < architectCount) {
-      results.push({
-        ...item,
-        pendingType: 'collected',
-        pendingStage: 'ro'
-      });
-    }
-
-    // ✅ collected - siteLevel
-    if (siteHeadHardCopyCount < roCount) {
-      results.push({
-        ...item,
-        pendingType: 'collected',
-        pendingStage: 'siteLevel'
-      });
-    }
-
-    // ✅ issued - ro (same as your original condition)
-    if (
-      (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-      item.regState === 'Pending'
-    ) {
-      results.push({
-        ...item,
-        pendingType: 'issued',
-        pendingStage: 'ro'
-      });
-    }
+// ✅ collected - siteLevel
+if (
+  fromtoType === "ro" &&
+  (siteHeadHardCopyCount < roCount)
+) {
+  results.push({
+    ...item,
+    pendingType: 'received',
+    pendingStage: 'siteLevel'
+  });
+}
+    
 
     return results;
   })
@@ -3281,55 +3544,118 @@ exports.getAllSiteHeadReports = async (req, res) => {
         data = await ArchitectureToRoRegister.find({ siteId }).populate(dataPopulateFields).lean();
         break;
 
-      case 'RFI':
+     case 'RFI':
 
-        const siteToSiteLevelRequested = await SiteToSiteLevelRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category folderId',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' }
-            ]
-          }).exec();
+  const siteToSiteRequests =
+    await SiteToSiteLevelRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
 
-        const siteLevelRfiData = await RoToSiteLevelRoRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category folderId',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' }
-            ]
-          }).exec();
+  const siteLevelRequests =
+    await RoToSiteLevelRoRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
 
-        rfiData = {
-          siteToSiteRequests: siteToSiteLevelRequested,
-          siteLevelRequests: siteLevelRfiData
-        };
+  // ✅ SAME FILTER STYLE AS YOUR WORKING CODE
+  const getConsultantId = (item) =>
+    item?.drawingId?.designDrawingConsultant?._id?.toString() ||
+    item?.designDrawingConsultant?.toString() ||
+    null;
 
-        // ✅ NEW RFI FILTER
-        if (rfiType === "siteToSite") {
-          return res.status(200).json({
-            siteToSiteRequests: rfiData.siteToSiteRequests
-          });
-        }
+  const consultantIdSet = new Set(
+    (designConsultantIds || []).map(id => id.toString())
+  );
 
-        if (rfiType === "siteHead") {
-          return res.status(200).json({
-            siteLevelRequests: rfiData.siteLevelRequests
-          });
-        }
+  const filteredSiteToSiteRequests = consultantIdSet.size
+    ? siteToSiteRequests.filter(item =>
+        consultantIdSet.has(getConsultantId(item))
+      )
+    : siteToSiteRequests;
 
-        return res.status(200).json(rfiData);
-    }
+  const filteredSiteLevelRequests = consultantIdSet.size
+    ? siteLevelRequests.filter(item =>
+        consultantIdSet.has(getConsultantId(item))
+      )
+    : siteLevelRequests;
 
+  rfiData = {
+    siteToSiteRequests: filteredSiteToSiteRequests,
+    siteLevelRequests: filteredSiteLevelRequests
+  };
+
+  // ✅ APPLY TIME FILTER (SAME PATTERN)
+  if (selectTimePeriod) {
+    rfiData.siteToSiteRequests = applyTimePeriodFilter(
+      rfiData.siteToSiteRequests,
+      selectTimePeriod,
+      fromDate,
+      toDate,
+      month,
+      year
+    );
+
+    rfiData.siteLevelRequests = applyTimePeriodFilter(
+      rfiData.siteLevelRequests,
+      selectTimePeriod,
+      fromDate,
+      toDate,
+      month,
+      year
+    );
+  }
+
+  // ✅ MERGE + rfiType FILTER (SAME STYLE)
+  let finalData = [
+    ...rfiData.siteToSiteRequests,
+    ...rfiData.siteLevelRequests
+  ];
+
+  if (rfiType === "siteToSite") {
+    finalData = rfiData.siteToSiteRequests;
+  }
+
+  if (rfiType === "siteHead") {
+    finalData = rfiData.siteLevelRequests;
+  }
+
+  // ✅ DATE CALCULATION (SAME AS YOUR WORKING CODE)
+  const dates = finalData.map(i => new Date(i.creationDate));
+
+  const startDate = dates.length
+    ? new Date(Math.min(...dates))
+    : null;
+
+  const endDate = dates.length
+    ? new Date(Math.max(...dates))
+    : null;
+
+  // ✅ FINAL RESPONSE (IDENTICAL FORMAT)
+  return res.status(200).json({
+    cleanedData: finalData,
+    startDate,
+    endDate
+  });
+  default: return res.status(400).json({ message: 'Invalid report type' }); }
     // =========================
     // ✅ NON-RFI FLOW
     // =========================
-
+if (reportType !== 'RFI') {
     data = applyTimePeriodFilter(
       data,
       selectTimePeriod,
@@ -3371,15 +3697,15 @@ exports.getAllSiteHeadReports = async (req, res) => {
           }
         }
 
-        if (reportType === "pending") {
-          if (tableType === "pendingAcceptedRORevisions") {
-            return fromtoType === "ro"
-              ? allData.filter(item => item.acceptedRORevisions?.length === 0)
-              : allData.filter(item => item.acceptedSiteHeadRevisions?.length === 0);
-          } else if (tableType === "pendingacceptedRoHardCopyRevisions") {
-            return allData.filter(item => item.acceptedSiteHeadHardCopyRevisions?.length === 0);
-          }
-        }
+        // if (reportType === "pending") {
+        //   if (tableType === "pendingAcceptedRORevisions") {
+        //     return fromtoType === "ro"
+        //       ? allData.filter(item => item.acceptedRORevisions?.length === 0)
+        //       : allData.filter(item => item.acceptedSiteHeadRevisions?.length === 0);
+        //   } else if (tableType === "pendingacceptedRoHardCopyRevisions") {
+        //     return allData.filter(item => item.acceptedSiteHeadHardCopyRevisions?.length === 0);
+        //   }
+        // }
       }
 
       return allData;
@@ -3396,7 +3722,7 @@ exports.getAllSiteHeadReports = async (req, res) => {
       startDate,
       endDate
     });
-
+  }
   } catch (error) {
     console.error('Error fetching Site Head reports:', error);
     return res.status(400).json({ message: 'Server error', error: error.message });

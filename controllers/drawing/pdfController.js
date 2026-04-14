@@ -1373,112 +1373,122 @@ exports.getAllRoReports = async (req, res) => {
           .populate(dataPopulateFields)
           .lean();
 
-        // data = data
-        //   .map(item => {
-        //     const architectCount = item.acceptedArchitectRevisions?.length || 0;
-        //     const roCount = item.acceptedRORevisions?.length || 0;
-        //     const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
-        //     const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
-
-        //     let pendingType = null;
-        //     let pendingStage = null;
-
-        //     if (
-        //       (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length <= 0) ||
-        //       item.regState === 'Pending'
-        //     ) {
-        //       pendingType = 'upload';
-        //       pendingStage = 'architect';
-        //     }
-        //     else if (
-        //       (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-        //       item.regState === 'Pending'
-        //     ) {
-        //       pendingType = 'upload';
-        //       pendingStage = 'siteHead';
-        //     }
-        //     else if (
-        //       architectCount > 0 &&
-        //       (roHardCopyCount === 0 || roHardCopyCount < architectCount)
-        //     ) {
-        //       pendingType = 'received';
-        //       pendingStage = 'architect';
-        //     }
-        //     else if (
-        //       roCount > 0 &&
-        //       (siteHeadHardCopyCount === 0 || siteHeadHardCopyCount < roCount)
-        //     ) {
-        //       pendingType = 'received';
-        //       pendingStage = 'siteHead';
-        //     }
-
-        //     if (!pendingType) return null;
-
-        //     return {
-        //       ...item,
-        //       pendingType,
-        //       pendingStage
-        //     };
-        //   })
-        //   .filter(Boolean);
         data = data
-  .flatMap(item => {
-    const architectCount = item.acceptedArchitectRevisions?.length || 0;
-    const roCount = item.acceptedRORevisions?.length || 0;
-    const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
-    const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
+          .map(item => {
+            const architectCount = item.acceptedArchitectRevisions?.length || 0;
+            const roCount = item.acceptedRORevisions?.length || 0;
+            const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
+            const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
 
-    const results = [];
+            let pendingType = null;
+            let pendingStage = null;
 
-    // ✅ SAME CONDITIONS — just separated (no else-if)
+            if (
+              (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length <= 0) ||
+              item.regState === 'Pending'
+            ) {
+              pendingType = 'upload';
+              pendingStage = 'architect';
+            }
+            else if (
+              (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+              item.regState === 'Pending'
+            ) {
+              pendingType = 'upload';
+              pendingStage = 'siteHead';
+            }
+            else if (
+              architectCount > 0 &&
+              (roHardCopyCount === 0 || roHardCopyCount < architectCount)
+            ) {
+              pendingType = 'received';
+              pendingStage = 'architect';
+            }
+            else if (
+              roCount > 0 &&
+              (siteHeadHardCopyCount === 0 || siteHeadHardCopyCount < roCount)
+            ) {
+              pendingType = 'received';
+              pendingStage = 'siteHead';
+            }
 
-    if (
-      (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length <= 0) ||
-      item.regState === 'Pending'
-    ) {
-      results.push({
-        ...item,
-        pendingType: 'upload',
-        pendingStage: 'architect'
-      });
-    }
+            if (!pendingType) return null;
 
-    if (
-      (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-      item.regState === 'Pending'
-    ) {
-      results.push({
-        ...item,
-        pendingType: 'upload',
-        pendingStage: 'siteHead'
-      });
-    }
+            return {
+              ...item,
+              pendingType,
+              pendingStage
+            };
+          })
+          .filter(Boolean);
+  //       data = data
+  // .flatMap(item => {
+  //   const architectCount = item.acceptedArchitectRevisions?.length || 0;
+  //   const roCount = item.acceptedRORevisions?.length || 0;
+  //   const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
+  //   const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
 
-    if (
-      architectCount > 0 &&
-      (roHardCopyCount === 0 || roHardCopyCount < architectCount)
-    ) {
-      results.push({
-        ...item,
-        pendingType: 'received',
-        pendingStage: 'architect'
-      });
-    }
+  //   const results = [];
 
-    if (
-      roCount > 0 &&
-      (siteHeadHardCopyCount === 0 || siteHeadHardCopyCount < roCount)
-    ) {
-      results.push({
-        ...item,
-        pendingType: 'received',
-        pendingStage: 'siteHead'
-      });
-    }
+  //   // ✅ SAME CONDITIONS — just separated (no else-if)
+  //  if (
+  //     architectCount > 0 &&
+  //     (roHardCopyCount === 0 || roHardCopyCount < architectCount)
+  //   ) {
+  //     results.push({
+  //       ...item,
+  //       pendingType: 'received',
+  //       pendingStage: 'architect'
+  //     });
+  //   }
+  //   if (
+  //     (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length <= 0) 
+  //     // item.regState === 'Pending'
+  //   ) {
+  //     results.push({
+  //       ...item,
+  //       pendingType: 'upload',
+  //       pendingStage: 'architect'
+  //     });
+  //   }
 
-    return results;
-  })
-  .filter(Boolean);
+  
+  //   if (
+  //     (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+  //     item.regState === 'Pending'
+  //   ) {
+  //     results.push({
+  //       ...item,
+  //       pendingType: 'upload',
+  //       pendingStage: 'siteHead'
+  //     });
+  //   }
+
+  //   if (
+  //     architectCount > 0 &&
+  //     (roHardCopyCount === 0 || roHardCopyCount < architectCount)
+  //   ) {
+  //     results.push({
+  //       ...item,
+  //       pendingType: 'received',
+  //       pendingStage: 'architect'
+  //     });
+  //   }
+
+  //   if (
+  //     roCount > 0 &&
+  //     (siteHeadHardCopyCount === 0 || siteHeadHardCopyCount < roCount)
+  //   ) {
+  //     results.push({
+  //       ...item,
+  //       pendingType: 'received',
+  //       pendingStage: 'siteHead'
+  //     });
+  //   }
+
+  //   return results;
+  // })
+  // .filter(Boolean);
 
         break;
 
@@ -1599,17 +1609,17 @@ exports.getAllRoReports = async (req, res) => {
             }
           }
 
-          if (reportType === "pending") {
-            if (tableType === "ropendingscrevisions") {
-              return fromtoType === "architect"
-                ? allData.filter(item => item.acceptedArchitectRevisions?.length === 0)
-                : allData.filter(item => item.acceptedRORevisions?.length === 0);
-            } else if (tableType === "ropendinghardcopyrevisions") {
-              return fromtoType === "architect"
-                ? allData.filter(item => item.acceptedROHardCopyRevisions?.length === 0)
-                : allData.filter(item => item.acceptedSiteHeadHardCopyRevisions?.length === 0);
-            }
-          }
+          // if (reportType === "pending") {
+          //   if (tableType === "ropendingscrevisions") {
+          //     return fromtoType === "architect"
+          //       ? allData.filter(item => item.acceptedArchitectRevisions?.length === 0)
+          //       : allData.filter(item => item.acceptedRORevisions?.length === 0);
+          //   } else if (tableType === "ropendinghardcopyrevisions") {
+          //     return fromtoType === "architect"
+          //       ? allData.filter(item => item.acceptedROHardCopyRevisions?.length === 0)
+          //       : allData.filter(item => item.acceptedSiteHeadHardCopyRevisions?.length === 0);
+          //   }
+          // }
         }
 
         return allData;

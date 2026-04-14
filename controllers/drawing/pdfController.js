@@ -1259,77 +1259,95 @@ exports.getRoReports = async (req, res) => {
       //   }
 
       //   break;
-case 'RFI': {
+case 'RFI':
 
-  const siteToSiteRequests = await SiteToSiteLevelRequest.find(query)
-    .populate({
-      path: 'drawingId',
-      select: 'drawingTitle designDrawingConsultant category folderId',
-      populate: [
-        { path: 'designDrawingConsultant', select: 'role' },
-        { path: 'category', select: 'category' },
-        { path: 'folderId', select: 'folderName' },
-      ],
-    })
-    .lean();
+  const architectureRfiData =
+    await ArchitectureToRoRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
 
-  const siteLevelRequests = await RoToSiteLevelRoRequest.find(query)
-    .populate({
-      path: 'drawingId',
-      select: 'drawingTitle designDrawingConsultant category folderId',
-      populate: [
-        { path: 'designDrawingConsultant', select: 'role' },
-        { path: 'category', select: 'category' },
-        { path: 'folderId', select: 'folderName' },
-      ],
-    })
-    .lean();
+  const siteLevelRfiData =
+    await RoToSiteLevelRoRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
 
-  const filterFn = (item) =>
-    item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId;
+  // ✅ SIMPLE FILTER (since your old logic is commented)
+  let filteredArchitectureRfiData = architectureRfiData;
+  let filteredSiteLevelRfiData = siteLevelRfiData;
 
-  let filteredSiteToSite = siteToSiteRequests.filter(filterFn);
-  let filteredSiteLevel = siteLevelRequests.filter(filterFn);
+  rfiData = {
+    architectureRequests: filteredArchitectureRfiData,
+    siteLevelRequests: filteredSiteLevelRfiData
+  };
 
   // ✅ APPLY TIME FILTER
-  filteredSiteToSite = applyTimePeriodFilter(
-    filteredSiteToSite,
-    selectTimePeriod,
-    fromDate,
-    toDate,
-    month,
-    year
-  );
+  if (selectTimePeriod) {
+    rfiData.architectureRequests = applyTimePeriodFilter(
+      rfiData.architectureRequests,
+      selectTimePeriod,
+      fromDate,
+      toDate,
+      month,
+      year
+    );
 
-  filteredSiteLevel = applyTimePeriodFilter(
-    filteredSiteLevel,
-    selectTimePeriod,
-    fromDate,
-    toDate,
-    month,
-    year
-  );
+    rfiData.siteLevelRequests = applyTimePeriodFilter(
+      rfiData.siteLevelRequests,
+      selectTimePeriod,
+      fromDate,
+      toDate,
+      month,
+      year
+    );
+  }
 
-  // ✅ MERGE
-  let finalData = [...filteredSiteToSite, ...filteredSiteLevel];
+  // ✅ HANDLE rfiType
+  let finalData = [
+    ...rfiData.architectureRequests,
+    ...rfiData.siteLevelRequests
+  ];
 
-  // ✅ DATE CALCULATION
-  const creationDates = finalData.map(item => new Date(item.creationDate));
+  if (rfiType === "architecture") {
+    finalData = rfiData.architectureRequests;
+  }
 
-  const startDate = creationDates.length
-    ? new Date(Math.min(...creationDates))
+  if (rfiType === "siteHead") {
+    finalData = rfiData.siteLevelRequests;
+  }
+
+  // ✅ DATE CALCULATION (SAFE)
+  const dates = finalData.map(i => new Date(i.creationDate));
+
+  const startDate = dates.length
+    ? new Date(Math.min(...dates))
     : null;
 
-  const endDate = creationDates.length
-    ? new Date(Math.max(...creationDates))
+  const endDate = dates.length
+    ? new Date(Math.max(...dates))
     : null;
 
+  // ✅ FINAL RESPONSE (CONSISTENT FORMAT)
   return res.status(200).json({
     cleanedData: finalData,
     startDate,
     endDate
   });
-}
       default:
         return res.status(400).json({ message: 'Invalid report type' });
     }

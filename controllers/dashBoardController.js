@@ -807,6 +807,373 @@ function calculateRemainingDays(submissionDate) {
 //     });
 //   }
 // });
+
+
+
+
+
+
+// exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
+//   const userId = req.user._id;
+//   const siteId = req.query.siteId;
+//   const userDepartment = req.user.department;
+
+//   try {
+//     const user = await User.findById(userId).populate("permittedSites.siteId");
+
+//     const permittedSite = user.permittedSites.find(
+//       (site) => site.siteId._id.toString() === siteId
+//     );
+
+//     const roEnabled =
+//       permittedSite && permittedSite.enableModules.drawingDetails.ro;
+//     const siteHeadEnabled =
+//       permittedSite && permittedSite.enableModules.drawingDetails.siteHead;
+
+//     // ✅ COUNTERS
+//     let toDay = 0;
+//     let delayed = 0;
+//     let inProgress = 0;
+//     let redo = 0;
+//     let completed = 0;
+
+//     // ✅ RECORD ARRAYS (NEW)
+//     let toDayRecords = [];
+//     let delayedRecords = [];
+//     let inProgressRecords = [];
+//     let redoRecords = [];
+//     let completedRecords = [];
+
+//     let rfiCounts = {};
+//     let drawingCounts = {};
+//     let hardCopyCounts = {};
+
+//     /* ===================================================
+//        DESIGN CONSULTANT
+//     =================================================== */
+//     if (userDepartment === "Design Consultant") {
+
+//       const rfiData = await ArchitectureToRoRequest.find({
+//         siteId,
+//         designDrawingConsultant: userId,
+//       }).lean();
+
+//       rfiCounts = { accepted: 0, requested: 0, rejected: 0, repost: 0 };
+
+//       rfiData.forEach((rfi) => {
+//         if (rfi.status === "Accepted") rfiCounts.accepted++;
+//         else if (rfi.status === "Requested") rfiCounts.requested++;
+//         else if (rfi.status === "Rejected") rfiCounts.rejected++;
+//         else if (rfi.status === "ReOpened") rfiCounts.repost++;
+//       });
+
+//       const drawingData = await ArchitectureToRoRegister.find({
+//         siteId,
+//         designDrawingConsultant: userId,
+//         drawingStatus: "Approval",
+//       }).lean();
+
+//       drawingCounts = { approved: 0, upcoming: 0, notApproved: 0, pending: 0 };
+
+//       drawingData.forEach((record) => {
+
+//         const arch = record.acceptedArchitectRevisions || [];
+//         const ro = record.acceptedRORevisions || [];
+//         const latest = arch.length ? arch[arch.length - 1] : null;
+
+//         if (!latest) {
+//           drawingCounts.pending++;
+//           inProgressRecords.push(record);
+//         }
+//         else if (latest.rfiStatus === "Raised") {
+//           drawingCounts.pending++;
+//           inProgressRecords.push(record);
+//         }
+//         else if (
+//           latest.rfiStatus === "Not Raised" &&
+//           ro.some((r) => r.revision === latest.revision)
+//         ) {
+//           drawingCounts.approved++;
+//           completed++;
+//           completedRecords.push(record);
+//         }
+//         else if (latest.rfiStatus === "Not Raised") {
+//           drawingCounts.notApproved++;
+//           inProgressRecords.push(record);
+//         }
+//         else {
+//           drawingCounts.pending++;
+//           inProgressRecords.push(record);
+//         }
+
+//         // DATE LOGIC
+//         let submissionDate = record.acceptedROSubmissionDate
+//           ? new Date(record.acceptedROSubmissionDate)
+//           : null;
+
+//         const today = new Date();
+
+//         if (submissionDate) {
+//           if (submissionDate.toDateString() === today.toDateString()) {
+//             toDay++;
+//             toDayRecords.push(record);
+//           }
+//           else if (submissionDate < today) {
+//             delayed++;
+//             delayedRecords.push(record);
+//           }
+//           else {
+//             inProgress++;
+//             inProgressRecords.push(record);
+//           }
+//         } else {
+//           inProgress++;
+//           inProgressRecords.push(record);
+//         }
+
+//         if (submissionDate > today) drawingCounts.upcoming++;
+//       });
+
+//       let pendingHC = 0;
+//       let approvedHC = 0;
+
+//       drawingData.forEach((record) => {
+//         const arch = record.acceptedArchitectRevisions?.length || 0;
+//         const ro = record.acceptedROHardCopyRevisions?.length || 0;
+//         if (arch === 0) return;
+//         if (arch === ro) approvedHC++;
+//         else pendingHC++;
+//       });
+
+//       hardCopyCounts = { approved: approvedHC, pending: pendingHC };
+//     }
+
+//     /* ===================================================
+//        SITE MANAGEMENT
+//     =================================================== */
+//     else if (userDepartment === "SiteManagement") {
+
+//       const rfiTimeStamp = await RfiTimeStamp.findOne({
+//         siteId: new mongoose.Types.ObjectId(siteId),
+//       });
+
+//       const roDays = rfiTimeStamp?.roRfiTimeStampDays || 0;
+
+//       const registers = await ArchitectureToRoRegister.find({
+//         siteId: new mongoose.Types.ObjectId(siteId),
+//       });
+
+//       const rfiData = await ArchitectureToRoRequest.find({
+//         siteId: new mongoose.Types.ObjectId(siteId),
+//       }).lean();
+
+//       rfiCounts = { accepted: 0, requested: 0, rejected: 0, repost: 0 };
+
+//       rfiData.forEach((rfi) => {
+//         if (rfi.status === "Accepted") rfiCounts.accepted++;
+//         else if (rfi.status === "Requested") rfiCounts.requested++;
+//         else if (rfi.status === "Rejected") rfiCounts.rejected++;
+//         else if (rfi.status === "ReOpened") rfiCounts.repost++;
+//       });
+
+//       drawingCounts = { approved: 0, pending: 0, notApproved: 0, upcoming: 0 };
+
+//       registers.forEach((record) => {
+
+//         const arch = record.acceptedArchitectRevisions || [];
+//         const ro = record.acceptedRORevisions || [];
+//         const site = record.acceptedSiteRevisions || [];
+
+//         const latestArch = arch.at(-1);
+//         const latestRo = ro.at(-1);
+//         const latestSite = site.at(-1);
+
+//         if (!arch.length && !ro.length && !site.length) {
+//           inProgress++;
+//           inProgressRecords.push(record);
+//           return;
+//         }
+
+//         if (!latestArch || latestArch.rfiStatus === "Raised") {
+//           drawingCounts.pending++;
+//           inProgressRecords.push(record);
+//         } 
+//         else if (
+//           latestRo &&
+//           (!latestSite || latestRo.revision !== latestSite.revision)
+//         ) {
+//           drawingCounts.notApproved++;
+//           inProgressRecords.push(record);
+//         } 
+//         else if (
+//           latestRo &&
+//           latestSite &&
+//           latestRo.revision === latestSite.revision &&
+//           latestRo.rfiStatus === "Not Raised" &&
+//           latestSite.rfiStatus === "Not Raised"
+//         ) {
+//           drawingCounts.approved++;
+//           completed++;
+//           completedRecords.push(record);
+//         } 
+//         else {
+//           drawingCounts.pending++;
+//           inProgressRecords.push(record);
+//         }
+
+//         let submissionDate = null;
+
+//         if (record.acceptedSiteSubmissionDate) {
+//           submissionDate = new Date(record.acceptedSiteSubmissionDate);
+//         } 
+//         else if (latestRo?.revisionCreationDate) {
+//           submissionDate = new Date(latestRo.revisionCreationDate);
+//           submissionDate.setDate(submissionDate.getDate() + roDays);
+//         }
+
+//         const today = new Date();
+
+//         if (submissionDate) {
+//           if (submissionDate.toDateString() === today.toDateString()) {
+//             toDay++;
+//             toDayRecords.push(record);
+//           } 
+//           else if (submissionDate < today) {
+//             delayed++;
+//             delayedRecords.push(record);
+//           } 
+//           else {
+//             inProgress++;
+//             drawingCounts.upcoming++;
+//             inProgressRecords.push(record);
+//           }
+//         } else {
+//           inProgress++;
+//           inProgressRecords.push(record);
+//         }
+//       });
+
+//       let pendingHC = 0;
+//       let approvedHC = 0;
+
+//       registers.forEach((record) => {
+//         const site = record.acceptedSiteRevisions?.length || 0;
+//         const hc = record.acceptedSiteHeadHardCopyRevisions?.length || 0;
+//         if (site === 0) return;
+//         if (site === hc) approvedHC++;
+//         else pendingHC++;
+//       });
+
+//       hardCopyCounts = { approved: approvedHC, pending: pendingHC };
+//     }
+
+//     /* ===================================================
+//        OTHER DEPARTMENTS
+//     =================================================== */
+//     else {
+
+//       const registers = await ArchitectureToRoRegister.find({
+//         siteId: new mongoose.Types.ObjectId(siteId),
+//       }).lean();
+
+//       registers.forEach((record) => {
+
+//         const arch = record.acceptedArchitectRevisions || [];
+//         const ro = record.acceptedRORevisions || [];
+//         const site = record.acceptedSiteRevisions || [];
+
+//         const latestArch = arch.at(-1);
+//         const latestRo = ro.at(-1);
+//         const latestSite = site.at(-1);
+
+//         if (!latestArch) {
+//           inProgress++;
+//           inProgressRecords.push(record);
+//         } 
+//         else if (latestArch.rfiStatus === "Raised") {
+//           redo++;
+//           redoRecords.push(record);
+//         } 
+//         else if (
+//           latestRo &&
+//           latestSite &&
+//           latestRo.revision === latestSite.revision &&
+//           latestRo.rfiStatus === "Not Raised" &&
+//           latestSite.rfiStatus === "Not Raised"
+//         ) {
+//           completed++;
+//           completedRecords.push(record);
+//         } 
+//         else {
+//           inProgress++;
+//           inProgressRecords.push(record);
+//         }
+
+//         let submissionDate = null;
+
+//         if (record.acceptedSiteSubmissionDate) {
+//           submissionDate = new Date(record.acceptedSiteSubmissionDate);
+//         } 
+//         else if (latestRo?.revisionCreationDate) {
+//           submissionDate = new Date(latestRo.revisionCreationDate);
+//         }
+
+//         const today = new Date();
+
+//         if (submissionDate) {
+//           if (submissionDate.toDateString() === today.toDateString()) {
+//             toDay++;
+//             toDayRecords.push(record);
+//           } 
+//           else if (submissionDate < today) {
+//             delayed++;
+//             delayedRecords.push(record);
+//           } 
+//           else {
+//             inProgress++;
+//             inProgressRecords.push(record);
+//           }
+//         } else {
+//           inProgress++;
+//           inProgressRecords.push(record);
+//         }
+//       });
+//     }
+
+//     /* ===================================================
+//        FINAL RESPONSE
+//     =================================================== */
+//     res.status(200).json({
+//       status: "success",
+//       data: {
+//         toDay,
+//         delayed,
+//         inProgress,
+//         redo,
+//         completed,
+
+//         toDayRecords,
+//         delayedRecords,
+//         inProgressRecords,
+//         redoRecords,
+//         completedRecords,
+
+//         rfi: rfiCounts,
+//         drawing: drawingCounts,
+//         hardCopy: hardCopyCounts,
+//       },
+//     });
+
+//   } catch (error) {
+//     console.error(error);
+//     res.status(400).json({
+//       status: "fail",
+//       message: error.message,
+//     });
+//   }
+// });
+
+
 exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
   const siteId = req.query.siteId;
@@ -814,6 +1181,11 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 
   try {
     const user = await User.findById(userId).populate("permittedSites.siteId");
+
+    // ✅ NEW (USER DETAILS ADDED — SAME AS OLD CODE)
+    const department = user.department;
+    const userName = user.firstName;
+    const empCode = user.empId;
 
     const permittedSite = user.permittedSites.find(
       (site) => site.siteId._id.toString() === siteId
@@ -831,7 +1203,7 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
     let redo = 0;
     let completed = 0;
 
-    // ✅ RECORD ARRAYS (NEW)
+    // ✅ RECORD ARRAYS
     let toDayRecords = [];
     let delayedRecords = [];
     let inProgressRecords = [];
@@ -900,7 +1272,6 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
           inProgressRecords.push(record);
         }
 
-        // DATE LOGIC
         let submissionDate = record.acceptedROSubmissionDate
           ? new Date(record.acceptedROSubmissionDate)
           : null;
@@ -1155,6 +1526,13 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         rfi: rfiCounts,
         drawing: drawingCounts,
         hardCopy: hardCopyCounts,
+
+        // ✅ USER DETAILS (ADDED)
+        userDetails: {
+          department,
+          userName,
+          empCode,
+        },
       },
     });
 

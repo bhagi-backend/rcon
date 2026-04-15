@@ -1121,7 +1121,6 @@ exports.getRoReports = async (req, res) => {
     .populate(dataPopulateFields)
     .lean();
 
-<<<<<<< Updated upstream
   data = pendingData
     .flatMap(item => {
 
@@ -1183,92 +1182,6 @@ exports.getRoReports = async (req, res) => {
           pendingStage: 'siteHead'
         });
       }
-=======
-        // data = pendingData.map(item => {
-
-        //   const architectCount = item.acceptedArchitectRevisions?.length || 0;
-        //   const roCount = item.acceptedRORevisions?.length || 0;
-        //   const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
-        //   const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
-
-        //   let pendingType = null;
-
-        //   if (
-        //     architectCount === 0 ||
-        //     roCount === 0 ||
-        //     item.regState === 'Pending'
-        //   ) {
-        //     pendingType = 'upload';
-        //   }
-        //   else if (
-        //     architectCount > 0 &&
-        //     (roHardCopyCount === 0 || roHardCopyCount < architectCount)
-        //   ) {
-        //     pendingType = 'received';
-        //   }
-        //   else if (
-        //     roCount > 0 &&
-        //     (siteHeadHardCopyCount === 0 || siteHeadHardCopyCount < roCount)
-        //   ) {
-        //     pendingType = 'received';
-        //   }
-
-        //   if (!pendingType) return null;
-
-        //   return { ...item, pendingType };
-
-        // }).filter(Boolean);
-
-        // break;
-        data = data
-          .map(item => {
-            const architectCount = item.acceptedArchitectRevisions?.length || 0;
-            const roCount = item.acceptedRORevisions?.length || 0;
-            const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
-            const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
-
-            let pendingType = null;
-            let pendingStage = null;
-
-            if (
-              (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length <= 0) ||
-              item.regState === 'Pending'
-            ) {
-              pendingType = 'upload';
-              pendingStage = 'architect';
-            }
-            else if (
-              (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-              item.regState === 'Pending'
-            ) {
-              pendingType = 'upload';
-              pendingStage = 'siteHead';
-            }
-            else if (
-              architectCount > 0 &&
-              (roHardCopyCount === 0 || roHardCopyCount < architectCount)
-            ) {
-              pendingType = 'received';
-              pendingStage = 'architect';
-            }
-            else if (
-              roCount > 0 &&
-              (siteHeadHardCopyCount === 0 || siteHeadHardCopyCount < roCount)
-            ) {
-              pendingType = 'received';
-              pendingStage = 'siteHead';
-            }
-
-            if (!pendingType) return null;
-
-            return {
-              ...item,
-              pendingType,
-              pendingStage
-            };
-          })
-          .filter(Boolean);
->>>>>>> Stashed changes
 
       return results;
     })

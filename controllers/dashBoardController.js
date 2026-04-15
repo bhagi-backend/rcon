@@ -1182,7 +1182,6 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
   try {
     const user = await User.findById(userId).populate("permittedSites.siteId");
 
-    // ✅ NEW (USER DETAILS ADDED — SAME AS OLD CODE)
     const department = user.department;
     const userName = user.firstName;
     const empCode = user.empId;
@@ -1203,12 +1202,30 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
     let redo = 0;
     let completed = 0;
 
-    // ✅ RECORD ARRAYS
+    // ✅ ARRAYS
     let toDayRecords = [];
     let delayedRecords = [];
     let inProgressRecords = [];
     let redoRecords = [];
     let completedRecords = [];
+
+    // ✅ SETS (NEW - FIX DUPLICATION)
+    const toDaySet = new Set();
+    const delayedSet = new Set();
+    const inProgressSet = new Set();
+    const redoSet = new Set();
+    const completedSet = new Set();
+
+    // ✅ HELPER FUNCTION (NO LOGIC CHANGE)
+    const addUnique = (set, arr, counterRef, record) => {
+      const id = record._id.toString();
+      if (!set.has(id)) {
+        set.add(id);
+        arr.push(record);
+        return true;
+      }
+      return false;
+    };
 
     let rfiCounts = {};
     let drawingCounts = {};
@@ -1243,33 +1260,38 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 
       drawingData.forEach((record) => {
 
+        const id = record._id.toString();
+
         const arch = record.acceptedArchitectRevisions || [];
         const ro = record.acceptedRORevisions || [];
         const latest = arch.length ? arch[arch.length - 1] : null;
 
         if (!latest) {
           drawingCounts.pending++;
-          inProgressRecords.push(record);
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
         }
         else if (latest.rfiStatus === "Raised") {
           drawingCounts.pending++;
-          inProgressRecords.push(record);
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
         }
         else if (
           latest.rfiStatus === "Not Raised" &&
           ro.some((r) => r.revision === latest.revision)
         ) {
           drawingCounts.approved++;
-          completed++;
-          completedRecords.push(record);
+
+          // remove from others
+          inProgressSet.delete(id);
+
+          if (addUnique(completedSet, completedRecords, null, record)) completed++;
         }
         else if (latest.rfiStatus === "Not Raised") {
           drawingCounts.notApproved++;
-          inProgressRecords.push(record);
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
         }
         else {
           drawingCounts.pending++;
-          inProgressRecords.push(record);
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
         }
 
         let submissionDate = record.acceptedROSubmissionDate
@@ -1280,20 +1302,11 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 
         if (submissionDate) {
           if (submissionDate.toDateString() === today.toDateString()) {
-            toDay++;
-            toDayRecords.push(record);
+            if (addUnique(toDaySet, toDayRecords, null, record)) toDay++;
           }
           else if (submissionDate < today) {
-            delayed++;
-            delayedRecords.push(record);
+            if (addUnique(delayedSet, delayedRecords, null, record)) delayed++;
           }
-          else {
-            inProgress++;
-            inProgressRecords.push(record);
-          }
-        } else {
-          inProgress++;
-          inProgressRecords.push(record);
         }
 
         if (submissionDate > today) drawingCounts.upcoming++;
@@ -1345,6 +1358,8 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 
       registers.forEach((record) => {
 
+        const id = record._id.toString();
+
         const arch = record.acceptedArchitectRevisions || [];
         const ro = record.acceptedRORevisions || [];
         const site = record.acceptedSiteRevisions || [];
@@ -1354,21 +1369,20 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         const latestSite = site.at(-1);
 
         if (!arch.length && !ro.length && !site.length) {
-          inProgress++;
-          inProgressRecords.push(record);
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
           return;
         }
 
         if (!latestArch || latestArch.rfiStatus === "Raised") {
           drawingCounts.pending++;
-          inProgressRecords.push(record);
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
         } 
         else if (
           latestRo &&
           (!latestSite || latestRo.revision !== latestSite.revision)
         ) {
           drawingCounts.notApproved++;
-          inProgressRecords.push(record);
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
         } 
         else if (
           latestRo &&
@@ -1378,12 +1392,14 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
           latestSite.rfiStatus === "Not Raised"
         ) {
           drawingCounts.approved++;
-          completed++;
-          completedRecords.push(record);
+
+          inProgressSet.delete(id);
+
+          if (addUnique(completedSet, completedRecords, null, record)) completed++;
         } 
         else {
           drawingCounts.pending++;
-          inProgressRecords.push(record);
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
         }
 
         let submissionDate = null;
@@ -1400,21 +1416,14 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
 
         if (submissionDate) {
           if (submissionDate.toDateString() === today.toDateString()) {
-            toDay++;
-            toDayRecords.push(record);
+            if (addUnique(toDaySet, toDayRecords, null, record)) toDay++;
           } 
           else if (submissionDate < today) {
-            delayed++;
-            delayedRecords.push(record);
+            if (addUnique(delayedSet, delayedRecords, null, record)) delayed++;
           } 
           else {
-            inProgress++;
             drawingCounts.upcoming++;
-            inProgressRecords.push(record);
           }
-        } else {
-          inProgress++;
-          inProgressRecords.push(record);
         }
       });
 
@@ -1430,79 +1439,6 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
       });
 
       hardCopyCounts = { approved: approvedHC, pending: pendingHC };
-    }
-
-    /* ===================================================
-       OTHER DEPARTMENTS
-    =================================================== */
-    else {
-
-      const registers = await ArchitectureToRoRegister.find({
-        siteId: new mongoose.Types.ObjectId(siteId),
-      }).lean();
-
-      registers.forEach((record) => {
-
-        const arch = record.acceptedArchitectRevisions || [];
-        const ro = record.acceptedRORevisions || [];
-        const site = record.acceptedSiteRevisions || [];
-
-        const latestArch = arch.at(-1);
-        const latestRo = ro.at(-1);
-        const latestSite = site.at(-1);
-
-        if (!latestArch) {
-          inProgress++;
-          inProgressRecords.push(record);
-        } 
-        else if (latestArch.rfiStatus === "Raised") {
-          redo++;
-          redoRecords.push(record);
-        } 
-        else if (
-          latestRo &&
-          latestSite &&
-          latestRo.revision === latestSite.revision &&
-          latestRo.rfiStatus === "Not Raised" &&
-          latestSite.rfiStatus === "Not Raised"
-        ) {
-          completed++;
-          completedRecords.push(record);
-        } 
-        else {
-          inProgress++;
-          inProgressRecords.push(record);
-        }
-
-        let submissionDate = null;
-
-        if (record.acceptedSiteSubmissionDate) {
-          submissionDate = new Date(record.acceptedSiteSubmissionDate);
-        } 
-        else if (latestRo?.revisionCreationDate) {
-          submissionDate = new Date(latestRo.revisionCreationDate);
-        }
-
-        const today = new Date();
-
-        if (submissionDate) {
-          if (submissionDate.toDateString() === today.toDateString()) {
-            toDay++;
-            toDayRecords.push(record);
-          } 
-          else if (submissionDate < today) {
-            delayed++;
-            delayedRecords.push(record);
-          } 
-          else {
-            inProgress++;
-            inProgressRecords.push(record);
-          }
-        } else {
-          inProgress++;
-          inProgressRecords.push(record);
-        }
-      });
     }
 
     /* ===================================================
@@ -1527,7 +1463,6 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         drawing: drawingCounts,
         hardCopy: hardCopyCounts,
 
-        // ✅ USER DETAILS (ADDED)
         userDetails: {
           department,
           userName,

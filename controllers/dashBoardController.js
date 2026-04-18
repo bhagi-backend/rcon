@@ -1209,14 +1209,14 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
     let redoRecords = [];
     let completedRecords = [];
 
-    // ✅ SETS (NEW - FIX DUPLICATION)
+    // ✅ SETS
     const toDaySet = new Set();
     const delayedSet = new Set();
     const inProgressSet = new Set();
     const redoSet = new Set();
     const completedSet = new Set();
 
-    // ✅ HELPER FUNCTION (NO LOGIC CHANGE)
+    // ✅ HELPER
     const addUnique = (set, arr, counterRef, record) => {
       const id = record._id.toString();
       if (!set.has(id)) {
@@ -1280,7 +1280,6 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
         ) {
           drawingCounts.approved++;
 
-          // remove from others
           inProgressSet.delete(id);
 
           if (addUnique(completedSet, completedRecords, null, record)) completed++;
@@ -1442,6 +1441,171 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
     }
 
     /* ===================================================
+       RO + COMPANY ADMIN
+    =================================================== */
+    else if (userDepartment === "RO" || userDepartment === "Company Admin") {
+
+      const registers = await ArchitectureToRoRegister.find({ siteId }).lean();
+
+      const rfiData = await ArchitectureToRoRequest.find({ siteId }).lean();
+
+      rfiCounts = { accepted: 0, requested: 0, rejected: 0, repost: 0 };
+
+      rfiData.forEach((rfi) => {
+        if (rfi.status === "Accepted") rfiCounts.accepted++;
+        else if (rfi.status === "Requested") rfiCounts.requested++;
+        else if (rfi.status === "Rejected") rfiCounts.rejected++;
+        else if (rfi.status === "ReOpened") rfiCounts.repost++;
+      });
+
+      drawingCounts = { approved: 0, pending: 0, notApproved: 0, upcoming: 0 };
+
+      registers.forEach((record) => {
+
+        const id = record._id.toString();
+
+        const arch = record.acceptedArchitectRevisions || [];
+        const ro = record.acceptedRORevisions || [];
+
+        const latestArch = arch.at(-1);
+        const latestRo = ro.at(-1);
+
+        if (!latestArch) {
+          drawingCounts.pending++;
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
+        }
+        else if (latestArch.rfiStatus === "Raised") {
+          drawingCounts.pending++;
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
+        }
+        else if (!latestRo) {
+          drawingCounts.notApproved++;
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
+        }
+        else if (
+          latestRo.revision === latestArch.revision &&
+          latestRo.rfiStatus === "Not Raised"
+        ) {
+          drawingCounts.approved++;
+
+          inProgressSet.delete(id);
+
+          if (addUnique(completedSet, completedRecords, null, record)) completed++;
+        }
+        else {
+          drawingCounts.pending++;
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
+        }
+
+        const submissionDate = latestRo?.revisionCreationDate
+          ? new Date(latestRo.revisionCreationDate)
+          : null;
+
+        const today = new Date();
+
+        if (submissionDate) {
+          if (submissionDate.toDateString() === today.toDateString()) {
+            if (addUnique(toDaySet, toDayRecords, null, record)) toDay++;
+          } 
+          else if (submissionDate < today) {
+            if (addUnique(delayedSet, delayedRecords, null, record)) delayed++;
+          } 
+          else {
+            drawingCounts.upcoming++;
+          }
+        }
+      });
+
+      let pendingHC = 0;
+      let approvedHC = 0;
+
+      registers.forEach((record) => {
+        const ro = record.acceptedRORevisions?.length || 0;
+        const hc = record.acceptedROHardCopyRevisions?.length || 0;
+        if (ro === 0) return;
+        if (ro === hc) approvedHC++;
+        else pendingHC++;
+      });
+
+      hardCopyCounts = { approved: approvedHC, pending: pendingHC };
+    }
+
+    /* ===================================================
+       SITE HEAD
+    =================================================== */
+    else if (userDepartment === "SiteHead") {
+
+      const registers = await ArchitectureToRoRegister.find({ siteId }).lean();
+
+      drawingCounts = { approved: 0, pending: 0, notApproved: 0, upcoming: 0 };
+
+      registers.forEach((record) => {
+
+        const id = record._id.toString();
+
+        const ro = record.acceptedRORevisions || [];
+        const site = record.acceptedSiteRevisions || [];
+
+        const latestRo = ro.at(-1);
+        const latestSite = site.at(-1);
+
+        if (!latestRo) {
+          drawingCounts.pending++;
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
+        }
+        else if (!latestSite) {
+          drawingCounts.notApproved++;
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
+        }
+        else if (
+          latestRo.revision === latestSite.revision &&
+          latestSite.rfiStatus === "Not Raised"
+        ) {
+          drawingCounts.approved++;
+
+          inProgressSet.delete(id);
+
+          if (addUnique(completedSet, completedRecords, null, record)) completed++;
+        }
+        else {
+          drawingCounts.pending++;
+          if (addUnique(inProgressSet, inProgressRecords, null, record)) inProgress++;
+        }
+
+        const submissionDate = record.acceptedSiteSubmissionDate
+          ? new Date(record.acceptedSiteSubmissionDate)
+          : null;
+
+        const today = new Date();
+
+        if (submissionDate) {
+          if (submissionDate.toDateString() === today.toDateString()) {
+            if (addUnique(toDaySet, toDayRecords, null, record)) toDay++;
+          } 
+          else if (submissionDate < today) {
+            if (addUnique(delayedSet, delayedRecords, null, record)) delayed++;
+          } 
+          else {
+            drawingCounts.upcoming++;
+          }
+        }
+      });
+
+      let pendingHC = 0;
+      let approvedHC = 0;
+
+      registers.forEach((record) => {
+        const site = record.acceptedSiteRevisions?.length || 0;
+        const hc = record.acceptedSiteHeadHardCopyRevisions?.length || 0;
+        if (site === 0) return;
+        if (site === hc) approvedHC++;
+        else pendingHC++;
+      });
+
+      hardCopyCounts = { approved: approvedHC, pending: pendingHC };
+    }
+
+    /* ===================================================
        FINAL RESPONSE
     =================================================== */
     res.status(200).json({
@@ -1479,3 +1643,4 @@ exports.getDesignConsultantData = catchAsync(async (req, res, next) => {
     });
   }
 });
+

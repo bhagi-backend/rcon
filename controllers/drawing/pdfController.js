@@ -1091,38 +1091,49 @@ exports.getRoReports = async (req, res) => {
           .lean();
         break;
 
-      case 'RFI':
-  const architectureRfiData =
-    await ArchitectureToRoRequest.find(query)
-      .populate({
-        path: 'drawingId',
-        select: 'drawingTitle designDrawingConsultant category folderId',
-        populate: [
-          { path: 'designDrawingConsultant', select: 'role' },
-          { path: 'category', select: 'category' },
-          { path: 'folderId', select: 'folderName' }
-        ]
-      })
-      .exec();
+    
+     case 'RFI':
 
-  const siteLevelRfiData =
-    await RoToSiteLevelRoRequest.find(query)
-      .populate({
-        path: 'drawingId',
-        select: 'drawingTitle designDrawingConsultant category folderId',
-        populate: [
-          { path: 'designDrawingConsultant', select: 'role' },
-          { path: 'category', select: 'category' },
-          { path: 'folderId', select: 'folderName' }
-        ]
-      })
-      .exec();
+  const siteToSiteRequests = await SiteToSiteLevelRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category folderId',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' },
+      ],
+    })
+    .exec();
 
-  let finalData = [...architectureRfiData, ...siteLevelRfiData];
+  const siteLevelRequests = await RoToSiteLevelRoRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category folderId',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' },
+      ],
+    })
+    .exec();
 
-  // ✅ APPLY TIME FILTER HERE
-  finalData = applyTimePeriodFilter(
-    finalData,
+  // =========================
+  // FILTER BY CONSULTANT (UNCHANGED)
+  // =========================
+  let filteredSiteToSiteRequests = siteToSiteRequests.filter(item =>
+    item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId
+  );
+
+  let filteredSiteLevelRequests = siteLevelRequests.filter(item =>
+    item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId
+  );
+
+  // =========================
+  // ✅ APPLY TIME FILTER (NEW)
+  // =========================
+  filteredSiteToSiteRequests = applyTimePeriodFilter(
+    filteredSiteToSiteRequests,
     selectTimePeriod,
     fromDate,
     toDate,
@@ -1130,15 +1141,69 @@ exports.getRoReports = async (req, res) => {
     year
   );
 
-  const rfiDates = finalData.map(i => new Date(i.creationDate));
+  filteredSiteLevelRequests = applyTimePeriodFilter(
+    filteredSiteLevelRequests,
+    selectTimePeriod,
+    fromDate,
+    toDate,
+    month,
+    year
+  );
 
-  return res.status(200).json({
-    cleanedData: finalData,
-    startDate: rfiDates.length ? new Date(Math.min(...rfiDates)) : null,
-    endDate: rfiDates.length ? new Date(Math.max(...rfiDates)) : null
-  });
+  // =========================
+  // ✅ CALCULATE DATES AFTER FILTER
+  // =========================
+  const siteToSiteDates = filteredSiteToSiteRequests.map(i =>
+    new Date(i.creationDate)
+  );
 
-      default:
+  const siteLevelDates = filteredSiteLevelRequests.map(i =>
+    new Date(i.creationDate)
+  );
+
+  rfiData = {
+    siteToSiteRequests: filteredSiteToSiteRequests,
+    siteLevelRequests: filteredSiteLevelRequests,
+
+    siteToSiteStartDate: siteToSiteDates.length
+      ? new Date(Math.min(...siteToSiteDates))
+      : null,
+
+    siteToSiteEndDate: siteToSiteDates.length
+      ? new Date(Math.max(...siteToSiteDates))
+      : null,
+
+    siteStartDate: siteLevelDates.length
+      ? new Date(Math.min(...siteLevelDates))
+      : null,
+
+    siteEndDate: siteLevelDates.length
+      ? new Date(Math.max(...siteLevelDates))
+      : null
+  };
+
+  // =========================
+  // ✅ RFI SPLIT FILTER (UNCHANGED)
+  // =========================
+  if (rfiType === "siteToSite") {
+    return res.status(200).json({
+      cleanedData: rfiData.siteToSiteRequests,
+      startDate: rfiData.siteToSiteStartDate,
+      endDate: rfiData.siteToSiteEndDate
+    });
+  }
+
+  if (rfiType === "siteHead") {
+    return res.status(200).json({
+      cleanedData: rfiData.siteLevelRequests,
+      startDate: rfiData.siteStartDate,
+      endDate: rfiData.siteEndDate
+    });
+  }
+
+  // return res.status(200).json(rfiData);
+  break;
+   default:
         return res.status(400).json({ message: 'Invalid report type' });
     }
 
@@ -1359,38 +1424,43 @@ exports.getAllRoReports = async (req, res) => {
         break;
 
       // ✅ NEW RFI BLOCK (ADDED ONLY)
-      case 'RFI':
-  const architectureRfiData =
-    await ArchitectureToRoRequest.find(query)
-      .populate({
-        path: 'drawingId',
-        select: 'drawingTitle designDrawingConsultant category folderId',
-        populate: [
-          { path: 'designDrawingConsultant', select: 'role' },
-          { path: 'category', select: 'category' },
-          { path: 'folderId', select: 'folderName' }
-        ]
-      })
-      .exec();
+case 'RFI':
 
-  const siteLevelRfiData =
-    await RoToSiteLevelRoRequest.find(query)
-      .populate({
-        path: 'drawingId',
-        select: 'drawingTitle designDrawingConsultant category folderId',
-        populate: [
-          { path: 'designDrawingConsultant', select: 'role' },
-          { path: 'category', select: 'category' },
-          { path: 'folderId', select: 'folderName' }
-        ]
-      })
-      .exec();
+  const architectureRfiData = await ArchitectureToRoRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' },
+      ],
+    })
+    .exec();
 
-  let finalData = [...architectureRfiData, ...siteLevelRfiData];
+  const siteLevelRfiData = await RoToSiteLevelRoRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' },
+      ],
+    })
+    .exec();
 
-  // ✅ APPLY TIME FILTER HERE
-  finalData = applyTimePeriodFilter(
-    finalData,
+  // =========================
+  // FILTER BY CONSULTANT (UNCHANGED)
+  // =========================
+  let filteredArchitectureRfiData 
+
+  let filteredSiteLevelRfiData
+  // =========================
+  // ✅ APPLY TIME FILTER (NEW)
+  // =========================
+  filteredArchitectureRfiData = applyTimePeriodFilter(
+    architectureRfiData,
     selectTimePeriod,
     fromDate,
     toDate,
@@ -1398,13 +1468,67 @@ exports.getAllRoReports = async (req, res) => {
     year
   );
 
-  const rfiDates = finalData.map(i => new Date(i.creationDate));
+  filteredSiteLevelRfiData = applyTimePeriodFilter(
+    siteLevelRfiData,
+    selectTimePeriod,
+    fromDate,
+    toDate,
+    month,
+    year
+  );
 
-  return res.status(200).json({
-    cleanedData: finalData,
-    startDate: rfiDates.length ? new Date(Math.min(...rfiDates)) : null,
-    endDate: rfiDates.length ? new Date(Math.max(...rfiDates)) : null
-  });
+  // =========================
+  // ✅ CALCULATE DATES AFTER FILTER
+  // =========================
+  const architectDates = filteredArchitectureRfiData.map(i =>
+    new Date(i.creationDate)
+  );
+
+  const siteDates = filteredSiteLevelRfiData.map(i =>
+    new Date(i.creationDate)
+  );
+
+  rfiData = {
+    architectureRequests: filteredArchitectureRfiData,
+    siteLevelRequests: filteredSiteLevelRfiData,
+
+    architectStartDate: architectDates.length
+      ? new Date(Math.min(...architectDates))
+      : null,
+
+    architectEndDate: architectDates.length
+      ? new Date(Math.max(...architectDates))
+      : null,
+
+    siteStartDate: siteDates.length
+      ? new Date(Math.min(...siteDates))
+      : null,
+
+    siteEndDate: siteDates.length
+      ? new Date(Math.max(...siteDates))
+      : null
+  };
+
+  // =========================
+  // ✅ RFI TYPE FILTER (UNCHANGED)
+  // =========================
+  if (rfiType === "siteToSite") {
+    return res.status(200).json({
+      cleanedData: rfiData.siteToSiteRequests,
+      startDate: rfiData.siteToSiteStartDate,
+      endDate: rfiData.siteToSiteEndDate
+    });
+  }
+
+  if (rfiType === "siteHead") {
+    return res.status(200).json({
+      cleanedData: rfiData.siteLevelRequests,
+      startDate: rfiData.siteStartDate,
+      endDate: rfiData.siteEndDate
+    });
+  }
+
+  break;
       default:
         return res.status(400).json({ message: 'Invalid report type' });
     }
@@ -2600,39 +2724,109 @@ exports.getsiteHeadReports = async (req, res) => {
         break;
 
       case 'RFI':
-        const siteToSiteRequests = await SiteToSiteLevelRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category folderId',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' },
-            ],
-          })
-          .exec();
 
-        const siteLevelRequests = await RoToSiteLevelRoRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category folderId',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' },
-            ],
-          })
-          .exec();
+  const siteToSiteRequests = await SiteToSiteLevelRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category folderId',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' }
+      ]
+    }).exec();
 
-        let finalData = [...siteToSiteRequests, ...siteLevelRequests];
+  const siteLevelRequests = await RoToSiteLevelRoRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category folderId',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' }
+      ]
+    }).exec();
 
-        const dates = finalData.map(i => new Date(i.creationDate));
+  // =========================
+  // ✅ FILTER BY CONSULTANT (ADDED)
+  // =========================
+  const filterFn = (item) =>
+    item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId;
 
-        return res.status(200).json({
-          cleanedData: finalData,
-          startDate: dates.length ? new Date(Math.min(...dates)) : null,
-          endDate: dates.length ? new Date(Math.max(...dates)) : null
-        });
+  let filteredSiteToSite = siteToSiteRequests.filter(filterFn);
+  let filteredSiteLevel = siteLevelRequests.filter(filterFn);
+
+  // =========================
+  // ✅ APPLY TIME FILTER (ADDED)
+  // =========================
+  filteredSiteToSite = applyTimePeriodFilter(
+    filteredSiteToSite,
+    selectTimePeriod,
+    fromDate,
+    toDate,
+    month,
+    year
+  );
+
+  filteredSiteLevel = applyTimePeriodFilter(
+    filteredSiteLevel,
+    selectTimePeriod,
+    fromDate,
+    toDate,
+    month,
+    year
+  );
+
+  // =========================
+  // ✅ CALCULATE DATES AFTER FILTER
+  // =========================
+  const siteToSiteDates = filteredSiteToSite.map(i =>
+    new Date(i.creationDate)
+  );
+
+  const siteLevelDates = filteredSiteLevel.map(i =>
+    new Date(i.creationDate)
+  );
+
+  const startDate = [...siteToSiteDates, ...siteLevelDates].length
+    ? new Date(Math.min(...siteToSiteDates, ...siteLevelDates))
+    : null;
+
+  const endDate = [...siteToSiteDates, ...siteLevelDates].length
+    ? new Date(Math.max(...siteToSiteDates, ...siteLevelDates))
+    : null;
+
+  const rfiData = {
+    siteToSiteRequests: filteredSiteToSite,
+    siteLevelRequests: filteredSiteLevel,
+    startDate,
+    endDate
+  };
+
+  // =========================
+  // ✅ RFI TYPE FILTER (ADDED)
+  // =========================
+  if (rfiType === "siteToSite") {
+    return res.status(200).json({
+      cleanedData: rfiData.siteToSiteRequests,
+      startDate,
+      endDate
+    });
+  }
+
+  if (rfiType === "siteHead") {
+    return res.status(200).json({
+      cleanedData: rfiData.siteLevelRequests,
+      startDate,
+      endDate
+    });
+  }
+
+  return res.status(200).json({
+    cleanedData: [...filteredSiteToSite, ...filteredSiteLevel],
+    startDate,
+    endDate
+  });
 
       default:
         return res.status(400).json({ message: 'Invalid report type' });
@@ -2859,37 +3053,109 @@ exports.getAllSiteHeadReports = async (req, res) => {
         break;
 
       case 'RFI':
-        const siteToSiteRequests = await SiteToSiteLevelRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category folderId',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' }
-            ]
-          }).exec();
 
-        const siteLevelRequests = await RoToSiteLevelRoRequest.find(query)
-          .populate({
-            path: 'drawingId',
-            select: 'drawingTitle designDrawingConsultant category folderId',
-            populate: [
-              { path: 'designDrawingConsultant', select: 'role' },
-              { path: 'category', select: 'category' },
-              { path: 'folderId', select: 'folderName' }
-            ]
-          }).exec();
+  const siteToSiteRequests = await SiteToSiteLevelRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category folderId',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' }
+      ]
+    }).exec();
 
-        let finalData = [...siteToSiteRequests, ...siteLevelRequests];
+  const siteLevelRequests = await RoToSiteLevelRoRequest.find(query)
+    .populate({
+      path: 'drawingId',
+      select: 'drawingTitle designDrawingConsultant category folderId',
+      populate: [
+        { path: 'designDrawingConsultant', select: 'role' },
+        { path: 'category', select: 'category' },
+        { path: 'folderId', select: 'folderName' }
+      ]
+    }).exec();
 
-        const dates = finalData.map(i => new Date(i.creationDate));
+  // =========================
+  // ✅ FILTER BY CONSULTANT (ADDED)
+  // // =========================
+  // const filterFn = (item) =>
+  //   item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId;
 
-        return res.status(200).json({
-          cleanedData: finalData,
-          startDate: dates.length ? new Date(Math.min(...dates)) : null,
-          endDate: dates.length ? new Date(Math.max(...dates)) : null
-        });
+  let filteredSiteToSite = siteToSiteRequests;
+  let filteredSiteLevel = siteLevelRequests;
+
+  // =========================
+  // ✅ APPLY TIME FILTER (ADDED)
+  // =========================
+  filteredSiteToSite = applyTimePeriodFilter(
+    filteredSiteToSite,
+    selectTimePeriod,
+    fromDate,
+    toDate,
+    month,
+    year
+  );
+
+  filteredSiteLevel = applyTimePeriodFilter(
+    filteredSiteLevel,
+    selectTimePeriod,
+    fromDate,
+    toDate,
+    month,
+    year
+  );
+
+  // =========================
+  // ✅ CALCULATE DATES AFTER FILTER
+  // =========================
+  const siteToSiteDates = filteredSiteToSite.map(i =>
+    new Date(i.creationDate)
+  );
+
+  const siteLevelDates = filteredSiteLevel.map(i =>
+    new Date(i.creationDate)
+  );
+
+  const startDate = [...siteToSiteDates, ...siteLevelDates].length
+    ? new Date(Math.min(...siteToSiteDates, ...siteLevelDates))
+    : null;
+
+  const endDate = [...siteToSiteDates, ...siteLevelDates].length
+    ? new Date(Math.max(...siteToSiteDates, ...siteLevelDates))
+    : null;
+
+  const rfiData = {
+    siteToSiteRequests: filteredSiteToSite,
+    siteLevelRequests: filteredSiteLevel,
+    startDate,
+    endDate
+  };
+
+  // =========================
+  // ✅ RFI TYPE FILTER (ADDED)
+  // =========================
+  if (rfiType === "siteToSite") {
+    return res.status(200).json({
+      cleanedData: rfiData.siteToSiteRequests,
+      startDate,
+      endDate
+    });
+  }
+
+  if (rfiType === "siteHead") {
+    return res.status(200).json({
+      cleanedData: rfiData.siteLevelRequests,
+      startDate,
+      endDate
+    });
+  }
+
+  return res.status(200).json({
+    cleanedData: [...filteredSiteToSite, ...filteredSiteLevel],
+    startDate,
+    endDate
+  });
 
       default:
         return res.status(400).json({ message: 'Invalid report type' });

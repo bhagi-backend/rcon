@@ -3217,6 +3217,53 @@ exports.deleteMultipleRegisters = catchAsync(async (req, res, next) => {
   });
 });
 
+// exports.updateMultipleRegisters = catchAsync(async (req, res, next) => {
+//   const { updates } = req.body;
+
+//   if (!Array.isArray(updates) || updates.length === 0) {
+//     return next(new AppError("Please provide an array of updates.", 400));
+//   }
+
+//   const userId = req.user.id; // logged-in user ID
+
+//   const results = await Promise.all(
+//     updates.map(async ({ id, data }) => {
+//       if (!mongoose.Types.ObjectId.isValid(id)) {
+//         return { id, status: "failed", message: "Invalid register ID" };
+//       }
+
+//       // STEP 1: Find the register first
+//       const register = await ArchitectureToRoRegister.findById(id);
+
+//       if (!register) {
+//         return { id, status: "failed", message: "Register not found" };
+//       }
+
+//       // STEP 2: Save history BEFORE applying updates (to capture what will change)
+//       if (Object.keys(data).length > 0) {
+//         register.history = register.history || [];
+//         register.history.unshift({
+//           updatedBy: userId,
+//           updatedAt: new Date(),
+//           updatedFields: data, // Store the fields that will be updated
+//         });
+//       }
+
+//       // STEP 3: Apply updates
+//       Object.assign(register, data);
+
+//       // STEP 4: Mark history array as modified to ensure Mongoose saves it
+//       register.markModified("history");
+
+//       // STEP 5: Save
+//       await register.save({ validateBeforeSave: true });
+
+//       return { id, status: "success", updatedFields: data };
+//     }),
+//   );
+
+//   res.status(200).json({ status: "success", results });
+// });
 exports.updateMultipleRegisters = catchAsync(async (req, res, next) => {
   const { updates } = req.body;
 
@@ -3239,20 +3286,28 @@ exports.updateMultipleRegisters = catchAsync(async (req, res, next) => {
         return { id, status: "failed", message: "Register not found" };
       }
 
-      // STEP 2: Save history BEFORE applying updates (to capture what will change)
+      // STEP 2: Save history BEFORE applying updates (capture OLD + NEW)
       if (Object.keys(data).length > 0) {
         register.history = register.history || [];
+
+        const oldValues = {};
+
+        Object.keys(data).forEach(key => {
+          oldValues[key] = register[key]; // capture old value BEFORE update
+        });
+
         register.history.unshift({
           updatedBy: userId,
           updatedAt: new Date(),
-          updatedFields: data, // Store the fields that will be updated
+          oldValues,            // ✅ ADDED
+          updatedFields: data,  // existing
         });
       }
 
       // STEP 3: Apply updates
       Object.assign(register, data);
 
-      // STEP 4: Mark history array as modified to ensure Mongoose saves it
+      // STEP 4: Mark history array as modified
       register.markModified("history");
 
       // STEP 5: Save
@@ -3264,7 +3319,6 @@ exports.updateMultipleRegisters = catchAsync(async (req, res, next) => {
 
   res.status(200).json({ status: "success", results });
 });
-
 exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
   const { siteId, consultantId } = req.query;
 

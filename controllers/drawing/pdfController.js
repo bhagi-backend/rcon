@@ -1092,42 +1092,51 @@ exports.getRoReports = async (req, res) => {
         break;
 
       case 'RFI':
-        // (unchanged RFI block)
-        const architectureRfiData =
-          await ArchitectureToRoRequest.find(query)
-            .populate({
-              path: 'drawingId',
-              select: 'drawingTitle designDrawingConsultant category folderId',
-              populate: [
-                { path: 'designDrawingConsultant', select: 'role' },
-                { path: 'category', select: 'category' },
-                { path: 'folderId', select: 'folderName' }
-              ]
-            })
-            .exec();
+  const architectureRfiData =
+    await ArchitectureToRoRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
 
-        const siteLevelRfiData =
-          await RoToSiteLevelRoRequest.find(query)
-            .populate({
-              path: 'drawingId',
-              select: 'drawingTitle designDrawingConsultant category folderId',
-              populate: [
-                { path: 'designDrawingConsultant', select: 'role' },
-                { path: 'category', select: 'category' },
-                { path: 'folderId', select: 'folderName' }
-              ]
-            })
-            .exec();
+  const siteLevelRfiData =
+    await RoToSiteLevelRoRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
 
-        let finalData = [...architectureRfiData, ...siteLevelRfiData];
+  let finalData = [...architectureRfiData, ...siteLevelRfiData];
 
-        const dates = finalData.map(i => new Date(i.creationDate));
+  // ✅ APPLY TIME FILTER HERE
+  finalData = applyTimePeriodFilter(
+    finalData,
+    selectTimePeriod,
+    fromDate,
+    toDate,
+    month,
+    year
+  );
 
-        return res.status(200).json({
-          cleanedData: finalData,
-          startDate: dates.length ? new Date(Math.min(...dates)) : null,
-          endDate: dates.length ? new Date(Math.max(...dates)) : null
-        });
+  const rfiDates = finalData.map(i => new Date(i.creationDate));
+
+  return res.status(200).json({
+    cleanedData: finalData,
+    startDate: rfiDates.length ? new Date(Math.min(...rfiDates)) : null,
+    endDate: rfiDates.length ? new Date(Math.max(...rfiDates)) : null
+  });
 
       default:
         return res.status(400).json({ message: 'Invalid report type' });
@@ -1349,15 +1358,62 @@ exports.getAllRoReports = async (req, res) => {
           .lean();
         break;
 
+      // ✅ NEW RFI BLOCK (ADDED ONLY)
+      case 'RFI':
+  const architectureRfiData =
+    await ArchitectureToRoRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
+
+  const siteLevelRfiData =
+    await RoToSiteLevelRoRequest.find(query)
+      .populate({
+        path: 'drawingId',
+        select: 'drawingTitle designDrawingConsultant category folderId',
+        populate: [
+          { path: 'designDrawingConsultant', select: 'role' },
+          { path: 'category', select: 'category' },
+          { path: 'folderId', select: 'folderName' }
+        ]
+      })
+      .exec();
+
+  let finalData = [...architectureRfiData, ...siteLevelRfiData];
+
+  // ✅ APPLY TIME FILTER HERE
+  finalData = applyTimePeriodFilter(
+    finalData,
+    selectTimePeriod,
+    fromDate,
+    toDate,
+    month,
+    year
+  );
+
+  const rfiDates = finalData.map(i => new Date(i.creationDate));
+
+  return res.status(200).json({
+    cleanedData: finalData,
+    startDate: rfiDates.length ? new Date(Math.min(...rfiDates)) : null,
+    endDate: rfiDates.length ? new Date(Math.max(...rfiDates)) : null
+  });
       default:
         return res.status(400).json({ message: 'Invalid report type' });
     }
 
-    // ✅ SPECIAL CASE: DRAWING EMPTY → USE PENDING LOGIC FOR DATES ONLY
+    // SPECIAL CASE
     if (reportType === 'drawing' && (!data || data.length === 0)) {
 
       const pendingRaw = await ArchitectureToRoRegister
-        .find({ siteId, ...(folderId ? { folderId } : {}) }) // 🔥 no filter issues
+        .find({ siteId, ...(folderId ? { folderId } : {}) })
         .populate(dataPopulateFields)
         .lean();
 
@@ -1400,7 +1456,7 @@ exports.getAllRoReports = async (req, res) => {
       });
     }
 
-    // ✅ NORMAL FLOW
+    // NORMAL FLOW
     data = applyTimePeriodFilter(
       data,
       selectTimePeriod,

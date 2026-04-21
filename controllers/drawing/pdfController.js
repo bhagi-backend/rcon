@@ -968,56 +968,140 @@ exports.getRoReports = async (req, res) => {
 
     switch (reportType) {
 
+      // case 'drawing':
+      //   query['regState'] = 'Drawing';
+      //   query['$or'] = [
+      //     { 'acceptedArchitectRevisions.0': { $exists: true } },
+      //     { 'acceptedRORevisions.0': { $exists: true } },
+      //     { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
+      //     { 'acceptedROHardCopyRevisions.0': { $exists: true } },
+      //   ];
+
+      //   data = await ArchitectureToRoRegister
+      //     .find(query)
+      //     .populate(dataPopulateFields)
+      //     .exec();
+
+      //   data = data.map(doc => {
+      //     const acceptedROSubmissionDate = new Date(doc.acceptedROSubmissionDate);
+      //     const acceptedSiteSubmissionDate = new Date(doc.acceptedSiteSubmissionDate);
+
+      //     const updatedArchitectRevisions = doc.acceptedArchitectRevisions.map(revision => {
+      //       const softCopySubmittedDate = new Date(revision.softCopySubmittedDate);
+      //       const diffInDays = Math.ceil((softCopySubmittedDate - acceptedROSubmissionDate) / (1000 * 60 * 60 * 24));
+
+      //       let dueStatus = '';
+      //       if (diffInDays > 0) dueStatus = `Overdue by ${diffInDays} day(s)`;
+      //       else if (diffInDays < 0) dueStatus = `Due in ${Math.abs(diffInDays)} day(s)`;
+      //       else dueStatus = 'Submitted on time';
+
+      //       return { ...revision._doc, dueStatus };
+      //     });
+
+      //     const updatedRORevisions = doc.acceptedRORevisions.map(revision => {
+      //       const softCopySubmittedDate = new Date(revision.softCopySubmittedDate);
+      //       const diffInDays = Math.ceil((softCopySubmittedDate - acceptedSiteSubmissionDate) / (1000 * 60 * 60 * 24));
+
+      //       let dueStatus = '';
+      //       if (diffInDays > 0) dueStatus = `Overdue by ${diffInDays} day(s)`;
+      //       else if (diffInDays < 0) dueStatus = `Due in ${Math.abs(diffInDays)} day(s)`;
+      //       else dueStatus = 'Submitted on time';
+
+      //       return { ...revision._doc, dueStatus };
+      //     });
+
+      //     return {
+      //       ...doc._doc,
+      //       acceptedArchitectRevisions: updatedArchitectRevisions,
+      //       acceptedRORevisions: updatedRORevisions,
+      //     };
+      //   });
+
+      //   break;
       case 'drawing':
-        query['regState'] = 'Drawing';
-        query['$or'] = [
-          { 'acceptedArchitectRevisions.0': { $exists: true } },
-          { 'acceptedRORevisions.0': { $exists: true } },
-          { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
-          { 'acceptedROHardCopyRevisions.0': { $exists: true } },
-        ];
+  // query.regState = 'Drawing';
 
-        data = await ArchitectureToRoRegister
-          .find(query)
-          .populate(dataPopulateFields)
-          .exec();
+  query.$or = [
+    { 'acceptedArchitectRevisions.0': { $exists: true } },
+    { 'acceptedRORevisions.0': { $exists: true } },
+    { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
+    { 'acceptedROHardCopyRevisions.0': { $exists: true } }
+  ];
 
-        data = data.map(doc => {
-          const acceptedROSubmissionDate = new Date(doc.acceptedROSubmissionDate);
-          const acceptedSiteSubmissionDate = new Date(doc.acceptedSiteSubmissionDate);
+  data = await ArchitectureToRoRegister
+    .find(query)
+    .populate(dataPopulateFields)
+    .lean();
 
-          const updatedArchitectRevisions = doc.acceptedArchitectRevisions.map(revision => {
-            const softCopySubmittedDate = new Date(revision.softCopySubmittedDate);
-            const diffInDays = Math.ceil((softCopySubmittedDate - acceptedROSubmissionDate) / (1000 * 60 * 60 * 24));
+  // =========================
+  // ✅ SAME LIKE PENDING + REGSTATE CONTROL
+  // =========================
+  data = data.flatMap(item => {
 
-            let dueStatus = '';
-            if (diffInDays > 0) dueStatus = `Overdue by ${diffInDays} day(s)`;
-            else if (diffInDays < 0) dueStatus = `Due in ${Math.abs(diffInDays)} day(s)`;
-            else dueStatus = 'Submitted on time';
+    const architectCount = item.acceptedArchitectRevisions?.length || 0;
+    const roCount = item.acceptedRORevisions?.length || 0;
+    const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
+    const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
 
-            return { ...revision._doc, dueStatus };
-          });
+    const results = [];
 
-          const updatedRORevisions = doc.acceptedRORevisions.map(revision => {
-            const softCopySubmittedDate = new Date(revision.softCopySubmittedDate);
-            const diffInDays = Math.ceil((softCopySubmittedDate - acceptedSiteSubmissionDate) / (1000 * 60 * 60 * 24));
+    // =========================
+    // ✅ SOFT COPY (ONLY WHEN regState === 'Drawing')
+    // =========================
+    if (
+      item.regState === 'Drawing' &&
+      fromtoType === "architect" &&
+      architectCount > 0
+    ) {
+      results.push({
+        ...item,
+        drawingType: 'upload',
+        drawingStage: 'architect'
+      });
+    }
 
-            let dueStatus = '';
-            if (diffInDays > 0) dueStatus = `Overdue by ${diffInDays} day(s)`;
-            else if (diffInDays < 0) dueStatus = `Due in ${Math.abs(diffInDays)} day(s)`;
-            else dueStatus = 'Submitted on time';
+    if (
+      item.regState === 'Drawing' &&
+      fromtoType === "siteHead" &&
+      roCount > 0
+    ) {
+      results.push({
+        ...item,
+        drawingType: 'upload',
+        drawingStage: 'siteHead'
+      });
+    }
 
-            return { ...revision._doc, dueStatus };
-          });
+    // =========================
+    // ✅ HARD COPY (NO regState DEPENDENCY)
+    // =========================
+    if (
+      fromtoType === "architect" &&
+      roHardCopyCount > 0
+    ) {
+      results.push({
+        ...item,
+        drawingType: 'received',
+        drawingStage: 'architect'
+      });
+    }
 
-          return {
-            ...doc._doc,
-            acceptedArchitectRevisions: updatedArchitectRevisions,
-            acceptedRORevisions: updatedRORevisions,
-          };
-        });
+    if (
+      fromtoType === "siteHead" &&
+      siteHeadHardCopyCount > 0
+    ) {
+      results.push({
+        ...item,
+        drawingType: 'received',
+        drawingStage: 'siteHead'
+      });
+    }
 
-        break;
+    return results;
+
+  }).filter(Boolean);
+
+  break;
 
       case 'pending':
         const pendingQuery = {
@@ -1345,22 +1429,105 @@ exports.getAllRoReports = async (req, res) => {
 
     switch (reportType) {
 
-      case 'drawing':
-        query.regState = 'Drawing';
+      // case 'drawing':
+      //   query.regState = 'Drawing';
 
-        query.$or = [
-          { 'acceptedArchitectRevisions.0': { $exists: true } },
-          { 'acceptedRORevisions.0': { $exists: true } },
-          { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
-          { 'acceptedROHardCopyRevisions.0': { $exists: true } }
-        ];
+      //   query.$or = [
+      //     { 'acceptedArchitectRevisions.0': { $exists: true } },
+      //     { 'acceptedRORevisions.0': { $exists: true } },
+      //     { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
+      //     { 'acceptedROHardCopyRevisions.0': { $exists: true } }
+      //   ];
 
-        data = await ArchitectureToRoRegister
-          .find(query)
-          .populate(dataPopulateFields)
-          .exec();
-        break;
+      //   data = await ArchitectureToRoRegister
+      //     .find(query)
+      //     .populate(dataPopulateFields)
+      //     .exec();
+      //   break;
+case 'drawing':
+  // query.regState = 'Drawing';
 
+  query.$or = [
+    { 'acceptedArchitectRevisions.0': { $exists: true } },
+    { 'acceptedRORevisions.0': { $exists: true } },
+    { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
+    { 'acceptedROHardCopyRevisions.0': { $exists: true } }
+  ];
+
+  data = await ArchitectureToRoRegister
+    .find(query)
+    .populate(dataPopulateFields)
+    .lean();
+
+  // =========================
+  // ✅ SAME LIKE PENDING + REGSTATE CONTROL
+  // =========================
+  data = data.flatMap(item => {
+
+    const architectCount = item.acceptedArchitectRevisions?.length || 0;
+    const roCount = item.acceptedRORevisions?.length || 0;
+    const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
+    const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
+
+    const results = [];
+
+    // =========================
+    // ✅ SOFT COPY (ONLY WHEN regState === 'Drawing')
+    // =========================
+    if (
+      item.regState === 'Drawing' &&
+      fromtoType === "architect" &&
+      architectCount > 0
+    ) {
+      results.push({
+        ...item,
+        drawingType: 'upload',
+        drawingStage: 'architect'
+      });
+    }
+
+    if (
+      item.regState === 'Drawing' &&
+      fromtoType === "siteHead" &&
+      roCount > 0
+    ) {
+      results.push({
+        ...item,
+        drawingType: 'upload',
+        drawingStage: 'siteHead'
+      });
+    }
+
+    // =========================
+    // ✅ HARD COPY (NO regState DEPENDENCY)
+    // =========================
+    if (
+      fromtoType === "architect" &&
+      roHardCopyCount > 0
+    ) {
+      results.push({
+        ...item,
+        drawingType: 'received',
+        drawingStage: 'architect'
+      });
+    }
+
+    if (
+      fromtoType === "siteHead" &&
+      siteHeadHardCopyCount > 0
+    ) {
+      results.push({
+        ...item,
+        drawingType: 'received',
+        drawingStage: 'siteHead'
+      });
+    }
+
+    return results;
+
+  }).filter(Boolean);
+
+  break;
       case 'pending':
         data = await ArchitectureToRoRegister
           .find(query)
@@ -1534,51 +1701,51 @@ case 'RFI':
     }
 
     // SPECIAL CASE
-    if (reportType === 'drawing' && (!data || data.length === 0)) {
+    // if (reportType === 'drawing' && (!data || data.length === 0)) {
 
-      const pendingRaw = await ArchitectureToRoRegister
-        .find({ siteId, ...(folderId ? { folderId } : {}) })
-        .populate(dataPopulateFields)
-        .lean();
+    //   const pendingRaw = await ArchitectureToRoRegister
+    //     .find({ siteId, ...(folderId ? { folderId } : {}) })
+    //     .populate(dataPopulateFields)
+    //     .lean();
 
-      const pendingProcessed = pendingRaw.flatMap(item => {
-        const architectCount = item.acceptedArchitectRevisions?.length || 0;
-        const roCount = item.acceptedRORevisions?.length || 0;
-        const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
-        const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
+    //   const pendingProcessed = pendingRaw.flatMap(item => {
+    //     const architectCount = item.acceptedArchitectRevisions?.length || 0;
+    //     const roCount = item.acceptedRORevisions?.length || 0;
+    //     const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
+    //     const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
 
-        const results = [];
+    //     const results = [];
 
-        if (
-          (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length <= 0) ||
-          item.regState === 'Pending'
-        ) results.push(item);
+    //     if (
+    //       (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length <= 0) ||
+    //       item.regState === 'Pending'
+    //     ) results.push(item);
 
-        if (
-          architectCount > 0 &&
-          (roHardCopyCount === 0 || roHardCopyCount < architectCount)
-        ) results.push(item);
+    //     if (
+    //       architectCount > 0 &&
+    //       (roHardCopyCount === 0 || roHardCopyCount < architectCount)
+    //     ) results.push(item);
 
-        if (
-          (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-          item.regState === 'Pending'
-        ) results.push(item);
+    //     if (
+    //       (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+    //       item.regState === 'Pending'
+    //     ) results.push(item);
 
-        if (
-          roCount > 0 &&
-          (siteHeadHardCopyCount === 0 || siteHeadHardCopyCount < roCount)
-        ) results.push(item);
+    //     if (
+    //       roCount > 0 &&
+    //       (siteHeadHardCopyCount === 0 || siteHeadHardCopyCount < roCount)
+    //     ) results.push(item);
 
-        return results;
-      }).filter(Boolean);
+    //     return results;
+    //   }).filter(Boolean);
 
-      const dates = pendingProcessed.map(i => new Date(i.creationDate));
+    //   const dates = pendingProcessed.map(i => new Date(i.creationDate));
 
-      return res.status(200).json({
-        startDate: dates.length ? new Date(Math.min(...dates)) : null,
-        endDate: dates.length ? new Date(Math.max(...dates)) : null
-      });
-    }
+    //   return res.status(200).json({
+    //     startDate: dates.length ? new Date(Math.min(...dates)) : null,
+    //     endDate: dates.length ? new Date(Math.max(...dates)) : null
+    //   });
+    // }
 
     // NORMAL FLOW
     data = applyTimePeriodFilter(

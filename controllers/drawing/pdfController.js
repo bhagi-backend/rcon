@@ -1185,11 +1185,11 @@ exports.getRoReports = async (req, res) => {
   // =========================
   // ✅ RFI SPLIT FILTER (UNCHANGED)
   // =========================
-  if (rfiType === "siteToSite") {
+  if (rfiType === "architecture") {
     return res.status(200).json({
-      cleanedData: rfiData.siteToSiteRequests,
-      startDate: rfiData.siteToSiteStartDate,
-      endDate: rfiData.siteToSiteEndDate
+      cleanedData: rfiData.architectureRequests,
+      startDate: rfiData.architectStartDate,
+      endDate: rfiData.architectEndDate
     });
   }
 
@@ -1512,11 +1512,11 @@ case 'RFI':
   // =========================
   // ✅ RFI TYPE FILTER (UNCHANGED)
   // =========================
-  if (rfiType === "siteToSite") {
+  if (rfiType === "architecture") {
     return res.status(200).json({
-      cleanedData: rfiData.siteToSiteRequests,
-      startDate: rfiData.siteToSiteStartDate,
-      endDate: rfiData.siteToSiteEndDate
+      cleanedData: rfiData.architectureRequests,
+      startDate: rfiData.architectStartDate,
+      endDate: rfiData.architectEndDate
     });
   }
 

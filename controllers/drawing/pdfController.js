@@ -427,8 +427,7 @@ exports.getArchitectReports = async (req, res) => {
       // ✅ UPLOAD
       // =========================
       if (
-        (item.acceptedArchitectRevisions &&
-          item.acceptedArchitectRevisions.length <= 0) ||
+       architectCount> 0 &&
         item.regState === 'Drawing'   // 👈 changed from Pending → Drawing
       ) {
         results.push({
@@ -441,8 +440,8 @@ exports.getArchitectReports = async (req, res) => {
       // ✅ RECEIVED
       // =========================
       if (
-        architectCount !== 0 &&
-        architectCount !== roHardCopyCount
+        
+        architectCount == roHardCopyCount
       ) {
         results.push({
           ...item,
@@ -2886,7 +2885,7 @@ exports.getsiteHeadReports = async (req, res) => {
       //   ];
       //   data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
       //   break;
-            case 'drawing':
+ case 'drawing':
   // query['regState'] = 'Drawing';
   query['$or'] = [
     { 'acceptedRORevisions.0': { $exists: true } },
@@ -2916,10 +2915,9 @@ exports.getsiteHeadReports = async (req, res) => {
       // =========================
       if (
         fromtoType === "ro" &&
-        (
-          (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+      roCount > 0 &&
           item.regState === 'Drawing'
-        )
+        
       ) {
         results.push({
           ...item,
@@ -2930,10 +2928,9 @@ exports.getsiteHeadReports = async (req, res) => {
 
       if (
         fromtoType === "siteLevel" &&
-        (
-          (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
+          siteHeadCount > 0 &&
           item.regState === 'Drawing'
-        )
+     
       ) {
         results.push({
           ...item,
@@ -2945,16 +2942,17 @@ exports.getsiteHeadReports = async (req, res) => {
       // =========================
       // ✅ RECEIVED
       // =========================
-      if (
-        fromtoType === "ro" &&
-        (siteHeadHardCopyCount < roCount)
-      ) {
-        results.push({
-          ...item,
-          drawingType: 'received',
-          drawingStage: 'siteLevel'
-        });
-      }
+   if (
+  fromtoType === "ro" &&
+  siteHeadHardCopyCount > 0 
+  // siteHeadHardCopyCount === roCount
+) {
+  results.push({
+    ...item,
+    drawingType: 'received',
+    drawingStage: 'siteLevel'
+  });
+}
 
       return results;
 
@@ -2962,6 +2960,7 @@ exports.getsiteHeadReports = async (req, res) => {
     .filter(Boolean);
 
   break;
+
 
       case 'pending':
         data = await ArchitectureToRoRegister
@@ -3324,10 +3323,9 @@ exports.getAllSiteHeadReports = async (req, res) => {
       // =========================
       if (
         fromtoType === "ro" &&
-        (
-          (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+      roCount > 0 &&
           item.regState === 'Drawing'
-        )
+        
       ) {
         results.push({
           ...item,
@@ -3338,10 +3336,9 @@ exports.getAllSiteHeadReports = async (req, res) => {
 
       if (
         fromtoType === "siteLevel" &&
-        (
-          (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) &&
+          siteHeadCount > 0 &&
           item.regState === 'Drawing'
-        )
+     
       ) {
         results.push({
           ...item,
@@ -3355,8 +3352,8 @@ exports.getAllSiteHeadReports = async (req, res) => {
       // =========================
    if (
   fromtoType === "ro" &&
-  roCount > 0 &&
-  siteHeadHardCopyCount < roCount
+  siteHeadHardCopyCount > 0 
+  // siteHeadHardCopyCount === roCount
 ) {
   results.push({
     ...item,

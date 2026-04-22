@@ -441,7 +441,8 @@ exports.getArchitectReports = async (req, res) => {
       // =========================
       if (
         
-        architectCount == roHardCopyCount
+        // architectCount == roHardCopyCount
+        roHardCopyCount>0
       ) {
         results.push({
           ...item,

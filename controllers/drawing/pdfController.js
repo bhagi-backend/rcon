@@ -542,48 +542,66 @@ exports.getArchitectReports = async (req, res) => {
     // ✅ FALLBACK FOR DATES
     let fallbackPendingData = [];
 
-    if (reportType === 'drawing' && (!data || data.length === 0)) {
-      const pendingQuery = {
-        designDrawingConsultant: designDrawingConsultantId,
-        siteId: siteId,
-      };
+    // if (reportType === 'drawing' && (!data || data.length === 0)) {
+    //   const pendingQuery = {
+    //     designDrawingConsultant: designDrawingConsultantId,
+    //     siteId: siteId,
+    //   };
 
-      if (folderId) {
-        pendingQuery.folderId = folderId;
-      }
+    //   if (folderId) {
+    //     pendingQuery.folderId = folderId;
+    //   }
 
-      const pendingData = await ArchitectureToRoRegister.find(pendingQuery)
-        .populate(dataPopulateFields)
-        .lean();
+    //   const pendingData = await ArchitectureToRoRegister.find(pendingQuery)
+    //     .populate(dataPopulateFields)
+    //     .lean();
 
-      fallbackPendingData = pendingData
-        .flatMap(item => {
-          const architectCount = item.acceptedArchitectRevisions
-            ? item.acceptedArchitectRevisions.length
-            : 0;
+    //   fallbackPendingData = pendingData
+    //     .flatMap(item => {
+    //       const architectCount = item.acceptedArchitectRevisions
+    //         ? item.acceptedArchitectRevisions.length
+    //         : 0;
 
-          const roCount = item.acceptedROHardCopyRevisions
-            ? item.acceptedROHardCopyRevisions.length
-            : 0;
+    //       const roCount = item.acceptedROHardCopyRevisions
+    //         ? item.acceptedROHardCopyRevisions.length
+    //         : 0;
 
-          const results = [];
+    //       const results = [];
 
-          if (
-            (item.acceptedArchitectRevisions &&
-              item.acceptedArchitectRevisions.length <= 0) ||
-            item.regState === 'Pending'
-          ) {
-            results.push(item);
-          }
+    //       if (
+    //         (item.acceptedArchitectRevisions &&
+    //           item.acceptedArchitectRevisions.length <= 0) ||
+    //         item.regState === 'Pending'
+    //       ) {
+    //         results.push(item);
+    //       }
 
-          if (architectCount !== 0 && architectCount !== roCount) {
-            results.push(item);
-          }
+    //       if (architectCount !== 0 && architectCount !== roCount) {
+    //         results.push(item);
+    //       }
 
-          return results;
-        })
-        .filter(Boolean);
-    }
+    //       return results;
+    //     })
+    //     .filter(Boolean);
+    // }
+    // ✅ DRAWING FALLBACK (CORRECTED - BASIC ONLY)
+if (reportType === 'drawing' && (!data || data.length === 0)) {
+
+  const fallbackRaw = await ArchitectureToRoRegister
+    .find({
+      siteId,
+      designDrawingConsultant: designDrawingConsultantId,
+      ...(folderId ? { folderId } : {})
+    })
+    .lean();
+
+  const dates = fallbackRaw.map(i => new Date(i.creationDate));
+
+  return res.status(200).json({
+    startDate: dates.length ? new Date(Math.min(...dates)) : null,
+    endDate: dates.length ? new Date(Math.max(...dates)) : null
+  });
+}
 
     // Apply time filter
     data = applyTimePeriodFilter(
@@ -1796,6 +1814,25 @@ case 'RFI':
     //     endDate: dates.length ? new Date(Math.max(...dates)) : null
     //   });
     // }
+    // =========================
+    // ✅ DRAWING FALLBACK (ADDED ONLY)
+    // =========================
+    if (reportType === 'drawing' && (!data || data.length === 0)) {
+
+      const fallbackRaw = await ArchitectureToRoRegister
+        .find({ siteId, ...(folderId ? { folderId } : {}) })
+        .lean();
+
+      const dates = fallbackRaw.map(i => new Date(i.creationDate));
+
+      
+       return res.status(200).json({
+            
+              startDate: dates.length ? new Date(Math.min(...dates)) : null,
+        endDate: dates.length ? new Date(Math.max(...dates)) : null
+          });
+    }
+
 
     // NORMAL FLOW
     data = applyTimePeriodFilter(
@@ -3125,42 +3162,59 @@ exports.getsiteHeadReports = async (req, res) => {
         return res.status(400).json({ message: 'Invalid report type' });
     }
 
-    // ✅ ADD THIS BLOCK (ONLY ADDITION)
+    // // ✅ ADD THIS BLOCK (ONLY ADDITION)
+    // if (reportType === 'drawing' && (!data || data.length === 0)) {
+
+    //   const pendingRaw = await ArchitectureToRoRegister
+    //     .find({ siteId, designDrawingConsultant: designDrawingConsultantId, ...(folderId ? { folderId } : {}) })
+    //     .lean();
+
+    //   const pendingProcessed = pendingRaw.flatMap(item => {
+
+    //     const roCount = item.acceptedRORevisions?.length || 0;
+    //     const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
+
+    //     const results = [];
+
+    //     if (
+    //       (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+    //       item.regState === 'Pending'
+    //     ) results.push(item);
+
+    //     if (
+    //       (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
+    //       item.regState === 'Pending'
+    //     ) results.push(item);
+
+    //     if (siteHeadHardCopyCount < roCount) results.push(item);
+
+    //     return results;
+    //   }).filter(Boolean);
+
+    //   const dates = pendingProcessed.map(i => new Date(i.creationDate));
+
+    //   return res.status(200).json({
+    //     startDate: dates.length ? new Date(Math.min(...dates)) : null,
+    //     endDate: dates.length ? new Date(Math.max(...dates)) : null
+    //   });
+    // }
     if (reportType === 'drawing' && (!data || data.length === 0)) {
 
-      const pendingRaw = await ArchitectureToRoRegister
-        .find({ siteId, designDrawingConsultant: designDrawingConsultantId, ...(folderId ? { folderId } : {}) })
-        .lean();
+  const fallbackRaw = await ArchitectureToRoRegister
+    .find({
+      siteId,
+      designDrawingConsultant: designDrawingConsultantId,
+      ...(folderId ? { folderId } : {})
+    })
+    .lean();
 
-      const pendingProcessed = pendingRaw.flatMap(item => {
+  const dates = fallbackRaw.map(i => new Date(i.creationDate));
 
-        const roCount = item.acceptedRORevisions?.length || 0;
-        const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
-
-        const results = [];
-
-        if (
-          (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-          item.regState === 'Pending'
-        ) results.push(item);
-
-        if (
-          (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
-          item.regState === 'Pending'
-        ) results.push(item);
-
-        if (siteHeadHardCopyCount < roCount) results.push(item);
-
-        return results;
-      }).filter(Boolean);
-
-      const dates = pendingProcessed.map(i => new Date(i.creationDate));
-
-      return res.status(200).json({
-        startDate: dates.length ? new Date(Math.min(...dates)) : null,
-        endDate: dates.length ? new Date(Math.max(...dates)) : null
-      });
-    }
+  return res.status(200).json({
+    startDate: dates.length ? new Date(Math.min(...dates)) : null,
+    endDate: dates.length ? new Date(Math.max(...dates)) : null
+  });
+}
 
     // =========================
     // EXISTING FLOW (UNCHANGED)
@@ -3530,43 +3584,60 @@ exports.getAllSiteHeadReports = async (req, res) => {
     }
 
     // ✅ SPECIAL CASE (ADDED ONLY)
+    // if (reportType === 'drawing' && (!data || data.length === 0)) {
+
+    //   const pendingRaw = await ArchitectureToRoRegister
+    //     .find({ siteId, ...(folderId ? { folderId } : {}) })
+    //     .lean();
+
+    //   const pendingProcessed = pendingRaw.flatMap(item => {
+
+    //     const roCount = item.acceptedRORevisions?.length || 0;
+    //     const architectCount = item.acceptedArchitectRevisions?.length || 0;
+    //     const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
+    //     const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
+
+    //     const results = [];
+
+    //     if (
+    //       (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+    //       item.regState === 'Pending'
+    //     ) results.push(item);
+
+    //     if (
+    //       (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
+    //       item.regState === 'Pending'
+    //     ) results.push(item);
+
+    //     if (siteHeadHardCopyCount < roCount) results.push(item);
+
+    //     return results;
+    //   }).filter(Boolean);
+
+    //   const dates = pendingProcessed.map(i => new Date(i.creationDate));
+
+    //   return res.status(200).json({
+    //     startDate: dates.length ? new Date(Math.min(...dates)) : null,
+    //     endDate: dates.length ? new Date(Math.max(...dates)) : null
+    //   });
+    // }
     if (reportType === 'drawing' && (!data || data.length === 0)) {
 
-      const pendingRaw = await ArchitectureToRoRegister
-        .find({ siteId, ...(folderId ? { folderId } : {}) })
-        .lean();
+  const fallbackRaw = await ArchitectureToRoRegister
+    .find({
+      siteId,
+      designDrawingConsultant: designDrawingConsultantId,
+      ...(folderId ? { folderId } : {})
+    })
+    .lean();
 
-      const pendingProcessed = pendingRaw.flatMap(item => {
+  const dates = fallbackRaw.map(i => new Date(i.creationDate));
 
-        const roCount = item.acceptedRORevisions?.length || 0;
-        const architectCount = item.acceptedArchitectRevisions?.length || 0;
-        const roHardCopyCount = item.acceptedROHardCopyRevisions?.length || 0;
-        const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
-
-        const results = [];
-
-        if (
-          (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
-          item.regState === 'Pending'
-        ) results.push(item);
-
-        if (
-          (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
-          item.regState === 'Pending'
-        ) results.push(item);
-
-        if (siteHeadHardCopyCount < roCount) results.push(item);
-
-        return results;
-      }).filter(Boolean);
-
-      const dates = pendingProcessed.map(i => new Date(i.creationDate));
-
-      return res.status(200).json({
-        startDate: dates.length ? new Date(Math.min(...dates)) : null,
-        endDate: dates.length ? new Date(Math.max(...dates)) : null
-      });
-    }
+  return res.status(200).json({
+    startDate: dates.length ? new Date(Math.min(...dates)) : null,
+    endDate: dates.length ? new Date(Math.max(...dates)) : null
+  });
+}
 
     // ✅ NORMAL FLOW (UNCHANGED)
     data = applyTimePeriodFilter(

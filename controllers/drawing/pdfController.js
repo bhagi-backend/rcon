@@ -391,14 +391,71 @@ exports.getArchitectReports = async (req, res) => {
     let data;
 
     switch (reportType) {
-      case 'drawing':
-        query['acceptedArchitectRevisions.0'] = { $exists: true };
-        query['regState'] = 'Drawing';
+      // case 'drawing':
+      //   query['acceptedArchitectRevisions.0'] = { $exists: true };
+      //   query['regState'] = 'Drawing';
 
-        data = await ArchitectureToRoRegister.find(query)
-          .populate(dataPopulateFields)
-          .exec();
-        break;
+      //   data = await ArchitectureToRoRegister.find(query)
+      //     .populate(dataPopulateFields)
+      //     .exec();
+      //   break;
+      case 'drawing':
+  query['acceptedArchitectRevisions.0'] = { $exists: true };
+  // query['regState'] = 'Drawing';
+
+  data = await ArchitectureToRoRegister.find(query)
+    .populate(dataPopulateFields)
+    .lean(); // ✅ only change needed for mapping
+
+  // =========================
+  // ✅ SAME LIKE PENDING (ADDED)
+  // =========================
+  data = data
+    .flatMap(item => {
+
+      const architectCount = item.acceptedArchitectRevisions
+        ? item.acceptedArchitectRevisions.length
+        : 0;
+
+      const roHardCopyCount = item.acceptedROHardCopyRevisions
+        ? item.acceptedROHardCopyRevisions.length
+        : 0;
+
+      const results = [];
+
+      // =========================
+      // ✅ UPLOAD
+      // =========================
+      if (
+        (item.acceptedArchitectRevisions &&
+          item.acceptedArchitectRevisions.length <= 0) ||
+        item.regState === 'Drawing'   // 👈 changed from Pending → Drawing
+      ) {
+        results.push({
+          ...item,
+          drawingType: 'upload'
+        });
+      }
+
+      // =========================
+      // ✅ RECEIVED
+      // =========================
+      if (
+        architectCount !== 0 &&
+        architectCount !== roHardCopyCount
+      ) {
+        results.push({
+          ...item,
+          drawingType: 'received'
+        });
+      }
+
+      return results;
+
+    })
+    .filter(Boolean);
+
+  break;
 
       case 'pending':
         const pendingQuery = {
@@ -3282,7 +3339,7 @@ exports.getAllSiteHeadReports = async (req, res) => {
       if (
         fromtoType === "siteLevel" &&
         (
-          (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
+          (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) &&
           item.regState === 'Drawing'
         )
       ) {
@@ -3296,16 +3353,17 @@ exports.getAllSiteHeadReports = async (req, res) => {
       // =========================
       // ✅ RECEIVED
       // =========================
-      if (
-        fromtoType === "ro" &&
-        (siteHeadHardCopyCount < roCount)
-      ) {
-        results.push({
-          ...item,
-          drawingType: 'received',
-          drawingStage: 'siteLevel'
-        });
-      }
+   if (
+  fromtoType === "ro" &&
+  roCount > 0 &&
+  siteHeadHardCopyCount < roCount
+) {
+  results.push({
+    ...item,
+    drawingType: 'received',
+    drawingStage: 'siteLevel'
+  });
+}
 
       return results;
 

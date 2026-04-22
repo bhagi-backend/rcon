@@ -2820,15 +2820,91 @@ exports.getsiteHeadReports = async (req, res) => {
 
     switch (reportType) {
 
-      case 'drawing':
-        query.regState = 'Drawing';
-        query.$or = [
-          { 'acceptedRORevisions.0': { $exists: true } },
-          { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
-          { 'acceptedSiteHeadRevisions.0': { $exists: true } },
-        ];
-        data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
-        break;
+      // case 'drawing':
+      //   query.regState = 'Drawing';
+      //   query.$or = [
+      //     { 'acceptedRORevisions.0': { $exists: true } },
+      //     { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
+      //     { 'acceptedSiteHeadRevisions.0': { $exists: true } },
+      //   ];
+      //   data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
+      //   break;
+            case 'drawing':
+  // query['regState'] = 'Drawing';
+  query['$or'] = [
+    { 'acceptedRORevisions.0': { $exists: true } },
+    { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
+    { 'acceptedSiteHeadRevisions.0': { $exists: true } },
+  ];
+
+  data = await ArchitectureToRoRegister
+    .find(query)
+    .populate(dataPopulateFields)
+    .lean();
+
+  // =========================
+  // ✅ SAME LIKE PENDING (upload / received)
+  // =========================
+  data = data
+    .flatMap(item => {
+
+      const roCount = item.acceptedRORevisions?.length || 0;
+      const siteHeadCount = item.acceptedSiteHeadRevisions?.length || 0;
+      const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
+
+      const results = [];
+
+      // =========================
+      // ✅ UPLOAD
+      // =========================
+      if (
+        fromtoType === "ro" &&
+        (
+          (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+          item.regState === 'Drawing'
+        )
+      ) {
+        results.push({
+          ...item,
+          drawingType: 'upload',
+          drawingStage: 'ro'
+        });
+      }
+
+      if (
+        fromtoType === "siteLevel" &&
+        (
+          (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
+          item.regState === 'Drawing'
+        )
+      ) {
+        results.push({
+          ...item,
+          drawingType: 'upload',
+          drawingStage: 'siteLevel'
+        });
+      }
+
+      // =========================
+      // ✅ RECEIVED
+      // =========================
+      if (
+        fromtoType === "ro" &&
+        (siteHeadHardCopyCount < roCount)
+      ) {
+        results.push({
+          ...item,
+          drawingType: 'received',
+          drawingStage: 'siteLevel'
+        });
+      }
+
+      return results;
+
+    })
+    .filter(Boolean);
+
+  break;
 
       case 'pending':
         data = await ArchitectureToRoRegister
@@ -3152,15 +3228,91 @@ exports.getAllSiteHeadReports = async (req, res) => {
 
     switch (reportType) {
 
+      // case 'drawing':
+      //   query['regState'] = 'Drawing';
+      //   query['$or'] = [
+      //     { 'acceptedRORevisions.0': { $exists: true } },
+      //     { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
+      //     { 'acceptedSiteHeadRevisions.0': { $exists: true } },
+      //   ];
+      //   data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
+      //   break;
       case 'drawing':
-        query['regState'] = 'Drawing';
-        query['$or'] = [
-          { 'acceptedRORevisions.0': { $exists: true } },
-          { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
-          { 'acceptedSiteHeadRevisions.0': { $exists: true } },
-        ];
-        data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).exec();
-        break;
+  // query['regState'] = 'Drawing';
+  query['$or'] = [
+    { 'acceptedRORevisions.0': { $exists: true } },
+    { 'acceptedSiteHeadHardCopyRevisions.0': { $exists: true } },
+    { 'acceptedSiteHeadRevisions.0': { $exists: true } },
+  ];
+
+  data = await ArchitectureToRoRegister
+    .find(query)
+    .populate(dataPopulateFields)
+    .lean();
+
+  // =========================
+  // ✅ SAME LIKE PENDING (upload / received)
+  // =========================
+  data = data
+    .flatMap(item => {
+
+      const roCount = item.acceptedRORevisions?.length || 0;
+      const siteHeadCount = item.acceptedSiteHeadRevisions?.length || 0;
+      const siteHeadHardCopyCount = item.acceptedSiteHeadHardCopyRevisions?.length || 0;
+
+      const results = [];
+
+      // =========================
+      // ✅ UPLOAD
+      // =========================
+      if (
+        fromtoType === "ro" &&
+        (
+          (item.acceptedRORevisions && item.acceptedRORevisions.length <= 0) ||
+          item.regState === 'Drawing'
+        )
+      ) {
+        results.push({
+          ...item,
+          drawingType: 'upload',
+          drawingStage: 'ro'
+        });
+      }
+
+      if (
+        fromtoType === "siteLevel" &&
+        (
+          (item.acceptedSiteHeadRevisions && item.acceptedSiteHeadRevisions.length <= 0) ||
+          item.regState === 'Drawing'
+        )
+      ) {
+        results.push({
+          ...item,
+          drawingType: 'upload',
+          drawingStage: 'siteLevel'
+        });
+      }
+
+      // =========================
+      // ✅ RECEIVED
+      // =========================
+      if (
+        fromtoType === "ro" &&
+        (siteHeadHardCopyCount < roCount)
+      ) {
+        results.push({
+          ...item,
+          drawingType: 'received',
+          drawingStage: 'siteLevel'
+        });
+      }
+
+      return results;
+
+    })
+    .filter(Boolean);
+
+  break;
 
       case 'pending':
         data = await ArchitectureToRoRegister.find(query).populate(dataPopulateFields).lean();

@@ -1175,13 +1175,12 @@ exports.getRoReports = async (req, res) => {
           .lean();
         break;
 
-    
-     case 'RFI':
+    case 'RFI':
 
-  const siteToSiteRequests = await SiteToSiteLevelRequest.find(query)
+  const architectureRfiData = await ArchitectureToRoRequest.find(query)
     .populate({
       path: 'drawingId',
-      select: 'drawingTitle designDrawingConsultant category folderId',
+      select: 'drawingTitle designDrawingConsultant category',
       populate: [
         { path: 'designDrawingConsultant', select: 'role' },
         { path: 'category', select: 'category' },
@@ -1190,10 +1189,10 @@ exports.getRoReports = async (req, res) => {
     })
     .exec();
 
-  const siteLevelRequests = await RoToSiteLevelRoRequest.find(query)
+  const siteLevelRfiData = await RoToSiteLevelRoRequest.find(query)
     .populate({
       path: 'drawingId',
-      select: 'drawingTitle designDrawingConsultant category folderId',
+      select: 'drawingTitle designDrawingConsultant category',
       populate: [
         { path: 'designDrawingConsultant', select: 'role' },
         { path: 'category', select: 'category' },
@@ -1205,19 +1204,14 @@ exports.getRoReports = async (req, res) => {
   // =========================
   // FILTER BY CONSULTANT (UNCHANGED)
   // =========================
-  let filteredSiteToSiteRequests = siteToSiteRequests.filter(item =>
-    item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId
-  );
+  let filteredArchitectureRfiData 
 
-  let filteredSiteLevelRequests = siteLevelRequests.filter(item =>
-    item.drawingId?.designDrawingConsultant?._id.toString() === designDrawingConsultantId
-  );
-
+  let filteredSiteLevelRfiData
   // =========================
   // ✅ APPLY TIME FILTER (NEW)
   // =========================
-  filteredSiteToSiteRequests = applyTimePeriodFilter(
-    filteredSiteToSiteRequests,
+  filteredArchitectureRfiData = applyTimePeriodFilter(
+    architectureRfiData,
     selectTimePeriod,
     fromDate,
     toDate,
@@ -1225,8 +1219,8 @@ exports.getRoReports = async (req, res) => {
     year
   );
 
-  filteredSiteLevelRequests = applyTimePeriodFilter(
-    filteredSiteLevelRequests,
+  filteredSiteLevelRfiData = applyTimePeriodFilter(
+    siteLevelRfiData,
     selectTimePeriod,
     fromDate,
     toDate,
@@ -1237,37 +1231,37 @@ exports.getRoReports = async (req, res) => {
   // =========================
   // ✅ CALCULATE DATES AFTER FILTER
   // =========================
-  const siteToSiteDates = filteredSiteToSiteRequests.map(i =>
+  const architectDates = filteredArchitectureRfiData.map(i =>
     new Date(i.creationDate)
   );
 
-  const siteLevelDates = filteredSiteLevelRequests.map(i =>
+  const siteDates = filteredSiteLevelRfiData.map(i =>
     new Date(i.creationDate)
   );
 
   rfiData = {
-    siteToSiteRequests: filteredSiteToSiteRequests,
-    siteLevelRequests: filteredSiteLevelRequests,
+    architectureRequests: filteredArchitectureRfiData,
+    siteLevelRequests: filteredSiteLevelRfiData,
 
-    siteToSiteStartDate: siteToSiteDates.length
-      ? new Date(Math.min(...siteToSiteDates))
+    architectStartDate: architectDates.length
+      ? new Date(Math.min(...architectDates))
       : null,
 
-    siteToSiteEndDate: siteToSiteDates.length
-      ? new Date(Math.max(...siteToSiteDates))
+    architectEndDate: architectDates.length
+      ? new Date(Math.max(...architectDates))
       : null,
 
-    siteStartDate: siteLevelDates.length
-      ? new Date(Math.min(...siteLevelDates))
+    siteStartDate: siteDates.length
+      ? new Date(Math.min(...siteDates))
       : null,
 
-    siteEndDate: siteLevelDates.length
-      ? new Date(Math.max(...siteLevelDates))
+    siteEndDate: siteDates.length
+      ? new Date(Math.max(...siteDates))
       : null
   };
 
   // =========================
-  // ✅ RFI SPLIT FILTER (UNCHANGED)
+  // ✅ RFI TYPE FILTER (UNCHANGED)
   // =========================
   if (rfiType === "architecture") {
     return res.status(200).json({
@@ -1285,9 +1279,8 @@ exports.getRoReports = async (req, res) => {
     });
   }
 
-  // return res.status(200).json(rfiData);
   break;
-   default:
+      default:
         return res.status(400).json({ message: 'Invalid report type' });
     }
 

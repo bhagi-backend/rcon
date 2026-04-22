@@ -2240,12 +2240,13 @@ if (revisionType === "acceptedSiteHeadRevisions") {
 // });
 
 exports.getRegisterBySiteId = catchAsync(async (req, res, next) => {
-  const { siteId, status, folderId } = req.query;
+  const { siteId, status, folderId, designConsultantId } = req.query; // ✅ added
 
   const query = {};
   if (status) query.status = status;
   if (siteId) query.siteId = siteId;
   if (folderId) query.folderId = folderId;
+  if (designConsultantId) query.designDrawingConsultant = designConsultantId; // ✅ added
 
   try {
     const registers = await ArchitectureToRoRegister.find(query)
@@ -2258,7 +2259,6 @@ exports.getRegisterBySiteId = catchAsync(async (req, res, next) => {
         select: "revision roRef rfiStatus",
       });
 
-    // Debugging: log the populated data
     console.log("Registers:", registers);
 
     const enrichedRegisters = await Promise.all(
@@ -2286,7 +2286,6 @@ exports.getRegisterBySiteId = catchAsync(async (req, res, next) => {
                   siteHeadRevision.roRef.toString(),
               );
 
-              // Check for architectRef in matchedSiteHead
               if (matchedSiteHead && matchedSiteHead.architectRef) {
                 const matchedArchitectRevision = register.acceptedArchitectRevisions.find(
                   (archRevision) =>

@@ -74,8 +74,31 @@ exports.deleteDesignConsultant = catchAsync(async (req, res, next) => {
         }
     });
 });
+// exports.getdesignConsultantsByDepartment = catchAsync(async (req, res, next) => {
+//     const { department, module } = req.query;
+//     const query = {};
+    
+//     if (department) {
+//         query.department = department; 
+//     }
+
+//     if (module) {
+//         query.module = module; 
+//     }
+//     const assignments = await AssignDesignConsultantsToDepartment.find(query)
+//         .populate({ path: 'designConsultants', select: "role" });
+
+//     res.status(200).json({
+//         status: 'success',
+//         results: assignments.length,
+//         data: {
+//             assignments,
+//         },
+//     });
+// });
+
 exports.getdesignConsultantsByDepartment = catchAsync(async (req, res, next) => {
-    const { department, module } = req.query;
+    const { department, module, siteId } = req.query; // ✅ added siteId
     const query = {};
     
     if (department) {
@@ -85,6 +108,11 @@ exports.getdesignConsultantsByDepartment = catchAsync(async (req, res, next) => 
     if (module) {
         query.module = module; 
     }
+
+    if (siteId) {                  // ✅ optional filter
+        query.siteId = siteId;
+    }
+
     const assignments = await AssignDesignConsultantsToDepartment.find(query)
         .populate({ path: 'designConsultants', select: "role" });
 
@@ -96,4 +124,3 @@ exports.getdesignConsultantsByDepartment = catchAsync(async (req, res, next) => 
         },
     });
 });
-

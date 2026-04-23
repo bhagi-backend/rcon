@@ -3270,7 +3270,7 @@ exports.updateMultipleRegisters = catchAsync(async (req, res, next) => {
     return next(new AppError("Please provide an array of updates.", 400));
   }
 
-  const userId = req.user.id; // logged-in user ID
+  const userId = req.user.id;
 
   const results = await Promise.all(
     updates.map(async ({ id, data }) => {
@@ -3278,42 +3278,40 @@ exports.updateMultipleRegisters = catchAsync(async (req, res, next) => {
         return { id, status: "failed", message: "Invalid register ID" };
       }
 
-      // STEP 1: Find the register first
       const register = await ArchitectureToRoRegister.findById(id);
 
       if (!register) {
         return { id, status: "failed", message: "Register not found" };
       }
 
-      // STEP 2: Save history BEFORE applying updates (capture OLD + NEW)
+      // ✅ Convert full document to plain object (IMPORTANT FIX)
+      const registerObj = register.toObject();
+
       if (Object.keys(data).length > 0) {
         register.history = register.history || [];
 
         const oldValues = {};
 
         Object.keys(data).forEach(key => {
-          oldValues[key] = register[key]; // capture old value BEFORE update
+          oldValues[key] = registerObj[key]; // ✅ always correct
         });
 
         register.history.unshift({
           updatedBy: userId,
           updatedAt: new Date(),
-          oldValues,            // ✅ ADDED
-          updatedFields: data,  // existing
+          oldValues,
+          updatedFields: data,
         });
       }
 
-      // STEP 3: Apply updates
       Object.assign(register, data);
 
-      // STEP 4: Mark history array as modified
       register.markModified("history");
 
-      // STEP 5: Save
       await register.save({ validateBeforeSave: true });
 
       return { id, status: "success", updatedFields: data };
-    }),
+    })
   );
 
   res.status(200).json({ status: "success", results });

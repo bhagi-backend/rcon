@@ -3626,7 +3626,7 @@ exports.getAllSiteHeadReports = async (req, res) => {
   const fallbackRaw = await ArchitectureToRoRegister
     .find({
       siteId,
-      designDrawingConsultant: designDrawingConsultantId,
+      // designDrawingConsultant: designDrawingConsultantId,
       ...(folderId ? { folderId } : {})
     })
     .lean();

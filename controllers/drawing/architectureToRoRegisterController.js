@@ -3278,62 +3278,70 @@ exports.updateMultipleRegisters = catchAsync(async (req, res, next) => {
         return { id, status: "failed", message: "Invalid register ID" };
       }
 
+      // ✅ Get DB record BEFORE update
       const register = await ArchitectureToRoRegister.findById(id);
+      const rawRegister = await ArchitectureToRoRegister.findById(id).lean();
 
       if (!register) {
         return { id, status: "failed", message: "Register not found" };
       }
 
-      // ✅ Convert full document to plain object (IMPORTANT FIX)
-      const registerObj = register.toObject();
+      let previousFields = {};
 
       if (Object.keys(data).length > 0) {
         register.history = register.history || [];
 
-        const oldValues = {};
-
-        Object.keys(data).forEach(key => {
-          oldValues[key] = registerObj[key]; // ✅ always correct
+        // ✅ Store previous values based on body fields
+        Object.keys(data).forEach((key) => {
+          previousFields[key] =
+            rawRegister && rawRegister[key] !== undefined
+              ? rawRegister[key]
+              : null;
         });
 
+        // ✅ Save history
         register.history.unshift({
           updatedBy: userId,
           updatedAt: new Date(),
-          oldValues,
+          previousFields,
           updatedFields: data,
         });
       }
 
+      // ✅ Apply update
       Object.assign(register, data);
 
       register.markModified("history");
 
       await register.save({ validateBeforeSave: true });
 
-      return { id, status: "success", updatedFields: data };
+      // ✅ Return previous + updated fields
+      return {
+        id,
+        status: "success",
+        previousFields: previousFields,
+        updatedFields: data,
+      };
     })
   );
 
-  res.status(200).json({ status: "success", results });
+  res.status(200).json({
+    status: "success",
+    results,
+  });
 });
 exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
   const { siteId, consultantId } = req.query;
 
-  // ---- Validate required siteId ----
   if (!siteId) {
     return next(new AppError("siteId is required.", 400));
   }
 
-  // ---- Create dynamic filter ----
   const filter = { siteId };
 
-  // If consultantId is provided, filter by consultant
-  // If consultantId is NOT provided, show all registers for the site
   if (consultantId) {
     filter.designDrawingConsultant = consultantId;
   }
-  // When consultantId is not provided, filter only contains { siteId }
-  // which means all registers for that site will be returned
 
   const registers = await ArchitectureToRoRegister.find(filter)
     .populate({ path: "siteId", select: "siteName siteCode" })
@@ -3385,48 +3393,25 @@ exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Sort history latest → oldest
-  registers.forEach((reg) => {
-    reg.history = reg.history?.sort(
-      (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt),
-    );
+  // // ✅ Process history
+  // registers.forEach((reg) => {
+  //   // sort latest first
+  //   reg.history = (reg.history || []).sort(
+  //     (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+  //   );
 
-    // Add previousFields and modifiedFields to each history entry
-    if (reg.history && reg.history.length > 0) {
-      reg.history = reg.history.map((historyEntry, index) => {
-        const modifiedFields = historyEntry.updatedFields || {};
-        const previousFields = {};
+  //   reg.history = reg.history.map((entry) => {
+  //     return {
+  //       ...entry,
 
-        // For each field that was modified in this entry, find its previous value
-        Object.keys(modifiedFields).forEach((field) => {
-          let previousValue = null;
+  //       // ✅ FIX: use previousFields (because PUT stores this)
+  //       previousFields: entry.previousFields || {},
 
-          // Look in older history entries (indices > index) to find the last time this field was changed
-          // The value in the most recent older entry that changed this field is the previous value
-          for (let i = index + 1; i < reg.history.length; i++) {
-            const olderEntry = reg.history[i];
-            const olderUpdatedFields = olderEntry.updatedFields || {};
-            if (olderUpdatedFields.hasOwnProperty(field)) {
-              previousValue = olderUpdatedFields[field];
-              break; // Found the most recent older change to this field
-            }
-          }
-
-          // If field wasn't found in older history entries, it means this was the first time it was changed
-          // In this case, we can't determine the previous value from history alone
-          // We'll leave it as null/undefined to indicate the previous value is unknown
-          previousFields[field] =
-            previousValue !== null ? previousValue : undefined;
-        });
-
-        return {
-          ...historyEntry,
-          previousFields,
-          modifiedFields,
-        };
-      });
-    }
-  });
+  //       // ✅ new values
+  //       modifiedFields: entry.updatedFields || {},
+  //     };
+  //   });
+  // });
 
   return res.status(200).json({
     status: "success",
@@ -3434,10 +3419,9 @@ exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
     data: registers,
   });
 });
+
 // exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
 //   const { siteId, consultantId } = req.query;
-//   const userId = req.user.id;
-//   const userRole = req.user.role;
 
 //   // ---- Validate required siteId ----
 //   if (!siteId) {
@@ -3447,16 +3431,13 @@ exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
 //   // ---- Create dynamic filter ----
 //   const filter = { siteId };
 
-//   // ---- Role-based filtering ----
-//   // If logged-in user is Design Consultant, show only their drawings
-//   // Otherwise, show all drawings (ignore consultantId filter)
-//   if (userRole === "Design Consultant") {
-//     // Design Consultant can only see their own drawings
-//     filter.designDrawingConsultant = userId;
-//   } else {
-//     // For other roles, show all drawings (don't filter by consultantId)
-//     // consultantId query parameter is ignored for non-Design Consultant roles
+//   // If consultantId is provided, filter by consultant
+//   // If consultantId is NOT provided, show all registers for the site
+//   if (consultantId) {
+//     filter.designDrawingConsultant = consultantId;
 //   }
+//   // When consultantId is not provided, filter only contains { siteId }
+//   // which means all registers for that site will be returned
 
 //   const registers = await ArchitectureToRoRegister.find(filter)
 //     .populate({ path: "siteId", select: "siteName siteCode" })
@@ -3511,7 +3492,7 @@ exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
 //   // Sort history latest → oldest
 //   registers.forEach((reg) => {
 //     reg.history = reg.history?.sort(
-//       (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+//       (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt),
 //     );
 
 //     // Add previousFields and modifiedFields to each history entry
@@ -3538,7 +3519,8 @@ exports.getRegistersBySiteAndConsultant = catchAsync(async (req, res, next) => {
 //           // If field wasn't found in older history entries, it means this was the first time it was changed
 //           // In this case, we can't determine the previous value from history alone
 //           // We'll leave it as null/undefined to indicate the previous value is unknown
-//           previousFields[field] = previousValue !== null ? previousValue : undefined;
+//           previousFields[field] =
+//             previousValue !== null ? previousValue : undefined;
 //         });
 
 //         return {

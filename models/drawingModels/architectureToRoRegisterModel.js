@@ -469,7 +469,7 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
   acceptedSiteHeadHardCopyRevisions: {
     type: [HardCopyRevisionSchema],
   },
-  history: [
+ history: [
   {
     updatedBy: {
       type: mongoose.Schema.ObjectId,
@@ -478,6 +478,10 @@ const ArchitectureToRoRegisterSchema = new mongoose.Schema({
     updatedAt: {
       type: Date,
       default: Date.now,
+    },
+    previousFields: {              // ✅ ADD THIS
+      type: Object,
+      required: true,
     },
     updatedFields: {
       type: Object,

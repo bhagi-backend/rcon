@@ -75,66 +75,135 @@ console.log("userId",userId);
 
   let responseData;
   responseData;
-  if (filterType === 'upload') {
-    responseData = await Promise.all(
-        data
-            // .filter(item => (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length > 0)&&item.regState === 'Drawing')
-            .filter(item => (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length > 0)&&
-          item.regState === 'Drawing')
-            .map(async (item) => {
-                const architectRevisionsMap = new Map(
-                    item.acceptedArchitectRevisions.map(archRevision => [
-                        archRevision._id.toString(), archRevision
-                    ])
-                );
+//   if (filterType === 'upload') {
+//     responseData = await Promise.all(
+//         data
+//             // .filter(item => (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length > 0)&&item.regState === 'Drawing')
+//             .filter(item => (item.acceptedArchitectRevisions && item.acceptedArchitectRevisions.length > 0)&&
+//           item.regState === 'Drawing')
+//             .map(async (item) => {
+//                 const architectRevisionsMap = new Map(
+//                     item.acceptedArchitectRevisions.map(archRevision => [
+//                         archRevision._id.toString(), archRevision
+//                     ])
+//                 );
 
-                const enrichedRevisions = await Promise.all(
-                    item.acceptedRORevisions.map(async (revision) => {
-                        if (revision.architectRef) {
-                            const matchedRevision = architectRevisionsMap.get(revision.architectRef.toString());
+//                 const enrichedRevisions = await Promise.all(
+//                     item.acceptedRORevisions.map(async (revision) => {
+//                         if (revision.architectRef) {
+//                             const matchedRevision = architectRevisionsMap.get(revision.architectRef.toString());
                            
-                            if (matchedRevision) {
-                                const enrichedRevision = {
-                                    ...matchedRevision.toObject(),  
-                                    currentRevision: revision.revision,
-                                    currentRevisionId:revision._id,
-                                    from: 'architect',
-                                    roType:revision.roType,
-                                    roRevisionStatus:revision.roRevisionStatus,
-                                    currentRevisionRfiStatus:revision.rfiStatus,
-                                    currentRevisionSoftCopySubmittedDate:revision.softCopySubmittedDate,
-                                    currentId:revision.id,
-                                };
-                                return enrichedRevision;
-                            }
-                        }
-                        return revision;
-                    })
+//                             if (matchedRevision) {
+//                                 const enrichedRevision = {
+//                                     ...matchedRevision.toObject(),  
+//                                     currentRevision: revision.revision,
+//                                     currentRevisionId:revision._id,
+//                                     from: 'architect',
+//                                     roType:revision.roType,
+//                                     roRevisionStatus:revision.roRevisionStatus,
+//                                     currentRevisionRfiStatus:revision.rfiStatus,
+//                                     currentRevisionSoftCopySubmittedDate:revision.softCopySubmittedDate,
+//                                     currentId:revision.id,
+//                                 };
+//                                 return enrichedRevision;
+//                             }
+//                         }
+//                         return revision;
+//                     })
+//                 );
+
+//                 return {
+//                     drawingId: item._id,
+//                     siteId: item.siteId,
+//                     folderId: item.folderId,
+//                     drawingNo: item.drawingNo,
+//                     designDrawingConsultant: item.designDrawingConsultant,
+//                     drawingTitle: item.drawingTitle,
+//                     noOfRoHardCopyRevisions:item.noOfRoHardCopyRevisions,
+//                     noOfSiteHeadHardCopyRevisions:item.noOfSiteHeadHardCopyRevisions,
+//                     category: item.category,
+//                     regState:item.regState,
+//                     archRevision:item.archRevision,
+//                     acceptedROSubmissionDate: item.acceptedROSubmissionDate,
+//                     acceptedSiteSubmissionDate: item.acceptedSiteSubmissionDate,
+//                     creationDate: item.creationDate,
+//                     createdBy: item.createdBy,
+//                     acceptedArchitectRevisions: item.acceptedArchitectRevisions,
+//                     acceptedRORevisions:enrichedRevisions,
+//                     acceptedROHardCopyRevisions:item.acceptedROHardCopyRevisions,
+
+//                 };
+//             })
+//     );
+// }
+if (filterType === 'upload') {
+  responseData = await Promise.all(
+    data
+      .filter(
+        (item) =>
+          item.acceptedArchitectRevisions &&
+          item.acceptedArchitectRevisions.length > 0 
+          // && item.regState === 'Drawing'
+      )
+      .map(async (item) => {
+
+        // Step 1: Enrich RO revisions (same as SiteHead pattern)
+        const enrichedRevisions = await Promise.all(
+          item.acceptedRORevisions.map(async (revision) => {
+            if (revision.architectRef) {
+              const matchedArchitectRevision =
+                item.acceptedArchitectRevisions.find(
+                  (archRevision) =>
+                    archRevision._id.toString() ===
+                    revision.architectRef.toString()
                 );
 
+              if (matchedArchitectRevision) {
                 return {
-                    drawingId: item._id,
-                    siteId: item.siteId,
-                    folderId: item.folderId,
-                    drawingNo: item.drawingNo,
-                    designDrawingConsultant: item.designDrawingConsultant,
-                    drawingTitle: item.drawingTitle,
-                    noOfRoHardCopyRevisions:item.noOfRoHardCopyRevisions,
-                    noOfSiteHeadHardCopyRevisions:item.noOfSiteHeadHardCopyRevisions,
-                    category: item.category,
-                    regState:item.regState,
-                    archRevision:item.archRevision,
-                    acceptedROSubmissionDate: item.acceptedROSubmissionDate,
-                    acceptedSiteSubmissionDate: item.acceptedSiteSubmissionDate,
-                    creationDate: item.creationDate,
-                    createdBy: item.createdBy,
-                    acceptedArchitectRevisions: item.acceptedArchitectRevisions,
-                    acceptedRORevisions:enrichedRevisions,
-                    acceptedROHardCopyRevisions:item.acceptedROHardCopyRevisions,
-
+                  ...matchedArchitectRevision.toObject(),
+                  currentRevision: revision.revision,
+                  currentRevisionId: revision._id,
+                  from: "architect",
+                  roType: revision.roType,
+                  roRevisionStatus: revision.roRevisionStatus,
+                  currentRevisionRfiStatus: revision.rfiStatus,
+                  currentRevisionSoftCopySubmittedDate:
+                    revision.softCopySubmittedDate,
+                  currentId: revision.id,
                 };
-            })
-    );
+              }
+            }
+
+            // fallback → return original revision
+            return revision;
+          })
+        );
+
+        // Step 2: Final response (UNCHANGED structure)
+        return {
+          drawingId: item._id,
+          siteId: item.siteId,
+          folderId: item.folderId,
+          drawingNo: item.drawingNo,
+          designDrawingConsultant: item.designDrawingConsultant,
+          drawingTitle: item.drawingTitle,
+          noOfRoHardCopyRevisions: item.noOfRoHardCopyRevisions,
+          noOfSiteHeadHardCopyRevisions:
+            item.noOfSiteHeadHardCopyRevisions,
+          category: item.category,
+          regState: item.regState,
+          archRevision: item.archRevision,
+          acceptedROSubmissionDate: item.acceptedROSubmissionDate,
+          acceptedSiteSubmissionDate: item.acceptedSiteSubmissionDate,
+          creationDate: item.creationDate,
+          createdBy: item.createdBy,
+          acceptedArchitectRevisions: item.acceptedArchitectRevisions,
+          acceptedRORevisions: enrichedRevisions,
+          acceptedROHardCopyRevisions:
+            item.acceptedROHardCopyRevisions,
+        };
+      })
+  );
 }
 
  else if (filterType === 'collected') {

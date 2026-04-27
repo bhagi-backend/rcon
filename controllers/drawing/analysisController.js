@@ -1239,66 +1239,61 @@ exports.getDrawingsAnalysisCountForRo = catchAsync(async (req, res, next) => {
     //   counted = true;
     // }
     else if (latestArchitectRevision.rfiStatus === "Raised") {
+      // NEW CONDITION → RO RFI Status not Forwarded
+      if (record.roRfiStatus !== "Forwarded") {
+        totalPendingDrawings++;
+        consultantData[consultantKey].pending++;
 
-  // NEW CONDITION → RO RFI Status not Forwarded
-  if (record.roRfiStatus !== "Forwarded") {
-    totalPendingDrawings++;
-    consultantData[consultantKey].pending++;
+        counted = true;
+      }
+    } else if (latestArchitectRevision.rfiStatus === "Raised") {
+      if (record.roRfiStatus === "Forwarded") {
+        totalApprovedDrawings++;
+        consultantData[consultantKey].approved++;
 
-    counted = true;
-  }
+        counted = true;
+      }
+      // else {
+      //   totalPendingDrawings++;
+      //   consultantData[consultantKey].pending++;
 
-}
-else if (latestArchitectRevision.rfiStatus === "Raised") {
-
-  if (record.roRfiStatus === "Forwarded") {
-    totalApprovedDrawings++;
-    consultantData[consultantKey].approved++;
-
-    counted = true;
-  } 
-  // else {
-  //   totalPendingDrawings++;
-  //   consultantData[consultantKey].pending++;
-
-  //   counted = true;
-  // }
-
-}
+      //   counted = true;
+      // }
+    }
     // Case 3: Architect Not Raised
     // Case 3: Architect Not Raised
-else if (latestArchitectRevision.rfiStatus === "Not Raised") {
-  const matchingRoRevision = roRevisions.find(
-    (roRev) => roRev.revision === latestArchitectRevision.revision,
-  );
+    else if (latestArchitectRevision.rfiStatus === "Not Raised") {
+      const matchingRoRevision = roRevisions.find(
+        (roRev) => roRev.revision === latestArchitectRevision.revision,
+      );
 
-  // Not Approved → revision not exists in RO
-  if (!matchingRoRevision) {
-    totalNotApprovedDrawings++;
-    consultantData[consultantKey].notApproved++;
+      // Not Approved → revision not exists in RO
+      if (!matchingRoRevision) {
+        totalNotApprovedDrawings++;
+        consultantData[consultantKey].notApproved++;
 
-    counted = true;
-  }
+        counted = true;
+      }
 
-  // Approved → Not Raised OR Forwarded
-  else if (
-    matchingRoRevision.rfiStatus === "Not Raised" ||
-    matchingRoRevision.rfiStatus === "Forwarded"
-  ) {
-    totalApprovedDrawings++;
-    consultantData[consultantKey].approved++;
+      // Approved → Not Raised OR Forwarded
+      else if (
+        matchingRoRevision.rfiStatus === "Not Raised" ||
+        matchingRoRevision.rfiStatus === "Forwarded"
+      ) {
+        totalApprovedDrawings++;
+        consultantData[consultantKey].approved++;
 
-    counted = true;
-  }
+        counted = true;
+      }
 
-  // Not Approved → RO Raised
-  else {
-    totalNotApprovedDrawings++;
-    consultantData[consultantKey].notApproved++;
+      // Not Approved → RO Raised
+      else {
+        totalNotApprovedDrawings++;
+        consultantData[consultantKey].notApproved++;
 
-    counted = true;
-  }
-}
+        counted = true;
+      }
+    }
 
     // fallback
     if (!counted) {
@@ -1823,7 +1818,7 @@ exports.getDrawingsAnalysisCountForSiteHead = catchAsync(
     const { selectTimePeriod, month, year, folderId, consultantId } = req.query;
     const userId = req.user.id;
     const userDepartment = req.user.department;
-console.log("userDepartment", userDepartment);
+    console.log("userDepartment", userDepartment);
     const user = await User.findOne({
       _id: userId,
       "permittedSites.siteId": siteId,
@@ -1968,11 +1963,11 @@ console.log("userDepartment", userDepartment);
       // -------------------------
       // NOT APPROVED CONDITIONS
       // -------------------------
-     else if (
-  latestRoRevision &&
-  (!latestSiteHeadRevision ||
-   latestRoRevision.revision !== latestSiteHeadRevision.revision)
-) {
+      else if (
+        latestRoRevision &&
+        (!latestSiteHeadRevision ||
+          latestRoRevision.revision !== latestSiteHeadRevision.revision)
+      ) {
         totalNotApprovedDrawings++;
         consultantData[consultantKey].notApproved++;
         counted = true;
@@ -2111,7 +2106,13 @@ console.log("userDepartment", userDepartment);
 exports.getHardCopyAnalysisCountForConsultant = catchAsync(
   async (req, res, next) => {
     const { siteId } = req.params;
-    const { selectTimePeriod, month, year, folderId, designConsultant } = req.query;
+    const {
+      selectTimePeriod,
+      month,
+      year,
+      folderId,
+      designConsultant,
+    } = req.query;
     const userId = req.user.id;
 
     // Step 1: Calculate date range if provided
@@ -2123,10 +2124,25 @@ exports.getHardCopyAnalysisCountForConsultant = catchAsync(
         parseInt(year),
       ));
     }
+    //     const userId = req.user.id;
 
+    //     // Step 2: Fetch user role
+    //     const user = await User.findById(userId).select("role").exec();
+    //     if (!user) {
+    //       return next(new Error("User not found."));
+    //     }
+    //     const userRole = user.role;
+
+    //     // Step 3: Build base query
+    //     const baseQuery = {
+    //       siteId,
+    //       designDrawingConsultant: userId,
+    //       drawingStatus: "Approval",
+    //     };
     // Step 2: Build base query
     const baseQuery = {
       siteId,
+      designDrawingConsultant: userId,
       drawingStatus: "Approval",
     };
 
@@ -2139,9 +2155,9 @@ exports.getHardCopyAnalysisCountForConsultant = catchAsync(
     }
 
     // ✅ Apply consultant filter ONLY if provided
-    if (designConsultant) {
-      baseQuery.designDrawingConsultant = designConsultant;
-    }
+    // if (designConsultant) {
+    //   baseQuery.designDrawingConsultant = designConsultant;
+    // }
 
     // Step 3: Fetch data (NO match in populate)
     const data = await ArchitectureToRoRegister.find(baseQuery)
@@ -2297,14 +2313,14 @@ exports.getHardCopyAnalysisCountForRo = catchAsync(async (req, res, next) => {
   // };
   const { consultantId } = req.query;
 
-const baseQuery = {
-  siteId,
-  drawingStatus: "Approval",
-};
+  const baseQuery = {
+    siteId,
+    drawingStatus: "Approval",
+  };
 
-if (consultantId && consultantId !== "all") {
-  baseQuery.designDrawingConsultant = consultantId;
-} 
+  if (consultantId && consultantId !== "all") {
+    baseQuery.designDrawingConsultant = consultantId;
+  }
 
   if (selectTimePeriod) {
     baseQuery.creationDate = { $gte: startDate, $lt: endDate };

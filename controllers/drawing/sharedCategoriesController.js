@@ -250,10 +250,18 @@ exports.getRegistersByCategoryAndState = catchAsync(async (req, res, next) => {
   }
 
   // 3️⃣ Build query condition
-  const baseMatch = {
-    siteId: siteId,
-    category: { $in: allCategories },
-  };
+  // const baseMatch = {
+  //   siteId: siteId,
+  //   category: { $in: allCategories },
+  // };
+  // 3️⃣ Build query condition
+const baseMatch = {
+  siteId: siteId,
+  category: { $in: allCategories },
+
+  // ✅ Exclude records where consultant is same as sharedConsultant
+  designDrawingConsultant: { $ne: sharedConsultant },
+};
 
   if (type === "Pending") {
     // Pending => acceptedArchitectRevisions array is empty
